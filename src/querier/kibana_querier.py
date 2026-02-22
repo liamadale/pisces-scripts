@@ -594,7 +594,12 @@ def list_cities(time_range: str = "now-7d") -> None:
     body = {
         "size": 0,
         "query": {
-            "range": {"@timestamp": {"gte": time_range, "lte": "now"}}
+            "bool": {
+                "must": [
+                    {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+                    {"exists": {"field": "alert.severity"}},
+                ]
+            }
         },
         "aggs": {
             "cities": {
