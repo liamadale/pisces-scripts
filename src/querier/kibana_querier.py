@@ -582,6 +582,54 @@ def _search_again_prompt(current: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# City listing
+# ---------------------------------------------------------------------------
+
+def list_cities(time_range: str = "now-30d") -> None:
+    """Query a terms aggregation on clientID and print all known cities."""
+    body = {
+        "size": 0,
+        "query": {
+            "range": {"@timestamp": {"gte": time_range, "lte": "now"}}
+        },
+        "aggs": {
+            "cities": {
+                "terms": {
+                    "field": "clientID",
+                    "size": 500,
+                    "order": {"_count": "desc"},
+                }
+            }
+        },
+    }
+    params = {"path": f"{INDEX}/_search", "method": "POST"}
+
+    console.print(f"[dim]Querying clientID values ({time_range})...[/dim]")
+    raw = query_kibana(body, params)
+    if raw is None:
+        return
+
+    buckets = raw.get("aggregations", {}).get("cities", {}).get("buckets", [])
+    if not buckets:
+        console.print("[yellow]No cities found in the given time range.[/yellow]")
+        return
+
+    table = Table(title=f"Cities on ELK stack (last {time_range.replace('now-', '')})",
+                  box=box.SIMPLE_HEAVY)
+    table.add_column("clientID", style="cyan")
+    table.add_column("Alert count", justify="right")
+
+    for bucket in buckets:
+        table.add_row(bucket["key"], str(bucket["doc_count"]))
+
+    console.print(table)
+    console.print(
+        f"[dim]{len(buckets)} city/clientID value(s) found. "
+        f"Pass one or more to --cities as a comma-separated list.[/dim]"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Cache helpers
 # ---------------------------------------------------------------------------
 
@@ -635,12 +683,18 @@ def main() -> None:
                         help="Use cached Kibana response if available")
     parser.add_argument("--dump-query", action="store_true",
                         help="Print the ES query body and exit (for debugging)")
+    parser.add_argument("--list-cities", action="store_true",
+                        help="List all clientID values (cities) seen on the ELK stack and exit")
     args = parser.parse_args()
 
     console.print(BANNER)
 
     load_dotenv()
     setup_dns()
+
+    if args.list_cities:
+        list_cities()
+        return
 
     # Parse cities
     cities: list[str] | None = None
