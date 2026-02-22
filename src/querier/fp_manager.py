@@ -225,7 +225,7 @@ def _infer_clauses_from_alert(alert: dict, category: str) -> list[dict]:
     return clauses
 
 
-def create_filter_interactive(alert: dict | None = None, author: str = "analyst") -> None:
+def create_filter_interactive(alert: dict | None = None, author: str = "analyst", comment_hint: str = "") -> None:
     """Guide analyst through creating a new FP filter, optionally seeded from an alert."""
     console.print("\n[bold yellow]=== False Positive Filter Creator ===[/bold yellow]")
 
@@ -282,6 +282,17 @@ def create_filter_interactive(alert: dict | None = None, author: str = "analyst"
     if not clauses:
         console.print("[red]No clauses provided. Aborting.[/red]")
         return
+
+    # Comment prompt — shown after clauses are confirmed
+    if comment_hint:
+        raw_comment = input(f"Comment [{comment_hint}]: ").strip()
+        comment = raw_comment if raw_comment else comment_hint
+    else:
+        comment = input("Comment (optional, Enter to skip): ").strip()
+
+    if comment:
+        for clause in clauses:
+            clause["comment"] = comment
 
     # Preview
     fpath = filter_file_path(category, subcategory)
