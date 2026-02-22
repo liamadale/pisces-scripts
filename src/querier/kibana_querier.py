@@ -499,15 +499,19 @@ def interactive_loop(alerts: list[dict], search_params: dict) -> None:
 
 def _run_query(search_params: dict) -> list[dict]:
     """Build + execute query from a params dict, return deduped alerts (empty on error)."""
-    # Reload filters from disk on every query so filters written mid-session take effect.
-    filter_result = load_filters(FILTERS_DIR)
-    must_not = filter_result["must_not"]
-    fcount = filter_result["filter_count"]
-    console.print(f"[dim]Loading false positive filters...[/dim]")
-    console.print(f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]")
-    if filter_result["errors"]:
-        for err in filter_result["errors"]:
-            console.print(f"[yellow]Filter warning: {err}[/yellow]")
+    if search_params.get("no_filters"):
+        must_not: list = []
+        console.print("[yellow]--no-filters: all false positive filters disabled[/yellow]")
+    else:
+        # Reload filters from disk on every query so filters written mid-session take effect.
+        filter_result = load_filters(FILTERS_DIR)
+        must_not = filter_result["must_not"]
+        fcount = filter_result["filter_count"]
+        console.print(f"[dim]Loading false positive filters...[/dim]")
+        console.print(f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]")
+        if filter_result["errors"]:
+            for err in filter_result["errors"]:
+                console.print(f"[yellow]Filter warning: {err}[/yellow]")
 
     cities: list[str] | None = None
     if search_params["cities"] and search_params["cities"].lower() != "all":
@@ -685,6 +689,8 @@ def main() -> None:
                         help="Print the ES query body and exit (for debugging)")
     parser.add_argument("--list-cities", action="store_true",
                         help="List all clientID values (cities) seen on the ELK stack and exit")
+    parser.add_argument("--no-filters", action="store_true",
+                        help="Skip all YAML false positive filters (useful for debugging empty results)")
     args = parser.parse_args()
 
     console.print(BANNER)
@@ -711,22 +717,28 @@ def main() -> None:
         "min_bytes": args.min_bytes,
         "protocol": args.protocol,
         "limit": args.limit,
+        "no_filters": args.no_filters,
     }
 
     # Load filters for the initial fetch / --dump-query
-    filter_result = load_filters(FILTERS_DIR)
-    console.print("[dim]Loading false positive filters...[/dim]")
-    console.print(
-        f"[dim]Loaded {filter_result['filter_count']} filter file(s) → "
-        f"{len(filter_result['must_not'])} must_not clause(s)[/dim]"
-    )
-    if filter_result["errors"]:
-        for err in filter_result["errors"]:
-            console.print(f"[yellow]Filter warning: {err}[/yellow]")
+    if args.no_filters:
+        must_not: list = []
+        console.print("[yellow]--no-filters: all false positive filters disabled[/yellow]")
+    else:
+        filter_result = load_filters(FILTERS_DIR)
+        must_not = filter_result["must_not"]
+        console.print("[dim]Loading false positive filters...[/dim]")
+        console.print(
+            f"[dim]Loaded {filter_result['filter_count']} filter file(s) → "
+            f"{len(must_not)} must_not clause(s)[/dim]"
+        )
+        if filter_result["errors"]:
+            for err in filter_result["errors"]:
+                console.print(f"[yellow]Filter warning: {err}[/yellow]")
 
     # Build query (used for --dump-query and initial fetch)
     body, params = build_query(
-        must_not=filter_result["must_not"],
+        must_not=must_not,
         time_range=search_params["time_range"],
         severity=search_params["severity"],
         cities=cities,
