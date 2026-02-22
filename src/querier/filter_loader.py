@@ -77,7 +77,10 @@ def load_filters(
                 errors.append(f"{fpath}: 'must_not' must be a list")
                 continue
 
-            must_not_clauses.extend(clauses)
+            for entry in clauses:
+                if isinstance(entry, dict) and "comment" in entry:
+                    entry = {k: v for k, v in entry.items() if k != "comment"}
+                must_not_clauses.append(entry)
             filter_count += 1
 
     return {
