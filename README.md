@@ -1,3 +1,5 @@
+![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-white.png)
+
 # PISCES SOC Analyst Toolkit
 
 A Python-based security operations toolkit for querying, filtering, enriching, and triaging Suricata IDS alerts from the PISCES program dataset. Built to reduce false positive noise through analyst-maintained YAML filters and structured threat intelligence enrichment.
@@ -62,6 +64,8 @@ KIBANA_USERNAME=your_username
 KIBANA_PASSWORD=your_password
 GREYNOISE_API_KEY=your_greynoise_key
 ABUSEIPDB_API_KEY=your_abuseipdb_key
+SHODAN_API_KEY=your_shodan_key
+VIRUSTOTAL_API_KEY=your_virustotal_key
 MANTIS_USERNAME=your_mantis_username
 MANTIS_PASSWORD=your_mantis_password
 MANTIS_API_URL=your_mantis_api_url
