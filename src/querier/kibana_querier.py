@@ -28,69 +28,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from rich.console import Console
 from rich.table import Table
 from rich import box
-from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.querier.filter_loader import load_filters
+from src.utils.banner import BANNER
 from src.utils.dns import setup_dns
 
 console = Console()
-
-def _make_banner() -> Text:
-    _BODY_SPLIT = 21  # blue | red boundary for lines 3-13
-    _TEXT_SPLIT = 57  # red | green boundary for lines 6-13
-    _TAIL_SPLIT = 31  # blue | red boundary for lines 14-17
-
-    _lines = [
-        "\n"
-        # 0-2: pure blue
-        "              ███████",
-        "          ███████████",
-        # 2-5: blue | red
-        "        ████████ ████    ████████████",
-        "      ███████████████  ███████     ██████",
-        "     ███████████████     ███         ██████",
-        "  █████████████████                   █  ████",
-        # 6-13: blue | red | green
-        " ██ ████████   ███                     █ █████           ██████████    ██     █████████     ██████████   ██████████    █████████",
-        "███████████   ███                      █  █████          ██       ██   ██   ███           ███       ██   ██          ███",
-        "██████████   ████                      █  ██████         ██       ███  ██   ███          ██              ██          ███",
-        "█████████   ██ █                       █  ██████   █     ██       ██   ██     ██████     ██              █████████     ██████",
-        "   ██████  ██                      ██ █   ██████ ███     ██████████    ██           ███  ██              ██                  ███",
-        "    █████  ██                     █████   ██████ ███     ██            ██            ██  ███        ██   ██                   ██",
-        "    █████  ██                     ███    ███████ ██      ██            ██   ████    ███    ████   ████   ██          ████    ███",
-        "     █████ ██                     ███   ██████████       ██            ██      █████          █████      ██████████     █████",
-        # 14-17: blue | red
-        "       ████ ██                  ███████████████ █",
-        "        ███████         ███    ███████████████",
-        "           █████      ███████  ██████████████",
-        "              █████████████    ████ ████████",
-        # 18-19: pure red
-        "                               ██████████",
-        "                               ███████",
-    ]
-
-    t = Text()
-    for i, line in enumerate(_lines):
-        if i < 2:
-            t.append(line, style="blue")
-        elif i < 6:
-            t.append(line[:_BODY_SPLIT], style="blue")
-            t.append(line[_BODY_SPLIT:], style="red")
-        elif i < 14:
-            t.append(line[:_BODY_SPLIT], style="blue")
-            t.append(line[_BODY_SPLIT:_TEXT_SPLIT], style="red")
-            t.append(line[_TEXT_SPLIT:], style="white")
-        elif i < 18:
-            t.append(line[:_TAIL_SPLIT], style="blue")
-            t.append(line[_TAIL_SPLIT:], style="red")
-        else:
-            t.append(line, style="red")
-        t.append("\n")
-    return t
-
-BANNER = _make_banner()
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FILTERS_DIR = os.path.join(_BASE, "filters")
