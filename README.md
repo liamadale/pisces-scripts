@@ -1,4 +1,4 @@
-![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-Logo-Full-PNG.png)
+![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-white.png)
 
 # PISCES SOC Analyst Toolkit
 
