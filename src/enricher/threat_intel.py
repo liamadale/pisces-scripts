@@ -3,10 +3,12 @@
 Threat intelligence enrichment orchestrator.
 
 Pipeline:
-  1. GreyNoise  →  benign: offer FP filter, stop
-                   malicious: run AbuseIPDB for corroboration
-                   not_found: run AbuseIPDB
+  1. GreyNoise  →  benign: offer FP filter, fall through to URL block
+                   malicious/not_found: continue
   2. AbuseIPDB  →  display raw data
+  3. Shodan     →  display ports, vulns, org
+  4. VirusTotal →  display detection stats
+  5. URLs       →  always printed
 
 Standalone:
     python src/enricher/threat_intel.py --ip 1.2.3.4
@@ -24,13 +26,13 @@ from rich import box
 # Allow running as script from project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.enricher import greynoise, abuseipdb
+from src.enricher import greynoise, abuseipdb, shodan, virustotal
 from src.utils.dns import setup_dns
 
 console = Console()
 
 
-def enrich_ip(ip: str, offer_fp: bool = True) -> dict:
+def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
     """Run the full enrichment pipeline for a single IP.
 
     Args:
@@ -43,9 +45,21 @@ def enrich_ip(ip: str, offer_fp: bool = True) -> dict:
             "ip": str,
             "greynoise": dict,
             "abuseipdb": dict | None,
+            "shodan": dict | None,
+            "virustotal": dict | None,
         }
     """
-    result: dict = {"ip": ip, "greynoise": {}, "abuseipdb": None}
+    result: dict = {
+        "ip": ip,
+        "greynoise": {},
+        "abuseipdb": None,
+        "shodan": None,
+        "virustotal": None,
+    }
+
+    if urls_only:
+        _display_urls(ip)
+        return result
 
     console.print(f"\n[bold cyan]Enriching {ip}...[/bold cyan]")
 
@@ -54,7 +68,7 @@ def enrich_ip(ip: str, offer_fp: bool = True) -> dict:
     result["greynoise"] = gn
     classification = gn["classification"]
 
-    _display_greynoise(ip, gn)
+    greynoise.display(ip, gn)
 
     if classification == "benign":
         if offer_fp:
@@ -62,7 +76,10 @@ def enrich_ip(ip: str, offer_fp: bool = True) -> dict:
             if add_fp == "y":
                 # Lazy import to avoid circular dependency when called from querier
                 from src.querier.fp_manager import create_filter_interactive
-                create_filter_interactive(alert={"src_ip": ip})
+                name = gn.get("name", "")
+                hint = f"{name} — GreyNoise benign" if name else ""
+                create_filter_interactive(alert={"src_ip": ip}, comment_hint=hint)
+        _display_urls(ip)
         return result
 
     # ---- Step 2: AbuseIPDB ----
@@ -73,50 +90,40 @@ def enrich_ip(ip: str, offer_fp: bool = True) -> dict:
 
     ab = abuseipdb.check_ip(ip)
     result["abuseipdb"] = ab
-    _display_abuseipdb(ip, ab)
+    abuseipdb.display(ip, ab)
+
+    # ---- Step 3: Shodan ----
+    sd = shodan.check_ip(ip)
+    result["shodan"] = sd
+    shodan.display(ip, sd)
+
+    # ---- Step 4: VirusTotal ----
+    vt = virustotal.check_ip(ip)
+    result["virustotal"] = vt
+    virustotal.display(ip, vt)
+
+    # ---- Step 5: Reference URLs (always) ----
+    _display_urls(ip)
 
     return result
 
 
-def _display_greynoise(ip: str, gn: dict) -> None:
-    classification = gn["classification"]
-    color = {"benign": "green", "malicious": "red"}.get(classification, "yellow")
+def _display_urls(ip: str) -> None:
+    """Print reference links for all enrichment services."""
+    table = Table(title="Reference Links", box=None, show_header=False, padding=(0, 2))
+    table.add_column("Service", style="dim")
+    table.add_column("URL", style="blue")
 
-    table = Table(title=f"GreyNoise — {ip}", box=box.SIMPLE)
-    table.add_column("Field", style="cyan")
-    table.add_column("Value")
+    services = [
+        ("GreyNoise", greynoise.URL),
+        ("AbuseIPDB", abuseipdb.URL),
+        ("Shodan", shodan.URL),
+        ("VirusTotal", virustotal.URL),
+    ]
+    for name, url_template in services:
+        table.add_row(name, url_template.format(ip=ip))
 
-    table.add_row("Classification", f"[{color}]{classification}[/{color}]")
-    if gn.get("name"):
-        table.add_row("Name", gn["name"])
-    if gn.get("reason"):
-        table.add_row("Reason", gn["reason"])
-
-    console.print(table)
-
-
-def _display_abuseipdb(ip: str, ab: dict) -> None:
-    if ab.get("error"):
-        console.print(f"[red]AbuseIPDB error: {ab['error']}[/red]")
-        return
-
-    score = ab["score"]
-    score_color = "green" if score < 25 else ("yellow" if score < 75 else "red")
-
-    table = Table(title=f"AbuseIPDB — {ip}", box=box.SIMPLE)
-    table.add_column("Field", style="cyan")
-    table.add_column("Value")
-
-    table.add_row("Confidence Score", f"[{score_color}]{score}%[/{score_color}]")
-    table.add_row("Total Reports", str(ab["total_reports"]))
-    table.add_row("Country", ab["country"] or "—")
-    table.add_row("ISP", ab["isp"] or "—")
-    table.add_row("Domain", ab["domain"] or "—")
-    table.add_row("Usage Type", ab["usage_type"] or "—")
-    table.add_row("Last Reported", ab["last_reported"] or "—")
-    if ab["is_tor"]:
-        table.add_row("Tor Node", "[red]YES[/red]")
-
+    console.print()
     console.print(table)
 
 
@@ -124,12 +131,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES Threat Intel Enrichment")
     parser.add_argument("--ip", required=True, help="IP address to enrich")
     parser.add_argument("--no-fp", action="store_true", help="Skip FP filter offer")
+    parser.add_argument("--urls-only", action="store_true", help="Print reference URLs without making any API calls")
     args = parser.parse_args()
 
     load_dotenv()
     setup_dns()
 
-    enrich_ip(args.ip, offer_fp=not args.no_fp)
+    enrich_ip(args.ip, offer_fp=not args.no_fp, urls_only=args.urls_only)
 
 
 if __name__ == "__main__":
