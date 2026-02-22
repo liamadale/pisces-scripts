@@ -1,0 +1,18 @@
+categories:
+  ips:
+    subcategories:
+    - known_scanners
+    - internal_ranges
+    - network-misconfigurations
+    - normal-flagged-traffic
+  signatures:
+    subcategories:
+    - et_scan_suppression
+    - dns_noise
+    - network-misconfiguration
+  ports:
+    subcategories:
+    - common_services
+  composite:
+    subcategories:
+    - bonney_lake_internal
