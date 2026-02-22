@@ -28,6 +28,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from rich.console import Console
 from rich.table import Table
 from rich import box
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
