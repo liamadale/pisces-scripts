@@ -191,10 +191,10 @@ def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
         console.print(f"[red]Mantis search request failed: {exc}[/red]")
         return []
 
-    return _parse_scrape_results(resp.text, base_url=mantis_url)
+    return _parse_scrape_results(resp.text, base_url=mantis_url, query=query)
 
 
-def _parse_scrape_results(html: str, base_url: str) -> list[dict]:
+def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dict]:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
     results = []
@@ -227,6 +227,11 @@ def _parse_scrape_results(html: str, base_url: str) -> list[dict]:
                     summary = a.text.strip()
 
         if not issue_id:
+            continue
+
+        # Guard against view_all_bug_page returning an unfiltered default view:
+        # require the query to appear in the summary if we have one.
+        if query and summary and query.lower() not in summary.lower():
             continue
 
         # Pull status and last-updated from their cells by position
