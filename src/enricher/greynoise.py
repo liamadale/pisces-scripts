@@ -6,9 +6,15 @@ Returns classification: benign | malicious | not_found
 
 import os
 import requests
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 
 _BASE_URL = "https://api.greynoise.io/v3/community"
+URL = "https://viz.greynoise.io/ip/{ip}"
+
+console = Console()
 
 
 def check_ip(ip: str) -> dict:
@@ -67,3 +73,21 @@ def check_ip(ip: str) -> dict:
         "reason": data.get("message", ""),
         "raw": data,
     }
+
+
+def display(ip: str, data: dict) -> None:
+    """Render a Rich table for GreyNoise results."""
+    classification = data["classification"]
+    color = {"benign": "green", "malicious": "red"}.get(classification, "yellow")
+
+    table = Table(title=f"GreyNoise — {ip}", box=box.SIMPLE)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+
+    table.add_row("Classification", f"[{color}]{classification}[/{color}]")
+    if data.get("name"):
+        table.add_row("Name", data["name"])
+    if data.get("reason"):
+        table.add_row("Reason", data["reason"])
+
+    console.print(table)

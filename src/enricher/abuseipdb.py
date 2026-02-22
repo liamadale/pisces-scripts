@@ -6,9 +6,15 @@ Returns raw API data for analyst interpretation — no threshold logic applied.
 
 import os
 import requests
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 
 _BASE_URL = "https://api.abuseipdb.com/api/v2/check"
+URL = "https://www.abuseipdb.com/check/{ip}"
+
+console = Console()
 
 
 def check_ip(ip: str, max_age_days: int = 90) -> dict:
@@ -59,6 +65,32 @@ def check_ip(ip: str, max_age_days: int = 90) -> dict:
         "raw": payload,
         "error": None,
     }
+
+
+def display(ip: str, data: dict) -> None:
+    """Render a Rich table for AbuseIPDB results."""
+    if data.get("error"):
+        console.print(f"[dim]AbuseIPDB: {data['error']}[/dim]")
+        return
+
+    score = data["score"]
+    score_color = "green" if score < 25 else ("yellow" if score < 75 else "red")
+
+    table = Table(title=f"AbuseIPDB — {ip}", box=box.SIMPLE)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+
+    table.add_row("Confidence Score", f"[{score_color}]{score}%[/{score_color}]")
+    table.add_row("Total Reports", str(data["total_reports"]))
+    table.add_row("Country", data["country"] or "—")
+    table.add_row("ISP", data["isp"] or "—")
+    table.add_row("Domain", data["domain"] or "—")
+    table.add_row("Usage Type", data["usage_type"] or "—")
+    table.add_row("Last Reported", data["last_reported"] or "—")
+    if data["is_tor"]:
+        table.add_row("Tor Node", "[red]YES[/red]")
+
+    console.print(table)
 
 
 def _error_result(msg: str) -> dict:
