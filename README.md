@@ -1,3 +1,5 @@
+![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-Logo-Full-PNG.png)
+
 # PISCES SOC Analyst Toolkit
 
 A Python-based security operations toolkit for querying, filtering, enriching, and triaging Suricata IDS alerts from the PISCES program dataset. Built to reduce false positive noise through analyst-maintained YAML filters and structured threat intelligence enrichment.
