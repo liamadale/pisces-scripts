@@ -37,6 +37,61 @@ from src.utils.dns import setup_dns
 
 console = Console()
 
+def _make_banner() -> Text:
+    _BODY_SPLIT = 21  # blue | red boundary for lines 3-13
+    _TEXT_SPLIT = 57  # red | green boundary for lines 6-13
+    _TAIL_SPLIT = 31  # blue | red boundary for lines 14-17
+
+    _lines = [
+        "\n"
+        # 0-2: pure blue
+        "              ███████",
+        "          ███████████",
+        # 2-5: blue | red
+        "        ████████ ████    ████████████",
+        "      ███████████████  ███████     ██████",
+        "     ███████████████     ███         ██████",
+        "  █████████████████                   █  ████",
+        # 6-13: blue | red | green
+        " ██ ████████   ███                     █ █████           ██████████    ██     █████████     ██████████   ██████████    █████████",
+        "███████████   ███                      █  █████          ██       ██   ██   ███           ███       ██   ██          ███",
+        "██████████   ████                      █  ██████         ██       ███  ██   ███          ██              ██          ███",
+        "█████████   ██ █                       █  ██████   █     ██       ██   ██     ██████     ██              █████████     ██████",
+        "   ██████  ██                      ██ █   ██████ ███     ██████████    ██           ███  ██              ██                  ███",
+        "    █████  ██                     █████   ██████ ███     ██            ██            ██  ███        ██   ██                   ██",
+        "    █████  ██                     ███    ███████ ██      ██            ██   ████    ███    ████   ████   ██          ████    ███",
+        "     █████ ██                     ███   ██████████       ██            ██      █████          █████      ██████████     █████",
+        # 14-17: blue | red
+        "       ████ ██                  ███████████████ █",
+        "        ███████         ███    ███████████████",
+        "           █████      ███████  ██████████████",
+        "              █████████████    ████ ████████",
+        # 18-19: pure red
+        "                               ██████████",
+        "                               ███████",
+    ]
+
+    t = Text()
+    for i, line in enumerate(_lines):
+        if i < 2:
+            t.append(line, style="blue")
+        elif i < 6:
+            t.append(line[:_BODY_SPLIT], style="blue")
+            t.append(line[_BODY_SPLIT:], style="red")
+        elif i < 14:
+            t.append(line[:_BODY_SPLIT], style="blue")
+            t.append(line[_BODY_SPLIT:_TEXT_SPLIT], style="red")
+            t.append(line[_TEXT_SPLIT:], style="white")
+        elif i < 18:
+            t.append(line[:_TAIL_SPLIT], style="blue")
+            t.append(line[_TAIL_SPLIT:], style="red")
+        else:
+            t.append(line, style="red")
+        t.append("\n")
+    return t
+
+BANNER = _make_banner()
+
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FILTERS_DIR = os.path.join(_BASE, "filters")
 
@@ -109,7 +164,7 @@ def build_query(
         must_clauses.append({"range": {"flow.bytes_toserver": {"gte": min_bytes}}})
 
     if protocol:
-        must_clauses.append({"term": {"proto": protocol.lower()}})
+        must_clauses.append({"term": {"app_proto": protocol.lower()}})
 
     body = {
         "size": limit,
@@ -129,7 +184,7 @@ def build_query(
             "src_port",
             "dest_ip",
             "dest_port",
-            "proto",
+            "app_proto",
             "flow.bytes_toserver",
             "flow.bytes_toclient",
             "flow_id",
@@ -205,7 +260,7 @@ def parse_hits(raw: dict) -> list[dict]:
             "src_port": src.get("src_port"),
             "dest_ip": src.get("dest_ip", ""),
             "dest_port": src.get("dest_port"),
-            "proto": src.get("proto", ""),
+            "proto": src.get("app_proto", ""),
             "bytes_toserver": src.get("flow", {}).get("bytes_toserver"),
             "bytes_toclient": src.get("flow", {}).get("bytes_toclient"),
             "flow_id": src.get("flow_id"),
@@ -334,7 +389,7 @@ def display_alerts(alerts: list[dict]) -> None:
             _fmt_bytes(alert.get("bytes_toserver")),
             alert["dest_ip"],
             str(alert["dest_port"]) if alert.get("dest_port") is not None else "—",
-            alert.get("proto") or "—",
+            alert.get("proto") or "—",  # keyed from app_proto
             _fmt_bytes(alert.get("bytes_toclient")),
             str(alert["flow_id"]) if alert.get("flow_id") is not None else "—",
         ]
@@ -354,10 +409,11 @@ def display_alerts(alerts: list[dict]) -> None:
 
 def _confirm_exit() -> bool:
     """Ask the analyst to confirm exit. Returns True if confirmed."""
-    console.print("\n  [bold red]CTRL+C[/bold red] again to exit / [bold green]Enter[/bold green] to continue:", end=" ")
+    console.print("\n  [bold red]CTRL+C[/bold red] again to exit / [bold green]Enter[/bold green] to continue", end=" ")
     try:
         input()
     except (KeyboardInterrupt, EOFError):
+        print()
         return True
     return False
 
@@ -373,7 +429,7 @@ def _prompt(text: str) -> str:
         raise
 
 
-def interactive_loop(alerts: list[dict], search_params: dict, must_not: list) -> None:
+def interactive_loop(alerts: list[dict], search_params: dict) -> None:
     """Prompt analyst for actions on each displayed alert.
 
     readline is imported at module level which:
@@ -386,8 +442,15 @@ def interactive_loop(alerts: list[dict], search_params: dict, must_not: list) ->
     from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis
     from src.mantis.mantis_submit import submit_interactive
 
+    last_alert: dict | None = None
+
     while True:
-        console.print("\n[bold cyan]Action[/bold cyan] — enter alert # / \\[r]esearch (CTRL+C to exit):")
+        if last_alert:
+            a = last_alert["alert"]
+            console.print(
+                f"[dim]↩  Last: #{last_alert['idx']} {a['signature']} | {a['src_ip']}[/dim]"
+            )
+        console.print("\n[bold cyan]Action[/bold cyan] — enter alert # / \\[r]e-search / \\[p]rint (CTRL+C to exit):")
         try:
             raw = _prompt("  > ").strip().lower()
         except KeyboardInterrupt:
@@ -397,10 +460,14 @@ def interactive_loop(alerts: list[dict], search_params: dict, must_not: list) ->
 
         if raw in ("r", "research", "search"):
             search_params = _search_again_prompt(search_params)
-            new_alerts = _run_query(search_params, must_not)
+            new_alerts = _run_query(search_params)
             if new_alerts:
                 alerts = new_alerts
                 display_alerts(alerts)
+            continue
+
+        if raw in ("p", "print"):
+            display_alerts(alerts)
             continue
 
         if not raw:
@@ -448,7 +515,14 @@ def interactive_loop(alerts: list[dict], search_params: dict, must_not: list) ->
             create_filter_interactive(alert=fp_alert)
         elif key == "m":
             dest_ip = alert.get("dest_ip", "")
-            queries = dict.fromkeys(filter(None, [src_ip, dest_ip]))
+            # Only search public IPs — private addresses appear in hundreds of
+            # tickets as victims and produce nothing but noise.
+            def _is_public(ip: str) -> bool:
+                try:
+                    return not ipaddress.ip_address(ip).is_private
+                except ValueError:
+                    return True
+            queries = dict.fromkeys(ip for ip in [src_ip, dest_ip] if ip and _is_public(ip))
             combined: list[dict] = []
             seen_ids: set[str] = set()
             for q in queries:
@@ -470,13 +544,25 @@ def interactive_loop(alerts: list[dict], search_params: dict, must_not: list) ->
             # Silently ignore unrecognised input rather than printing a confusing message
             pass
 
+        last_alert = {"idx": idx + 1, "alert": alert}
+
 
 # ---------------------------------------------------------------------------
 # Search-again helpers
 # ---------------------------------------------------------------------------
 
-def _run_query(search_params: dict, must_not: list) -> list[dict]:
+def _run_query(search_params: dict) -> list[dict]:
     """Build + execute query from a params dict, return deduped alerts (empty on error)."""
+    # Reload filters from disk on every query so filters written mid-session take effect.
+    filter_result = load_filters(FILTERS_DIR)
+    must_not = filter_result["must_not"]
+    fcount = filter_result["filter_count"]
+    console.print(f"[dim]Loading false positive filters...[/dim]")
+    console.print(f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]")
+    if filter_result["errors"]:
+        for err in filter_result["errors"]:
+            console.print(f"[yellow]Filter warning: {err}[/yellow]")
+
     cities: list[str] | None = None
     if search_params["cities"] and search_params["cities"].lower() != "all":
         cities = [c.strip() for c in search_params["cities"].split(",")]
@@ -605,6 +691,8 @@ def main() -> None:
                         help="Print the ES query body and exit (for debugging)")
     args = parser.parse_args()
 
+    console.print(BANNER)
+
     load_dotenv()
     setup_dns()
 
@@ -612,18 +700,6 @@ def main() -> None:
     cities: list[str] | None = None
     if args.cities and args.cities.lower() != "all":
         cities = [c.strip() for c in args.cities.split(",")]
-
-    # Load filters (done once — filters don't change mid-session)
-    console.print("[dim]Loading false positive filters...[/dim]")
-    filter_result = load_filters(FILTERS_DIR)
-    must_not = filter_result["must_not"]
-    fcount = filter_result["filter_count"]
-    console.print(
-        f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]"
-    )
-    if filter_result["errors"]:
-        for err in filter_result["errors"]:
-            console.print(f"[yellow]Filter warning: {err}[/yellow]")
 
     # Canonical search params dict — passed into interactive loop so [r] can mutate it
     search_params = {
@@ -637,9 +713,20 @@ def main() -> None:
         "limit": args.limit,
     }
 
+    # Load filters for the initial fetch / --dump-query
+    filter_result = load_filters(FILTERS_DIR)
+    console.print("[dim]Loading false positive filters...[/dim]")
+    console.print(
+        f"[dim]Loaded {filter_result['filter_count']} filter file(s) → "
+        f"{len(filter_result['must_not'])} must_not clause(s)[/dim]"
+    )
+    if filter_result["errors"]:
+        for err in filter_result["errors"]:
+            console.print(f"[yellow]Filter warning: {err}[/yellow]")
+
     # Build query (used for --dump-query and initial fetch)
     body, params = build_query(
-        must_not=must_not,
+        must_not=filter_result["must_not"],
         time_range=search_params["time_range"],
         severity=search_params["severity"],
         cities=cities,
@@ -682,7 +769,7 @@ def main() -> None:
     display_alerts(deduped)
 
     if not args.no_interactive:
-        interactive_loop(deduped, search_params, must_not)
+        interactive_loop(deduped, search_params)
 
 
 if __name__ == "__main__":
