@@ -585,7 +585,7 @@ def _search_again_prompt(current: dict) -> dict:
 # City listing
 # ---------------------------------------------------------------------------
 
-def list_cities(time_range: str = "now-30d") -> None:
+def list_cities(time_range: str = "now-7d") -> None:
     """Query a terms aggregation on clientID and print all known cities."""
     body = {
         "size": 0,
@@ -614,7 +614,7 @@ def list_cities(time_range: str = "now-30d") -> None:
         console.print("[yellow]No cities found in the given time range.[/yellow]")
         return
 
-    table = Table(title=f"Cities on ELK stack (last {time_range.replace('now-', '')})",
+    table = Table(title=f"Cities on ELK stack (past {time_range.replace('now-', '')})",
                   box=box.SIMPLE_HEAVY)
     table.add_column("clientID", style="cyan")
     table.add_column("Alert count", justify="right")
