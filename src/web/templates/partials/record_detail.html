@@ -1,0 +1,8 @@
+<div class="detail-grid">
+  {% for label, fn in detail_fields %}
+  <span class="dk">{{ label }}</span>
+  <span class="dv">{{ fn(record) }}</span>
+  {% endfor %}
+  <span class="dk">Freq</span>
+  <span class="dv">{{ record.get('freq', '—') }}</span>
+</div>

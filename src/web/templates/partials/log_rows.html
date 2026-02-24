@@ -1,0 +1,51 @@
+{% for rec in records %}
+{% set idx = loop.index %}
+<tr id="row-{{ idx }}">
+  <td class="num">{{ idx }}</td>
+  <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
+  <td>
+    {% set sensors = rec.get('sensors') %}
+    {% if sensors %}
+      {{ sensors | join(', ') }}
+    {% else %}
+      {{ rec.get('sensor', '—') }}
+    {% endif %}
+  </td>
+  <td>
+    <a class="ip-link" href="/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
+      {{ rec.get('src_ip', '—') }}
+    </a>
+  </td>
+  <td class="num">{{ rec.get('src_port', '—') }}</td>
+  <td>{{ rec.get('dest_ip', '—') }}</td>
+  <td class="num">{{ rec.get('dest_port', '—') }}</td>
+  <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
+  <td>
+    <button class="btn btn-sm"
+            hx-get="/api/detail/{{ log_type }}/{{ idx }}?{{ request.query_string.decode() }}"
+            hx-target="#detail-{{ idx }}"
+            hx-swap="innerHTML"
+            hx-on:click="toggleDetail('detail-{{ idx }}')"
+            title="Expand">+</button>
+    &nbsp;
+    <button class="btn btn-sm"
+            hx-post="/api/enrich/{{ rec.get('src_ip', '') }}"
+            hx-target="#enrich-{{ idx }}"
+            hx-swap="innerHTML"
+            title="Enrich">&#9670;</button>
+  </td>
+</tr>
+<tr class="detail-row"><td colspan="9" id="detail-{{ idx }}"></td></tr>
+<tr class="detail-row"><td colspan="9" id="enrich-{{ idx }}"></td></tr>
+{% else %}
+<tr><td colspan="9" style="text-align:center; color: var(--text-dim); padding: 16px;">No records.</td></tr>
+{% endfor %}
+
+<script>
+function toggleDetail(id) {
+  var el = document.getElementById(id);
+  if (el && el.innerHTML.trim()) {
+    el.innerHTML = "";
+  }
+}
+</script>

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}PISCES — {{ ip }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>IP Pivot: {{ ip }}</h1>
+  <button class="btn"
+          hx-post="/api/enrich/{{ ip }}"
+          hx-target="#enrich-panel"
+          hx-swap="innerHTML">Enrich</button>
+</div>
+
+<div id="enrich-panel"></div>
+
+{% for lt in log_types %}
+{% set records = results[lt] %}
+<div class="pivot-section">
+  <div class="pivot-section-header">
+    <span class="proto-tag">{{ lt }}</span>
+    <span class="count-note">{{ records|length }} record(s)</span>
+    <a class="btn btn-sm" href="/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
+      Full view →
+    </a>
+  </div>
+
+  {% if records %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="sortable">Time</th>
+          <th class="sortable">Sensor</th>
+          <th class="sortable">Dst IP</th>
+          <th class="sortable">Dst Port</th>
+          <th class="sortable num">Freq</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        {% set idx = loop.index %}
+        <tr id="{{ lt }}-row-{{ idx }}">
+          <td class="num">{{ idx }}</td>
+          <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
+          <td>
+            {% set sensors = rec.get('sensors') %}
+            {% if sensors %}{{ sensors | join(', ') }}{% else %}{{ rec.get('sensor', '—') }}{% endif %}
+          </td>
+          <td>{{ rec.get('dest_ip', '—') }}</td>
+          <td class="num">{{ rec.get('dest_port', '—') }}</td>
+          <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
+          <td>
+            <button class="btn btn-sm"
+                    hx-get="/api/detail/{{ lt }}/{{ idx }}?src_ip={{ ip }}&{{ request.query_string.decode() }}"
+                    hx-target="#{{ lt }}-detail-{{ idx }}"
+                    hx-swap="innerHTML"
+                    title="Expand">+</button>
+          </td>
+        </tr>
+        <tr class="detail-row" id="{{ lt }}-detail-{{ idx }}"></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No {{ lt }} records for this IP in the selected window.</p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

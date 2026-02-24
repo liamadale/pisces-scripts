@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}PISCES — {{ log_type }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ log_type }}</h1>
+  <span class="count-note" id="row-count">{{ records|length }} record(s)</span>
+</div>
+
+{# Protocol-specific filter form (only shown if the module has extra params) #}
+{% if extra_keys %}
+<form class="filter-form"
+      hx-post="/api/search/{{ log_type }}?{{ request.query_string.decode() }}"
+      hx-target="#log-tbody"
+      hx-swap="innerHTML"
+      hx-indicator="#search-spinner">
+  {% for key in extra_keys %}
+  <div class="field">
+    <label>{{ key.replace('_', ' ').replace(log_type ~ ' ', '') }}</label>
+    <input type="text" name="{{ key }}"
+           value="{{ search_params.get(key, '') or '' }}"
+           placeholder="any">
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Filter</button>
+  <span class="htmx-indicator" id="search-spinner">Searching…</span>
+</form>
+{% endif %}
+
+<div class="table-wrap">
+  <table id="log-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th class="sortable">Time</th>
+        <th class="sortable">Sensor</th>
+        <th class="sortable">Src IP</th>
+        <th class="sortable">Src Port</th>
+        <th class="sortable">Dst IP</th>
+        <th class="sortable">Dst Port</th>
+        <th class="sortable num">Freq</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody">
+      {% include "partials/log_rows.html" %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

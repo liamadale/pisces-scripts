@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}PISCES — Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Cross-Protocol IP Activity</h1>
+  <span class="count-note">{{ rows|length }} unique source IP(s)</span>
+</div>
+<p class="subtitle">
+  Each row is an IP seen across all Zeek log types in the selected window.
+  Click a cell count to drill into that protocol. Click an IP to pivot.
+</p>
+
+{% if rows %}
+<div class="table-wrap">
+  <table id="overview-table">
+    <thead>
+      <tr>
+        <th class="sortable">IP Address</th>
+        {% for lt in log_types %}
+        <th class="sortable num">{{ lt }}</th>
+        {% endfor %}
+        <th class="sortable num">TOTAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <a class="ip-link" href="/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">
+            {{ row.src_ip }}
+          </a>
+        </td>
+        {% for lt in log_types %}
+        {% set count = row.per_protocol[lt] %}
+        <td class="num {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
+          {% if count > 0 %}
+          <a href="/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
+            {{ count }}
+          </a>
+          {% else %}
+          0
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="num" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-note">No results for the selected search parameters. Try expanding the time range or removing filters.</p>
+{% endif %}
+{% endblock %}

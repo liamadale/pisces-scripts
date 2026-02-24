@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PISCES{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/">PISCES</a>
+  {% for lt in MODULES %}
+  <a href="/log/{{ lt }}"
+     class="{% if request.path == '/log/' ~ lt %}active{% endif %}">{{ lt }}</a>
+  {% endfor %}
+  <div class="spacer"></div>
+</nav>
+
+{# Global search controls — persisted across pages via form GET #}
+<form class="search-bar" method="GET" action="{{ request.path }}" id="global-search">
+  <label>Time</label>
+  <select name="time_range" onchange="this.form.submit()">
+    {% for tr in TIME_RANGES %}
+    <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
+      {{ tr.replace('now-', '') }}
+    </option>
+    {% endfor %}
+  </select>
+
+  <div class="sep"></div>
+
+  <label>Sensor</label>
+  <input type="text" name="sensor"
+         value="{{ request.values.get('sensor', 'all') }}"
+         placeholder="all">
+
+  <div class="sep"></div>
+
+  <label>Src IP</label>
+  <input type="text" name="src_ip"
+         value="{{ request.values.get('src_ip', '') }}"
+         placeholder="any">
+
+  <div class="sep"></div>
+
+  <label>Direction</label>
+  <select name="direction">
+    <option value="" {% if not request.values.get('direction') %}selected{% endif %}>any</option>
+    {% for d in ['inbound', 'outbound', 'internal', 'external'] %}
+    <option value="{{ d }}" {% if request.values.get('direction') == d %}selected{% endif %}>{{ d }}</option>
+    {% endfor %}
+  </select>
+
+  <div class="sep"></div>
+
+  <label>Limit</label>
+  <input type="number" name="limit"
+         value="{{ request.values.get('limit', 100) }}"
+         min="10" max="5000">
+
+  <div class="sep"></div>
+
+  <label class="check-label">
+    <input type="checkbox" name="public_only" value="on"
+           {% if request.values.get('public_only') in ('on', 'true', '1') %}checked{% endif %}>
+    Public&nbsp;only
+  </label>
+
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+{# Client-side sortable table — vanilla JS, no deps #}
+<script>
+(function () {
+  function sortTable(th) {
+    const table = th.closest("table");
+    const tbody = table.querySelector("tbody");
+    const col = Array.from(th.parentElement.children).indexOf(th);
+    const asc = th.classList.toggle("sort-asc");
+    if (!asc) th.classList.add("sort-desc"); else th.classList.remove("sort-desc");
+
+    // Clear sibling sort indicators
+    th.parentElement.querySelectorAll("th").forEach(t => {
+      if (t !== th) { t.classList.remove("sort-asc", "sort-desc"); }
+    });
+
+    const rows = Array.from(tbody.querySelectorAll("tr:not(.detail-row)"));
+    rows.sort((a, b) => {
+      const av = a.children[col] ? a.children[col].dataset.val || a.children[col].textContent.trim() : "";
+      const bv = b.children[col] ? b.children[col].dataset.val || b.children[col].textContent.trim() : "";
+      const an = parseFloat(av), bn = parseFloat(bv);
+      if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+    // Remove detail rows before re-appending
+    tbody.querySelectorAll("tr.detail-row").forEach(r => r.remove());
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
+  document.addEventListener("click", function (e) {
+    const th = e.target.closest("th.sortable");
+    if (th) sortTable(th);
+  });
+
+  // Toggle detail row visibility
+  document.addEventListener("htmx:afterSwap", function (e) {
+    // re-attach sort classes after HTMX partial reload
+  });
+})();
+</script>
+
+</body>
+</html>

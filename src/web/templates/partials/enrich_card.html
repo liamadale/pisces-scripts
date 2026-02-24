@@ -1,0 +1,99 @@
+{% set gn = result.get('greynoise', {}) %}
+{% set ab = result.get('abuseipdb') %}
+{% set sd = result.get('shodan') %}
+{% set vt = result.get('virustotal') %}
+{% set cls = gn.get('classification', 'unknown') %}
+
+<div class="enrich-card {{ cls }}">
+  <h3>Enrichment — {{ ip }}</h3>
+
+  {# GreyNoise #}
+  <div class="enrich-section">
+    <h4>GreyNoise
+      {% if cls == 'benign' %}
+        <span class="badge badge-green">benign</span>
+      {% elif cls == 'malicious' %}
+        <span class="badge badge-red">malicious</span>
+      {% else %}
+        <span class="badge badge-gray">{{ cls }}</span>
+      {% endif %}
+    </h4>
+    {% if gn %}
+    <div class="enrich-kv">
+      {% if gn.get('name') %}<span class="k">Name</span><span class="v">{{ gn.name }}</span>{% endif %}
+      {% if gn.get('org') %}<span class="k">Org</span><span class="v">{{ gn.org }}</span>{% endif %}
+      {% if gn.get('country') %}<span class="k">Country</span><span class="v">{{ gn.country }}</span>{% endif %}
+      {% if gn.get('tags') %}<span class="k">Tags</span><span class="v">{{ gn.tags | join(', ') }}</span>{% endif %}
+      {% if gn.get('last_seen') %}<span class="k">Last seen</span><span class="v">{{ gn.last_seen }}</span>{% endif %}
+    </div>
+    {% else %}
+    <p style="color:var(--text-dim); font-size:0.82rem;">No GreyNoise data.</p>
+    {% endif %}
+  </div>
+
+  {# AbuseIPDB #}
+  {% if ab %}
+  <div class="enrich-section">
+    <h4>AbuseIPDB</h4>
+    <div class="enrich-kv">
+      {% if ab.get('abuseConfidenceScore') is not none %}
+      <span class="k">Confidence</span>
+      <span class="v">
+        <span class="badge {% if ab.abuseConfidenceScore >= 75 %}badge-red{% elif ab.abuseConfidenceScore >= 25 %}badge-yellow{% else %}badge-green{% endif %}">
+          {{ ab.abuseConfidenceScore }}%
+        </span>
+      </span>
+      {% endif %}
+      {% if ab.get('totalReports') is not none %}<span class="k">Reports</span><span class="v">{{ ab.totalReports }}</span>{% endif %}
+      {% if ab.get('countryCode') %}<span class="k">Country</span><span class="v">{{ ab.countryCode }}</span>{% endif %}
+      {% if ab.get('isp') %}<span class="k">ISP</span><span class="v">{{ ab.isp }}</span>{% endif %}
+      {% if ab.get('domain') %}<span class="k">Domain</span><span class="v">{{ ab.domain }}</span>{% endif %}
+      {% if ab.get('usageType') %}<span class="k">Usage</span><span class="v">{{ ab.usageType }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Shodan #}
+  {% if sd %}
+  <div class="enrich-section">
+    <h4>Shodan</h4>
+    <div class="enrich-kv">
+      {% if sd.get('org') %}<span class="k">Org</span><span class="v">{{ sd.org }}</span>{% endif %}
+      {% if sd.get('isp') %}<span class="k">ISP</span><span class="v">{{ sd.isp }}</span>{% endif %}
+      {% if sd.get('country_name') %}<span class="k">Country</span><span class="v">{{ sd.country_name }}</span>{% endif %}
+      {% if sd.get('ports') %}<span class="k">Open ports</span><span class="v">{{ sd.ports | join(', ') }}</span>{% endif %}
+      {% if sd.get('vulns') %}<span class="k">CVEs</span><span class="v" style="color:var(--red)">{{ sd.vulns | join(', ') }}</span>{% endif %}
+      {% if sd.get('hostnames') %}<span class="k">Hostnames</span><span class="v">{{ sd.hostnames | join(', ') }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# VirusTotal #}
+  {% if vt %}
+  <div class="enrich-section">
+    <h4>VirusTotal</h4>
+    <div class="enrich-kv">
+      {% if vt.get('malicious') is not none %}
+      <span class="k">Malicious</span>
+      <span class="v">
+        <span class="badge {% if vt.malicious > 0 %}badge-red{% else %}badge-green{% endif %}">
+          {{ vt.malicious }}
+        </span>
+      </span>
+      {% endif %}
+      {% if vt.get('suspicious') is not none %}<span class="k">Suspicious</span><span class="v">{{ vt.suspicious }}</span>{% endif %}
+      {% if vt.get('harmless') is not none %}<span class="k">Harmless</span><span class="v">{{ vt.harmless }}</span>{% endif %}
+      {% if vt.get('as_owner') %}<span class="k">AS Owner</span><span class="v">{{ vt.as_owner }}</span>{% endif %}
+      {% if vt.get('country') %}<span class="k">Country</span><span class="v">{{ vt.country }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Reference URLs #}
+  <div class="enrich-urls">
+    <a href="{{ urls.greynoise }}" target="_blank" rel="noopener">GreyNoise ↗</a>
+    <a href="{{ urls.abuseipdb }}" target="_blank" rel="noopener">AbuseIPDB ↗</a>
+    <a href="{{ urls.shodan }}" target="_blank" rel="noopener">Shodan ↗</a>
+    <a href="{{ urls.virustotal }}" target="_blank" rel="noopener">VirusTotal ↗</a>
+  </div>
+</div>
