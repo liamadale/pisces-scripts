@@ -23,6 +23,8 @@ class RdpModule(ZeekModule):
         "zeek.rdp.client_build",
         "zeek.rdp.keyboard_layout",
         "zeek.rdp.encryption_method",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -51,6 +53,8 @@ class RdpModule(ZeekModule):
             "rdp_client_build": rdp.get("client_build", ""),
             "rdp_keyboard":    rdp.get("keyboard_layout", ""),
             "rdp_encryption":  rdp.get("encryption_method", ""),
+            "community_id":    src.get("network", {}).get("community_id", ""),
+            "direction":       src.get("network", {}).get("direction", ""),
             "_raw":            src,
         }
 
@@ -61,6 +65,21 @@ class RdpModule(ZeekModule):
             record.get("rdp_cookie", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",    lambda r: r.get("timestamp", "—")),
+        ("Sensor",       lambda r: r.get("sensor", "—")),
+        ("Src IP",       lambda r: r.get("src_ip", "—")),
+        ("Dst IP",       lambda r: r.get("dest_ip", "—") or "—"),
+        ("Cookie",       lambda r: r.get("rdp_cookie", "—") or "—"),
+        ("Result",       lambda r: r.get("rdp_result", "—") or "—"),
+        ("Security",     lambda r: r.get("rdp_security", "—") or "—"),
+        ("Client Name",  lambda r: r.get("rdp_client_name", "—") or "—"),
+        ("Build",        lambda r: r.get("rdp_client_build", "—") or "—"),
+        ("Comm ID",      lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",    lambda r: r.get("direction", "—") or "—"),
+        ("Freq",         lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -68,33 +87,26 @@ class RdpModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Cookie", no_wrap=True)
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column("Cookie", no_wrap=True, max_width=15, overflow="ellipsis")
         table.add_column("Result", no_wrap=True)
-        table.add_column("Security", no_wrap=True)
-        table.add_column("Client Name", no_wrap=True)
-        table.add_column("Build", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
+            src_ip = rec.get("src_ip", "")
+            dest_ip = rec.get("dest_ip", "")
+            flow = f"{src_ip} → {dest_ip}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
-                rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", ""),
+                flow,
                 rec.get("rdp_cookie", "") or "—",
                 rec.get("rdp_result", "") or "—",
-                rec.get("rdp_security", "") or "—",
-                rec.get("rdp_client_name", "") or "—",
-                rec.get("rdp_client_build", "") or "—",
                 str(rec["freq"]),
             )
 

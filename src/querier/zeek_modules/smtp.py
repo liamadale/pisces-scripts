@@ -23,6 +23,8 @@ class SmtpModule(ZeekModule):
         "zeek.smtp.helo",
         "zeek.smtp.last_reply",
         "zeek.smtp.tls",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -58,6 +60,8 @@ class SmtpModule(ZeekModule):
             "smtp_helo":    smtp.get("helo", ""),
             "smtp_last_reply": smtp.get("last_reply", ""),
             "smtp_tls":     smtp.get("tls"),
+            "community_id": src.get("network", {}).get("community_id", ""),
+            "direction":    src.get("network", {}).get("direction", ""),
             "_raw":         src,
         }
 
@@ -68,6 +72,21 @@ class SmtpModule(ZeekModule):
             record.get("smtp_rcptto", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",   lambda r: r.get("timestamp", "—")),
+        ("Sensor",      lambda r: r.get("sensor", "—")),
+        ("Src IP",      lambda r: r.get("src_ip", "—")),
+        ("Dst IP",      lambda r: r.get("dest_ip", "—") or "—"),
+        ("Mail From",   lambda r: r.get("smtp_mailfrom", "—") or "—"),
+        ("Rcpt To",     lambda r: r.get("smtp_rcptto", "—") or "—"),
+        ("Subject",     lambda r: r.get("smtp_subject", "—") or "—"),
+        ("TLS",         lambda r: "✓" if r.get("smtp_tls") is True else ("✗" if r.get("smtp_tls") is False else "—")),
+        ("Last Reply",  lambda r: r.get("smtp_last_reply", "—") or "—"),
+        ("Comm ID",     lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",   lambda r: r.get("direction", "—") or "—"),
+        ("Freq",        lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -75,37 +94,28 @@ class SmtpModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Helo", no_wrap=True)
-        table.add_column("Mail From", no_wrap=True)
-        table.add_column("Rcpt To", no_wrap=True)
-        table.add_column("Subject", no_wrap=True)
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column("Subject", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("TLS", justify="center", no_wrap=True)
-        table.add_column("Last Reply", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
             tls = rec.get("smtp_tls")
             tls_str = "✓" if tls is True else ("✗" if tls is False else "—")
+            src_ip = rec.get("src_ip", "")
+            dest_ip = rec.get("dest_ip", "")
+            flow = f"{src_ip} → {dest_ip}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
-                rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", ""),
-                rec.get("smtp_helo", "") or "—",
-                rec.get("smtp_mailfrom", "") or "—",
-                rec.get("smtp_rcptto", "") or "—",
+                flow,
                 rec.get("smtp_subject", "") or "—",
                 tls_str,
-                rec.get("smtp_last_reply", "") or "—",
                 str(rec["freq"]),
             )
 

@@ -21,6 +21,8 @@ class DnsModule(ZeekModule):
         "zeek.dns.rcode_name",
         "zeek.dns.answers",
         "zeek.dns.rtt",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -52,9 +54,11 @@ class DnsModule(ZeekModule):
             "query":      dns.get("query", ""),
             "qtype":      dns.get("qtype_name", ""),
             "rcode":      dns.get("rcode_name", ""),
-            "answers":    answers_str,
-            "rtt":        dns.get("rtt"),
-            "_raw":       src,
+            "answers":      answers_str,
+            "rtt":          dns.get("rtt"),
+            "community_id": src.get("network", {}).get("community_id", ""),
+            "direction":    src.get("network", {}).get("direction", ""),
+            "_raw":         src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -64,6 +68,20 @@ class DnsModule(ZeekModule):
             record.get("qtype", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",  lambda r: r.get("timestamp", "—")),
+        ("Sensor",     lambda r: r.get("sensor", "—")),
+        ("Src IP",     lambda r: r.get("src_ip", "—")),
+        ("Resolver",   lambda r: r.get("dest_ip", "—") or "—"),
+        ("Query",      lambda r: r.get("query", "—") or "—"),
+        ("Type",       lambda r: r.get("qtype", "—") or "—"),
+        ("RCode",      lambda r: r.get("rcode", "—") or "—"),
+        ("Answers",    lambda r: r.get("answers", "—") or "—"),
+        ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",  lambda r: r.get("direction", "—") or "—"),
+        ("Freq",       lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -71,35 +89,23 @@ class DnsModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
         table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Resolver", style="dim", no_wrap=True)
-        table.add_column("Query", no_wrap=True)
-        table.add_column("Type", no_wrap=True)
+        table.add_column("Query", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("RCode", no_wrap=True)
-        table.add_column("Answers", no_wrap=True)
-        table.add_column("RTT", justify="right", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
-            rtt = rec.get("rtt")
-            rtt_str = f"{float(rtt) * 1000:.1f}ms" if rtt is not None else "—"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
                 rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", "") or "—",
                 rec.get("query", "") or "—",
-                rec.get("qtype", "") or "—",
                 rec.get("rcode", "") or "—",
-                rec.get("answers", "") or "—",
-                rtt_str,
                 str(rec["freq"]),
             )
 

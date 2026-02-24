@@ -23,6 +23,8 @@ class SslModule(ZeekModule):
         "zeek.ssl.validation_status",
         "zeek.ssl.subject",
         "zeek.ssl.issuer",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -56,6 +58,8 @@ class SslModule(ZeekModule):
             "ssl_validation":    ssl.get("validation_status", ""),
             "ssl_subject":       ssl.get("subject", ""),
             "ssl_issuer":        ssl.get("issuer", ""),
+            "community_id":      src.get("network", {}).get("community_id", ""),
+            "direction":         src.get("network", {}).get("direction", ""),
             "_raw":              src,
         }
 
@@ -66,6 +70,22 @@ class SslModule(ZeekModule):
             record.get("ssl_server_name", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",   lambda r: r.get("timestamp", "—")),
+        ("Sensor",      lambda r: r.get("sensor", "—")),
+        ("Src IP",      lambda r: r.get("src_ip", "—")),
+        ("Src Port",    lambda r: str(r["src_port"]) if r.get("src_port") is not None else "—"),
+        ("Dst IP",      lambda r: r.get("dest_ip", "—") or "—"),
+        ("Dst Port",    lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—"),
+        ("SNI",         lambda r: r.get("ssl_server_name", "—") or "—"),
+        ("Version",     lambda r: r.get("ssl_version", "—") or "—"),
+        ("Established", lambda r: "✓" if r.get("ssl_established") is True else ("✗" if r.get("ssl_established") is False else "—")),
+        ("Validation",  lambda r: r.get("ssl_validation", "—") or "—"),
+        ("Comm ID",     lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",   lambda r: r.get("direction", "—") or "—"),
+        ("Freq",        lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -73,37 +93,29 @@ class SslModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("Port", justify="right", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Port", justify="right", no_wrap=True)
-        table.add_column("SNI", no_wrap=True)
-        table.add_column("Version", no_wrap=True)
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis")
+        table.add_column("SNI", no_wrap=True, max_width=30, overflow="ellipsis")
         table.add_column("Est", justify="center", no_wrap=True)
-        table.add_column("Validation", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
             est = rec.get("ssl_established")
             est_str = "✓" if est is True else ("✗" if est is False else "—")
+            src_ip = rec.get("src_ip", "")
+            dest_ip = rec.get("dest_ip", "")
+            dest_port = rec.get("dest_port")
+            flow = f"{src_ip} → {dest_ip}:{dest_port}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
-                rec.get("src_ip", ""),
-                str(rec["src_port"]) if rec.get("src_port") is not None else "—",
-                "→",
-                rec.get("dest_ip", ""),
-                str(rec["dest_port"]) if rec.get("dest_port") is not None else "—",
+                flow,
                 rec.get("ssl_server_name", "") or "—",
-                rec.get("ssl_version", "") or "—",
                 est_str,
-                rec.get("ssl_validation", "") or "—",
                 str(rec["freq"]),
             )
 

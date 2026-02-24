@@ -146,9 +146,8 @@ def _prompt(text: str) -> str:
 def _sensor_str(rec: dict) -> str:
     """Format the sensor(s) column for display."""
     sensors = rec.get("sensors")
-    if sensors:
-        return ", ".join(sensors)
-    return rec.get("sensor", "")
+    vals = sensors if sensors else ([rec["sensor"]] if rec.get("sensor") else [])
+    return ", ".join(v.removeprefix("hedgehog-") for v in vals)
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +295,7 @@ def build_base_query(
     datasets: list,
     public_only: bool = False,
     src_ip_filter: str | None = None,
+    direction: str | None = None,
 ) -> tuple:
     """Build the OpenSearch query body and request params.
 
@@ -313,6 +313,9 @@ def build_base_query(
 
     if src_ip_filter:
         must_clauses.append({"term": {"source.ip": src_ip_filter}})
+
+    if direction:
+        must_clauses.append({"term": {"network.direction": direction}})
 
     must_clauses.extend(extra_must)
 
@@ -398,6 +401,7 @@ def run_query(module, search_params: dict) -> list:
         datasets=module.DATASETS,
         public_only=search_params.get("public_only", False),
         src_ip_filter=search_params.get("src_ip"),
+        direction=search_params.get("direction"),
     )
 
     # Cache handling
@@ -485,8 +489,7 @@ def interactive_loop(records: list, search_params: dict, module) -> None:
             continue
 
         src_ip = record.get("src_ip", "")
-        hint = module.describe_record(record)
-        console.print(f"\n[bold]Record #{idx + 1}[/bold]: {hint}")
+        module.display_detail(record, idx + 1)
         console.print("  \\[e]nrich  \\[f]alse positive  \\[m]antis search  \\[t]icket  \\[s]kip")
 
         try:
@@ -563,6 +566,9 @@ def _search_again_prompt(current: dict, module) -> dict:
 
     src_raw = _ask("Src IP filter (blank to clear)", current.get("src_ip"))
     new["src_ip"] = src_raw if src_raw else None
+
+    dir_raw = _ask("Direction filter (inbound/outbound/internal/external/blank)", current.get("direction"))
+    new["direction"] = dir_raw if dir_raw else None
 
     limit_raw = _ask("Limit", current.get("limit", 500))
     try:
@@ -768,6 +774,7 @@ class ZeekModule:
 
     DATASETS: list = ["all"]
     SOURCE_FIELDS: list = []
+    DETAIL_FIELDS: list = []  # List of (label: str, value_fn: Callable[[dict], str])
 
     def build_extra_must(self, search_params: dict) -> list:
         """Return protocol-specific must clauses built from search_params."""
@@ -788,6 +795,20 @@ class ZeekModule:
     def display(self, records: list) -> None:
         """Render records as a Rich table."""
         raise NotImplementedError
+
+    def display_detail(self, record: dict, idx: int) -> None:
+        """Render a Rich Panel with every DETAIL_FIELDS field for the selected record."""
+        from rich.panel import Panel
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style="dim", no_wrap=True, min_width=12)
+        grid.add_column(overflow="fold")
+        for label, fn in self.DETAIL_FIELDS:
+            grid.add_row(label, fn(record))
+        console.print(Panel(
+            grid,
+            title=f"[bold]#{idx}[/bold]  {self.describe_record(record)}",
+            expand=False,
+        ))
 
     def add_args(self, parser) -> None:
         """Add protocol-specific argparse arguments to the shared parser."""

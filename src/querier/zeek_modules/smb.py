@@ -21,6 +21,8 @@ class SmbModule(ZeekModule):
         "zeek.smb_files.path",
         "zeek.smb_mapping.path",
         "zeek.smb_mapping.service",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -71,8 +73,10 @@ class SmbModule(ZeekModule):
             "smb_action":  smb_action,
             "smb_path":    smb_path,
             "smb_name":    smb_name,
-            "smb_service": smb_service,
-            "_raw":        src,
+            "smb_service":  smb_service,
+            "community_id": src.get("network", {}).get("community_id", ""),
+            "direction":    src.get("network", {}).get("direction", ""),
+            "_raw":         src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -82,6 +86,20 @@ class SmbModule(ZeekModule):
             record.get("smb_path", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",      lambda r: r.get("timestamp", "—")),
+        ("Sensor",         lambda r: r.get("sensor", "—")),
+        ("Src IP",         lambda r: r.get("src_ip", "—")),
+        ("Dst IP",         lambda r: r.get("dest_ip", "—") or "—"),
+        ("Type",           lambda r: r.get("smb_type", "—") or "—"),
+        ("Action/Service", lambda r: r.get("smb_action", "—") or "—"),
+        ("Path",           lambda r: r.get("smb_path", "—") or "—"),
+        ("Name",           lambda r: r.get("smb_name", "—") or "—"),
+        ("Comm ID",        lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",      lambda r: r.get("direction", "—") or "—"),
+        ("Freq",           lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -89,31 +107,24 @@ class SmbModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Type", no_wrap=True)
-        table.add_column("Action/Service", no_wrap=True)
-        table.add_column("Path", no_wrap=True)
-        table.add_column("Name", no_wrap=True)
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column("Path", no_wrap=True, max_width=30, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
+            src_ip = rec.get("src_ip", "")
+            dest_ip = rec.get("dest_ip", "")
+            flow = f"{src_ip} → {dest_ip}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
-                rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", ""),
-                rec.get("smb_type", "") or "—",
-                rec.get("smb_action", "") or "—",
+                flow,
                 rec.get("smb_path", "") or "—",
-                rec.get("smb_name", "") or "—",
                 str(rec["freq"]),
             )
 

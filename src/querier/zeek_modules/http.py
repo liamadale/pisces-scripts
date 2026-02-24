@@ -23,6 +23,8 @@ class HttpModule(ZeekModule):
         "zeek.http.status_code",
         "zeek.http.request_body_len",
         "zeek.http.response_body_len",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -55,6 +57,8 @@ class HttpModule(ZeekModule):
             "http_status":     http.get("status_code"),
             "http_req_bytes":  http.get("request_body_len"),
             "http_resp_bytes": http.get("response_body_len"),
+            "community_id":    src.get("network", {}).get("community_id", ""),
+            "direction":       src.get("network", {}).get("direction", ""),
             "_raw":            src,
         }
 
@@ -66,6 +70,22 @@ class HttpModule(ZeekModule):
             record.get("http_uri", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",   lambda r: r.get("timestamp", "—")),
+        ("Sensor",      lambda r: r.get("sensor", "—")),
+        ("Src IP",      lambda r: r.get("src_ip", "—")),
+        ("Dst IP",      lambda r: r.get("dest_ip", "—") or "—"),
+        ("Method",      lambda r: r.get("http_method", "—") or "—"),
+        ("Host",        lambda r: r.get("http_host", "—") or "—"),
+        ("URI",         lambda r: r.get("http_uri", "—") or "—"),
+        ("Status",      lambda r: str(r["http_status"]) if r.get("http_status") is not None else "—"),
+        ("Req Bytes",   lambda r: _fmt_bytes(r.get("http_req_bytes"))),
+        ("Resp Bytes",  lambda r: _fmt_bytes(r.get("http_resp_bytes"))),
+        ("Comm ID",     lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",   lambda r: r.get("direction", "—") or "—"),
+        ("Freq",        lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -73,32 +93,27 @@ class HttpModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
         table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("Method", no_wrap=True)
-        table.add_column("Host", no_wrap=True)
-        table.add_column("URI", no_wrap=True)
+        table.add_column("Request", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("Status", justify="right", no_wrap=True)
-        table.add_column("Req", justify="right", no_wrap=True)
-        table.add_column("Resp", justify="right", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
+            method = rec.get("http_method", "") or ""
+            host = rec.get("http_host", "") or ""
+            request = f"{method} {host}".strip() if (method or host) else "—"
             status = rec.get("http_status")
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
                 rec.get("src_ip", ""),
-                rec.get("http_method", "") or "—",
-                rec.get("http_host", "") or "—",
-                rec.get("http_uri", "") or "—",
+                request,
                 str(status) if status is not None else "—",
-                _fmt_bytes(rec.get("http_req_bytes")),
-                _fmt_bytes(rec.get("http_resp_bytes")),
                 str(rec["freq"]),
             )
 

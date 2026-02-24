@@ -65,8 +65,8 @@ def _build_parser(module) -> argparse.ArgumentParser:
         help="Zeek log type to query (default: conn). Options: " + ", ".join(_VALID_LOG_TYPES),
     )
     parser.add_argument(
-        "--limit", type=int, default=500,
-        help="Max raw results from OpenSearch (default: 500)",
+        "--limit", type=int, default=50,
+        help="Max raw results from OpenSearch (default: 50)",
     )
     parser.add_argument(
         "--public-only", action="store_true",
@@ -75,6 +75,13 @@ def _build_parser(module) -> argparse.ArgumentParser:
     parser.add_argument(
         "--src-ip",
         help="Filter to a specific source IP",
+    )
+    parser.add_argument(
+        "--direction",
+        help=(
+            "Filter by network.direction "
+            "(e.g. inbound, outbound, internal, external, ingress, egress)"
+        ),
     )
     parser.add_argument(
         "--no-filters", action="store_true",
@@ -176,6 +183,7 @@ def main() -> None:
             datasets=module.DATASETS,
             public_only=args.public_only,
             src_ip_filter=args.src_ip,
+            direction=args.direction,
         )
         print(json.dumps(body, indent=2))
         return

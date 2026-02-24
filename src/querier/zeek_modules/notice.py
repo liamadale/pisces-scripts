@@ -25,6 +25,8 @@ class NoticeModule(ZeekModule):
         "zeek.notice.sub",
         "zeek.notice.actions",
         "zeek.notice.dropped",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -49,7 +51,9 @@ class NoticeModule(ZeekModule):
             "notice_sub":   notice.get("sub", ""),
             "notice_actions": notice.get("actions", ""),
             "notice_dropped": notice.get("dropped"),
-            "_raw":         src,
+            "community_id":  src.get("network", {}).get("community_id", ""),
+            "direction":     src.get("network", {}).get("direction", ""),
+            "_raw":          src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -58,6 +62,19 @@ class NoticeModule(ZeekModule):
             record.get("notice_note", ""),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",  lambda r: r.get("timestamp", "—")),
+        ("Sensor",     lambda r: r.get("sensor", "—")),
+        ("Src IP",     lambda r: r.get("src_ip", "—")),
+        ("Dst IP",     lambda r: r.get("dest_ip", "—") or "—"),
+        ("Note Type",  lambda r: r.get("notice_note", "—") or "—"),
+        ("Message",    lambda r: r.get("notice_msg", "—") or "—"),
+        ("Dropped",    lambda r: "✓" if r.get("notice_dropped") is True else ("✗" if r.get("notice_dropped") is False else "—")),
+        ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",  lambda r: r.get("direction", "—") or "—"),
+        ("Freq",       lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -65,33 +82,21 @@ class NoticeModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
         table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Note Type", no_wrap=True)
-        table.add_column("Message", no_wrap=True)
-        table.add_column("Sub", no_wrap=True)
-        table.add_column("Dropped", justify="center", no_wrap=True)
+        table.add_column("Note Type", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
-            dropped = rec.get("notice_dropped")
-            dropped_str = "✓" if dropped is True else ("✗" if dropped is False else "—")
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
                 rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", "") or "—",
                 rec.get("notice_note", "") or "—",
-                rec.get("notice_msg", "") or "—",
-                rec.get("notice_sub", "") or "—",
-                dropped_str,
                 str(rec["freq"]),
             )
 

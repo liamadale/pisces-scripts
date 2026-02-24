@@ -22,6 +22,8 @@ class SshModule(ZeekModule):
         "zeek.ssh.server",
         "zeek.ssh.version",
         "zeek.ssh.direction",
+        "network.community_id",
+        "network.direction",
         "event.dataset",
     ]
 
@@ -51,6 +53,8 @@ class SshModule(ZeekModule):
             "ssh_server":      ssh.get("server", ""),
             "ssh_version":     ssh.get("version"),
             "ssh_direction":   ssh.get("direction", ""),
+            "community_id":    src.get("network", {}).get("community_id", ""),
+            "direction":       src.get("network", {}).get("direction", ""),
             "_raw":            src,
         }
 
@@ -61,6 +65,21 @@ class SshModule(ZeekModule):
             record.get("ssh_auth_success"),
         )
 
+    DETAIL_FIELDS = [
+        ("Timestamp",    lambda r: r.get("timestamp", "—")),
+        ("Sensor",       lambda r: r.get("sensor", "—")),
+        ("Src IP",       lambda r: r.get("src_ip", "—")),
+        ("Dst IP",       lambda r: r.get("dest_ip", "—") or "—"),
+        ("Dst Port",     lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—"),
+        ("SSH Version",  lambda r: str(r["ssh_version"]) if r.get("ssh_version") is not None else "—"),
+        ("Auth",         lambda r: "✓" if r.get("ssh_auth_success") is True else ("✗" if r.get("ssh_auth_success") is False else "—")),
+        ("Attempts",     lambda r: str(r["ssh_auth_attempts"]) if r.get("ssh_auth_attempts") is not None else "—"),
+        ("Client",       lambda r: r.get("ssh_client", "—") or "—"),
+        ("Comm ID",      lambda r: r.get("community_id", "—") or "—"),
+        ("Direction",    lambda r: r.get("direction", "—") or "—"),
+        ("Freq",         lambda r: str(r.get("freq", "—"))),
+    ]
+
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
@@ -68,38 +87,27 @@ class SshModule(ZeekModule):
             f"(sorted by frequency)\n"
         )
 
-        table = Table(box=box.SIMPLE_HEAVY, show_lines=True, expand=False)
+        table = Table(box=box.SIMPLE_HEAVY, expand=False)
         table.add_column("#", style="dim", width=3, no_wrap=True)
-        table.add_column("Timestamp", style="dim", no_wrap=True)
+        table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Src IP", style="yellow", no_wrap=True)
-        table.add_column("→", justify="center", width=1, no_wrap=True)
-        table.add_column("Dst IP", style="dim", no_wrap=True)
-        table.add_column("Port", justify="right", no_wrap=True)
-        table.add_column("Version", no_wrap=True)
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis")
         table.add_column("Auth", justify="center", no_wrap=True)
-        table.add_column("Attempts", justify="right", no_wrap=True)
-        table.add_column("Client", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
             auth = rec.get("ssh_auth_success")
             auth_str = "[green]✓[/green]" if auth is True else ("[red]✗[/red]" if auth is False else "—")
-            ver = rec.get("ssh_version")
-            ver_str = str(ver) if ver is not None else "—"
-            attempts = rec.get("ssh_auth_attempts")
+            src_ip = rec.get("src_ip", "")
+            dest_ip = rec.get("dest_ip", "")
+            dest_port = rec.get("dest_port")
+            flow = f"{src_ip} → {dest_ip}:{dest_port}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][:16].replace("T", " "),
+                rec["timestamp"][11:16],
                 _sensor_str(rec),
-                rec.get("src_ip", ""),
-                "→",
-                rec.get("dest_ip", ""),
-                str(rec["dest_port"]) if rec.get("dest_port") is not None else "—",
-                ver_str,
+                flow,
                 auth_str,
-                str(attempts) if attempts is not None else "—",
-                rec.get("ssh_client", "") or "—",
                 str(rec["freq"]),
             )
 
