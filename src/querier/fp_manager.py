@@ -225,6 +225,55 @@ def _infer_clauses_from_alert(alert: dict, category: str) -> list[dict]:
     return clauses
 
 
+def create_notice_filter_interactive(record: dict, author: str = "analyst") -> None:
+    """Create a narrow notice-type filter: suppress (src_ip + notice.note) in filters/notices/."""
+    src_ip = record.get("src_ip", "")
+    notice_note = record.get("notice_note", "")
+
+    console.print("\n[bold yellow]=== Narrow Notice Filter Creator ===[/bold yellow]")
+    console.print(f"  src_ip:      [yellow]{src_ip}[/yellow]")
+    console.print(f"  notice.note: [cyan]{notice_note}[/cyan]")
+
+    if not src_ip or not notice_note:
+        console.print("[red]Missing src_ip or notice_note — cannot create narrow filter.[/red]")
+        return
+
+    subcategory, _ = _prompt_subcategory("notices")
+
+    clause = {
+        "bool": {
+            "must": [
+                {"term": {"src_ip": src_ip}},
+                {"term": {"zeek.notice.note": notice_note}},
+            ]
+        }
+    }
+
+    comment = input("Comment (optional, Enter to skip): ").strip()
+    if comment:
+        clause["comment"] = comment
+
+    fpath = filter_file_path("notices", subcategory)
+    import yaml as _yaml
+    preview = {
+        "category": "notices",
+        "subcategory": subcategory,
+        "target_file": fpath,
+        "must_not": [clause],
+    }
+    console.print("\n[bold cyan]Preview:[/bold cyan]")
+    console.print(_yaml.dump(preview, default_flow_style=False, allow_unicode=True, sort_keys=False))
+
+    confirm = input("Write filter? [y/N]: ").strip().lower()
+    if confirm != "y":
+        console.print("[yellow]Aborted.[/yellow]")
+        return
+
+    append_clauses_to_file(fpath, [clause], author=author)
+    ensure_subcategory("notices", subcategory)
+    console.print(f"[green]Written: {fpath}[/green]")
+
+
 def create_filter_interactive(alert: dict | None = None, author: str = "analyst", comment_hint: str = "") -> None:
     """Guide analyst through creating a new FP filter, optionally seeded from an alert."""
     console.print("\n[bold yellow]=== False Positive Filter Creator ===[/bold yellow]")
