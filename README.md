@@ -2,11 +2,11 @@
 
 # PISCES SOC Analyst Toolkit
 
-A Python-based security operations toolkit for querying, filtering, enriching, and triaging Suricata IDS alerts from the PISCES program dataset. Built to reduce false positive noise through analyst-maintained YAML filters and structured threat intelligence enrichment.
+A Python-based security operations toolkit for querying, filtering, enriching, and triaging network log data from the PISCES program dataset. Targets two backends: a **Kibana/Suricata** alert feed and a **Malcolm/Zeek** OpenSearch instance. Built to reduce false positive noise through analyst-maintained YAML filters and structured threat intelligence enrichment.
 
 ## Overview
 
-This tool addresses the core challenge of working with high-volume IDS alert data: surfacing actionable threats while suppressing known false positives. It provides:
+The toolkit surfaces actionable threats from high-volume log data by combining:
 
 - **Pre-query filtering** via YAML-defined Elasticsearch DSL `must_not` clauses, reloaded on every search
 - **Threat intelligence enrichment** through GreyNoise, AbuseIPDB, Shodan, and VirusTotal
@@ -15,19 +15,16 @@ This tool addresses the core challenge of working with high-volume IDS alert dat
 
 ## Features
 
-### 1. Kibana Alert Querying (`src/querier/kibana_querier.py`)
-- Query Suricata alerts from Kibana with flexible time range, severity, city, signature, and protocol filters
-- Inject analyst-maintained false positive filters before query execution — reloaded from disk on every re-search
-- Deduplicate results by `(src_ip, signature)` and display a Rich terminal table
-- Interactive loop with last-alert hint and `[p]rint` to redisplay the table without re-querying
+### 1. Malcolm/Zeek OpenSearch Querier (`src/querier/opensearch_querier.py`)
+Query Zeek protocol logs from Malcolm's OpenSearch instance across 10 log types: `conn`, `dns`, `http`, `ssl`, `smtp`, `rdp`, `smb`, `ssh`, `notice`, and `weird`. Per-protocol modules handle field parsing, deduplication, and display. Shared interactive loop supports enrichment, FP filter creation, Mantis search, and ticket submission from any log type.
 
-### 2. False Positive Filter Management (`src/querier/fp_manager.py`)
-- Create YAML filters interactively from alert context, seeded with IP, signature, and city
-- Optional comment field auto-suggested from GreyNoise enrichment results
-- Filters take effect on the next `[r]`e-search without restarting the tool
-- See [docs/filter-schema.md](docs/filter-schema.md) for the full schema and authoring guide
+### 2. Kibana Alert Querier (`src/querier/kibana_querier.py`)
+Query Suricata IDS alerts from Kibana with flexible time range, severity, city, signature, and protocol filters. Deduplicates by `(src_ip, signature)` and displays a Rich terminal table. Interactive loop supports the same enrichment/FP/ticket actions.
 
-### 3. Threat Intelligence Enrichment (`src/enricher/threat_intel.py`)
+### 3. False Positive Filter Management (`src/querier/fp_manager.py`)
+Create YAML filters interactively from alert context, seeded with IP, signature, and sensor. Optional comment field auto-suggested from GreyNoise enrichment results. Filters take effect on the next `[r]`e-search without restarting the tool. See [docs/filter-schema.md](docs/filter-schema.md) for the full schema and authoring guide.
+
+### 4. Threat Intelligence Enrichment (`src/enricher/threat_intel.py`)
 Pipeline runs in order for each IP:
 1. **GreyNoise** — classification (benign/malicious/unknown), name, reason; if benign, offer FP filter and stop
 2. **AbuseIPDB** — confidence score, report count, ISP, domain, usage type
@@ -35,10 +32,11 @@ Pipeline runs in order for each IP:
 4. **VirusTotal** — vendor detection count breakdown, ASN, country
 5. **Reference URLs** — links to all four services always printed at the end
 
-### 4. Mantis Integration (`src/mantis/`)
-- Search existing tickets via offline index or live web scraping
-- Scrape results are filtered to the queried IP to prevent unfiltered default views
-- Interactive ticket creation and submission pre-seeded from alert data
+### 5. Mantis Integration (`src/mantis/`)
+Search existing tickets via offline index or live web scraping. Interactive ticket creation and submission pre-seeded from alert data.
+
+### 6. Web UI (`run_web.py`) — *in development*
+A browser-based triage layer built on Flask and HTMX. Provides a cross-protocol IP activity matrix — showing how many times each source IP appears across all 10 Zeek log types simultaneously — that is not achievable in the CLI. Single-protocol drill-down and inline enrichment are also available.
 
 ## Installation
 
@@ -58,99 +56,92 @@ cp .env.example .env
 ## Configuration
 
 ```bash
+# OpenSearch / Malcolm (used by opensearch_querier.py and web UI)
+PISCES_USERNAME=
+PISCES_PASSWORD=
+OPENSEARCH_URL=
+
+# Kibana (used by kibana_querier.py)
 KIBANA_USERNAME=
 KIBANA_PASSWORD=
+
+# Threat intelligence enrichment (all optional — missing keys skip that service)
 GREYNOISE_API_KEY=
 ABUSEIPDB_API_KEY=
 SHODAN_API_KEY=
 VIRUSTOTAL_API_KEY=
+
+# Mantis ticketing
 MANTIS_USERNAME=
 MANTIS_PASSWORD=
 MANTIS_API_URL=
 MANTIS_API_TOKEN=
 ```
 
-API keys for GreyNoise, AbuseIPDB, Shodan, and VirusTotal are each optional — the enricher will print a dim warning and skip the service if a key is missing.
-
 ## Usage
 
-### Query Kibana Alerts
+### Query Malcolm/Zeek Logs (OpenSearch)
 
 ```bash
-# Basic query (last 24 hours, all severities, all cities)
-./src/querier/kibana_querier.py
+# List available log types present in the index
+.venv/bin/python src/querier/opensearch_querier.py --list-log-types
+
+# Query conn logs (last 24 hours, public IPs only)
+.venv/bin/python src/querier/opensearch_querier.py --log-type conn --public-only
+
+# Query DNS with a specific query string filter
+.venv/bin/python src/querier/opensearch_querier.py --log-type dns --dns-query malware.example.com
+
+# Narrow to a specific sensor and time window
+.venv/bin/python src/querier/opensearch_querier.py --log-type http --sensor hedgehog-1 --time-range now-6h
+```
+
+### Query Kibana Alerts (Suricata)
+
+```bash
+# Basic query (last 24 hours, all severities)
+.venv/bin/python src/querier/kibana_querier.py
 
 # Custom time range and severity
-./src/querier/kibana_querier.py --time-range now-7d --severity 2
-
-# Filter by cities and public IPs only
-./src/querier/kibana_querier.py --cities <city-1>,<city-2> --public-only
+.venv/bin/python src/querier/kibana_querier.py --time-range now-7d --severity 2
 
 # Filter to a specific signature pattern
-./src/querier/kibana_querier.py --signature "ET SCAN"
+.venv/bin/python src/querier/kibana_querier.py --signature "ET SCAN" --public-only
+```
 
-# Print the ES query body without running it
-./src/querier/kibana_querier.py --dump-query
+### Web UI
+
+```bash
+.venv/bin/python run_web.py
+# → http://0.0.0.0:5001
 ```
 
 ### Standalone Enrichment
 
 ```bash
 # Full pipeline
-./src/enricher/threat_intel.py --ip 185.220.101.45
+.venv/bin/python src/enricher/threat_intel.py --ip 185.220.101.45
 
 # Print reference URLs only (no API calls)
-./src/enricher/threat_intel.py --ip 185.220.101.45 --urls-only
+.venv/bin/python src/enricher/threat_intel.py --ip 185.220.101.45 --urls-only
 ```
 
 ### Manage False Positive Filters
 
 ```bash
 # Interactive filter creator
-./src/querier/fp_manager.py
+.venv/bin/python src/querier/fp_manager.py
 
 # List all filters
-./src/querier/fp_manager.py --list
+.venv/bin/python src/querier/fp_manager.py --list
 
 # Validate all filter files
-./src/querier/fp_manager.py --validate
-```
-
-### Search Mantis Tickets
-
-```bash
-./src/mantis/mantis_search.py --query "185.220.101.45"
+.venv/bin/python src/querier/fp_manager.py --validate
 ```
 
 ## Workflow
 
 See [docs/workflow.md](docs/workflow.md) for a full end-to-end walkthrough including triage patterns, mid-session filter creation, and prompt navigation.
-
-Quick example:
-
-```
-# Launch
-./src/querier/kibana_querier.py --time-range now-24h --severity 2 --public-only
-
-# Select alert #2 and enrich
-> 2
-Alert #2: ET TROJAN Meterpreter | 103.14.8.22
-  [e]nrich  [f]alse positive  [m]antis search  [t]icket  [s]kip
-  Action: e
-
-# GreyNoise: malicious / AbuseIPDB: 94% / Shodan: ports 9001,9030 (TOR) / VT: 18 vendors
-
-# Create ticket
-↩  Last: #2 ET TROJAN Meterpreter | 103.14.8.22
-> 2  →  [t]  →  submit ticket
-
-# Suppress a false positive scanner, then re-search
-> 7  →  [f]  →  ips / known_scanners
-> r  →  alert #7 gone from results
-
-# Reprint table without re-querying
-> p
-```
 
 ## Project Structure
 
@@ -158,11 +149,13 @@ See [docs/project-structure.md](docs/project-structure.md) for the full annotate
 
 ```
 pisces-scripts/
+├── run_web.py          # Web UI server entrypoint (in development)
 ├── src/
-│   ├── querier/        # Kibana querying and filter management
+│   ├── querier/        # OpenSearch and Kibana queriers, filter management
 │   ├── enricher/       # GreyNoise, AbuseIPDB, Shodan, VirusTotal
 │   ├── mantis/         # Ticket search and submission
-│   └── utils/          # Banner, DNS helpers
+│   ├── web/            # Flask web UI (in development)
+│   └── utils/          # DNS helpers
 ├── filters/            # Analyst-maintained YAML false positive filters
 ├── docs/               # Extended documentation
 └── data/               # Cache and Mantis ticket index
@@ -174,11 +167,12 @@ See [docs/filter-schema.md](docs/filter-schema.md) for the full schema, clause t
 
 ## Dependencies
 
-- `requests` — HTTP client for Kibana and all enrichment APIs
+- `requests` — HTTP client for OpenSearch, Kibana, and enrichment APIs
 - `python-dotenv` — credential loading from `.env`
 - `pyyaml` — YAML filter parsing
 - `rich` — terminal tables and formatting
 - `beautifulsoup4` — Mantis web scraping
+- `flask` — web UI server
 
 ## License
 

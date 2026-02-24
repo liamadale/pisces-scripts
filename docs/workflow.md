@@ -1,13 +1,38 @@
 # Analyst Workflow
 
-A typical session from launch to resolution.
+A typical session from launch to resolution. Two querier workflows are documented below: the Malcolm/Zeek OpenSearch querier (primary) and the Kibana/Suricata querier.
 
 ---
 
-## 1. Launch the querier
+## Malcolm/Zeek Workflow (`opensearch_querier.py`)
+
+### 1. Launch the querier
 
 ```bash
-./src/querier/kibana_querier.py --time-range now-24h --severity 2 --public-only
+.venv/bin/python src/querier/opensearch_querier.py --log-type conn --public-only --time-range now-24h
+```
+
+Common flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--log-type` | required | Protocol log: conn, dns, http, ssl, smtp, rdp, smb, ssh, notice, weird |
+| `--time-range` | `now-24h` | OpenSearch date-math range |
+| `--sensor` | `all` | Comma-separated sensor hostname(s) |
+| `--public-only` | off | Exclude RFC 1918 source IPs |
+| `--src-ip` | — | Filter to a specific source IP |
+| `--limit` | `100` | Max raw hits before deduplication |
+
+The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table. The interactive loop actions (`[e]nrich`, `[f]alse positive`, `[m]antis search`, `[t]icket`) are identical to the Kibana workflow below.
+
+---
+
+## Kibana/Suricata Workflow (`kibana_querier.py`)
+
+### 1. Launch the querier
+
+```bash
+.venv/bin/python src/querier/kibana_querier.py --time-range now-24h --severity 2 --public-only
 ```
 
 Common flags:
