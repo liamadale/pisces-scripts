@@ -82,12 +82,12 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
         _display_urls(ip)
         return result
 
-    # ---- Step 2: AbuseIPDB ----
     if classification == "malicious":
-        console.print("[yellow]GreyNoise: malicious — querying AbuseIPDB for corroboration...[/yellow]")
+        console.print("[yellow]GreyNoise: malicious — querying AbuseIPDB for corroboration...[/yellow]\n")
     else:
-        console.print("[dim]GreyNoise: not in dataset — querying AbuseIPDB...[/dim]")
+        console.print("[dim]GreyNoise: not in dataset — querying AbuseIPDB...[/dim]\n")
 
+    # ---- Step 2: AbuseIPDB ----
     ab = abuseipdb.check_ip(ip)
     result["abuseipdb"] = ab
     abuseipdb.display(ip, ab)
