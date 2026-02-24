@@ -222,11 +222,11 @@ def _load_cache(path: str) -> dict | None:
 def _opensearch_session() -> tuple:
     """Return (base_url, authenticated Session) or (None, None) on missing creds."""
     opensearch_url = os.environ.get("OPENSEARCH_URL", OPENSEARCH_URL)
-    username = os.environ.get("OPENSEARCH_USERNAME", "")
-    password = os.environ.get("OPENSEARCH_PASSWORD", "")
+    username = os.environ.get("PISCES_USERNAME", "")
+    password = os.environ.get("PISCES_PASSWORD", "")
 
     if not username or not password:
-        console.print("[red]OPENSEARCH_USERNAME and OPENSEARCH_PASSWORD must be set in .env[/red]")
+        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
         return None, None
 
     session = requests.Session()
@@ -256,7 +256,7 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
         return None
 
     if resp.status_code == 401:
-        console.print("[red]OpenSearch authentication failed — check OPENSEARCH_USERNAME/PASSWORD[/red]")
+        console.print("[red]OpenSearch authentication failed — check PISCES_USERNAME/PASSWORD[/red]")
         return None
 
     if not resp.ok:

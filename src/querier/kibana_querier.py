@@ -150,11 +150,11 @@ def build_query(
 # ---------------------------------------------------------------------------
 
 def query_kibana(body: dict, params: dict) -> dict | None:
-    username = os.environ.get("KIBANA_USERNAME", "")
-    password = os.environ.get("KIBANA_PASSWORD", "")
+    username = os.environ.get("PISCES_USERNAME", "")
+    password = os.environ.get("PISCES_PASSWORD", "")
 
     if not username or not password:
-        console.print("[red]KIBANA_USERNAME and KIBANA_PASSWORD must be set in .env[/red]")
+        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
         return None
 
     headers = {
@@ -177,7 +177,7 @@ def query_kibana(body: dict, params: dict) -> dict | None:
         return None
 
     if resp.status_code == 401:
-        console.print("[red]Kibana authentication failed — check KIBANA_USERNAME/PASSWORD[/red]")
+        console.print("[red]Kibana authentication failed — check PISCES_USERNAME/PASSWORD[/red]")
         return None
 
     if not resp.ok:

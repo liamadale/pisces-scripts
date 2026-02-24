@@ -5,7 +5,7 @@ Mantis ticket search — offline index + REST API + web scraping fallback.
 Search priority:
   1. Offline: data/tickets/tickets_index.json  (fast, no network)
   2. REST API: GET /api/rest/issues — requires MANTIS_API_TOKEN
-  3. Web scraping: login + view_all_bug_page.php — requires MANTIS_USERNAME/PASSWORD
+  3. Web scraping: login + view_all_bug_page.php — requires PISCES_USERNAME/PASSWORD
 
 Usage:
     python src/mantis/mantis_search.py --query 72.10.3.212
@@ -150,13 +150,13 @@ def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
     from bs4 import BeautifulSoup
 
     mantis_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
-    username = os.environ.get("MANTIS_USERNAME", "")
-    password = os.environ.get("MANTIS_PASSWORD", "")
+    username = os.environ.get("PISCES_USERNAME", "")
+    password = os.environ.get("PISCES_PASSWORD", "")
 
     if not all([mantis_url, username, password]):
         console.print(
-            "[yellow]Web scraping requires MANTIS_API_URL, MANTIS_USERNAME, "
-            "MANTIS_PASSWORD[/yellow]"
+            "[yellow]Web scraping requires MANTIS_API_URL, PISCES_USERNAME, "
+            "PISCES_PASSWORD[/yellow]"
         )
         return []
 
