@@ -56,14 +56,10 @@ cp .env.example .env
 ## Configuration
 
 ```bash
-# OpenSearch / Malcolm (used by opensearch_querier.py and web UI)
+# OpenSearch / Malcolm / Kibana (used by kibana_querier.py, opensearch_querier.py and web UI)
 PISCES_USERNAME=
 PISCES_PASSWORD=
 OPENSEARCH_URL=
-
-# Kibana (used by kibana_querier.py)
-KIBANA_USERNAME=
-KIBANA_PASSWORD=
 
 # Threat intelligence enrichment (all optional — missing keys skip that service)
 GREYNOISE_API_KEY=
@@ -72,8 +68,6 @@ SHODAN_API_KEY=
 VIRUSTOTAL_API_KEY=
 
 # Mantis ticketing
-MANTIS_USERNAME=
-MANTIS_PASSWORD=
 MANTIS_API_URL=
 MANTIS_API_TOKEN=
 ```
