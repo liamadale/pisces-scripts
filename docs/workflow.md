@@ -29,9 +29,9 @@ Found 23 unique alert(s) across 50 raw event(s) (sorted by frequency)
  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   #   Timestamp         City          Signature                    Sev  Freq  Src IP
  ────────────────────────────────────────────────────────────────────────────────────
-  1   2026-02-22 14:31  <city>   ET SCAN Zmap User-Agent      2    14    185.220.101.45
-  2   2026-02-22 13:55  <city>          ET TROJAN Meterpreter         1    8     103.14.8.22
-  3   2026-02-22 12:10  <city>    ET SCAN Nmap Scripting        2    3     45.33.32.156
+  1   2026-02-22 14:31  <city>        ET SCAN Zmap User-Agent      2    14    185.220.101.45
+  2   2026-02-22 13:55  <city>        ET TROJAN Meterpreter         1    8     103.14.8.22
+  3   2026-02-22 12:10  <city>        ET SCAN Nmap Scripting        2    3     45.33.32.156
 ```
 
 ---
