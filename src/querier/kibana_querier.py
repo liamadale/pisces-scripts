@@ -391,12 +391,13 @@ def interactive_loop(alerts: list[dict], search_params: dict) -> None:
     last_alert: dict | None = None
 
     while True:
+        console.print("")
         if last_alert:
             a = last_alert["alert"]
             console.print(
                 f"[dim]↩  Last: #{last_alert['idx']} {a['signature']} | {a['src_ip']}[/dim]"
             )
-        console.print("\n[bold cyan]Action[/bold cyan] — enter alert # / \\[r]e-search / \\[p]rint (CTRL+C to exit):")
+        console.print("[bold cyan]Action[/bold cyan] — enter alert # / \\[r]e-search / \\[p]rint (CTRL+C to exit):")
         try:
             raw = _prompt("  > ").strip().lower()
         except KeyboardInterrupt:
