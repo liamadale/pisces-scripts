@@ -199,12 +199,42 @@ data/tickets/
 # PyPI configuration file
 .pypirc
 
+# ── IDE & agentic AI tooling ──────────────────────────────────────────────────
+
 # Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
+.cursor/
 .cursorignore
 .cursorindexingignore
+
+# Kiro (Amazon)
+.kiro/
+
+# Windsurf (Codeium)
+.windsurf/
+
+# Claude Code
+.claude/
+
+# Aider
+.aider/
+.aider.conf.yml
+.aiderignore
+.aider.tags.cache.v3/
+
+# Continue.dev
+.continue/
+
+# GitHub Copilot
+.copilot/
+
+# Qodo (formerly CodiumAI)
+.qodo/
+
+# JetBrains AI / IDEs
+.idea/
+
+# Tabnine
+.tabnine/
 
 # Marimo
 marimo/_static/
