@@ -5,11 +5,13 @@ import json
 from flask import Flask, render_template, request, abort
 
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import TIME_RANGES, run_query
+from src.querier.zeek_modules.base import TIME_RANGES
 from src.utils.format import fmt_bytes, fmt_dur
+from src.web import cache as wcache
 from src.web.queries import (
     MODULE_PARAM_KEYS,
     build_search_params_from_request,
+    cached_run_query,
     run_cross_protocol_query,
 )
 
@@ -52,10 +54,9 @@ def create_app() -> Flask:
         search_params["src_ip"] = ip
 
         results: dict = {}
-        for lt, mod in MODULES.items():
-            extra_keys = MODULE_PARAM_KEYS.get(lt, [])
+        for lt in MODULES:
             sp = dict(search_params)
-            results[lt] = run_query(mod, sp)
+            results[lt] = cached_run_query(lt, sp)
 
         return render_template(
             "ip_pivot.html",
@@ -76,7 +77,7 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
         search_params = build_search_params_from_request(request, extra_keys)
-        records = run_query(mod, search_params)
+        records = cached_run_query(log_type, search_params)
         return render_template(
             "log_view.html",
             log_type=log_type,
@@ -96,7 +97,7 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
         search_params = build_search_params_from_request(request, extra_keys)
-        records = run_query(mod, search_params)
+        records = cached_run_query(log_type, search_params)
         return render_template(
             "partials/log_rows.html",
             log_type=log_type,
@@ -114,7 +115,7 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
         search_params = build_search_params_from_request(request, extra_keys)
-        records = run_query(mod, search_params)
+        records = cached_run_query(log_type, search_params)
         if i < 1 or i > len(records):
             return "<tr><td colspan='99'>Record not found.</td></tr>", 404
         record = records[i - 1]
@@ -124,6 +125,19 @@ def create_app() -> Flask:
             detail_fields=mod.DETAIL_FIELDS,
             idx=i,
         )
+
+    # ------------------------------------------------------------------
+    # Cache debug endpoints
+    # ------------------------------------------------------------------
+    @app.route("/api/cache/stats")
+    def api_cache_stats():
+        s = wcache.stats()
+        return json.dumps({**s, "ttl": wcache.TTL}), 200, {"Content-Type": "application/json"}
+
+    @app.route("/api/cache/clear", methods=["GET", "POST"])
+    def api_cache_clear():
+        wcache.invalidate()
+        return "", 204
 
     # ------------------------------------------------------------------
     # POST /api/enrich/<ip>  — HTMX: run enrichment, return card partial

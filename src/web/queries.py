@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query
+from src.web import cache as wcache
 
 # Protocol-specific search_params keys forwarded from HTTP request
 MODULE_PARAM_KEYS: dict = {
@@ -38,11 +39,21 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
     return params
 
 
+def cached_run_query(log_type: str, search_params: dict) -> list:
+    """run_query with in-memory TTL caching. Falls through to OpenSearch on miss."""
+    cached = wcache.get(log_type, search_params)
+    if cached is not None:
+        return cached
+    records = run_query(MODULES[log_type], search_params)
+    wcache.put(log_type, search_params, records)
+    return records
+
+
 def run_cross_protocol_query(search_params: dict) -> list:
     """Query all log types in parallel, aggregate by src_ip, sort by total freq."""
     results_by_type: dict = {}
     with ThreadPoolExecutor(max_workers=len(MODULES)) as ex:
-        futures = {ex.submit(run_query, mod, search_params): lt for lt, mod in MODULES.items()}
+        futures = {ex.submit(cached_run_query, lt, search_params): lt for lt in MODULES}
         for f in as_completed(futures):
             lt = futures[f]
             try:
