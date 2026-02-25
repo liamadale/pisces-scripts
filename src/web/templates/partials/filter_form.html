@@ -1,0 +1,81 @@
+<div class="detail-card">
+  <div class="enrich-col-header">
+    <i class="fa-solid fa-filter-circle-xmark"></i> Create False Positive Filter
+  </div>
+
+  <form hx-post="/api/filter/create"
+        hx-target="#filter-zone-{{ idx }}"
+        hx-swap="outerHTML">
+
+    <input type="hidden" name="src_ip"      value="{{ src_ip }}">
+    <input type="hidden" name="dest_ip"     value="{{ dest_ip }}">
+    <input type="hidden" name="notice_note" value="{{ notice_note }}">
+    <input type="hidden" name="idx"         value="{{ idx }}">
+
+    <!-- Filter type — radio buttons -->
+    <div class="filter-field">
+      <label>Filter on</label>
+      <div class="filter-options">
+        {% if src_ip %}
+        <label class="check-label">
+          <input type="radio" name="filter_type" value="src_ip" checked>
+          Block src IP &nbsp;<code>{{ src_ip }}</code>
+        </label>
+        {% endif %}
+        {% if dest_ip %}
+        <label class="check-label">
+          <input type="radio" name="filter_type" value="dest_ip"
+                 {% if not src_ip %}checked{% endif %}>
+          Block dst IP &nbsp;<code>{{ dest_ip }}</code>
+        </label>
+        {% endif %}
+        {% if log_type == 'notice' and src_ip and notice_note %}
+        <label class="check-label">
+          <input type="radio" name="filter_type" value="notice_src_ip_and_note">
+          Block src IP + notice note &nbsp;<code>{{ notice_note }}</code>
+        </label>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Category — text input with datalist autocomplete -->
+    <div class="filter-field">
+      <label>Category</label>
+      <input type="text" name="category" value="ips"
+             list="filter-cat-list-{{ idx }}" autocomplete="off">
+      <datalist id="filter-cat-list-{{ idx }}">
+        {% for cat in categories %}<option value="{{ cat }}">{% endfor %}
+      </datalist>
+    </div>
+
+    <!-- Subcategory — text input with datalist autocomplete -->
+    <div class="filter-field">
+      <label>Subcategory</label>
+      <input type="text" name="subcategory" value="normal-flagged-traffic"
+             list="filter-sub-list-{{ idx }}" autocomplete="off">
+      <datalist id="filter-sub-list-{{ idx }}">
+        {% for cat, cat_data in categories.items() %}
+          {% for sub in cat_data.get('subcategories', []) %}
+            <option value="{{ sub }}">
+          {% endfor %}
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <!-- Comment -->
+    <div class="filter-field">
+      <label>Comment <span style="font-weight:400">(optional)</span></label>
+      <input type="text" name="comment" placeholder="e.g. internal scanner">
+    </div>
+
+    <div class="filter-form-actions">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-filter-circle-xmark"></i> Add Filter
+      </button>
+      <button type="button" class="btn btn-sm"
+              onclick="document.getElementById('filter-zone-{{ idx }}').innerHTML=''">
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

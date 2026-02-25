@@ -5,7 +5,7 @@
 {% set cls = gn.get('classification', 'unknown') %}
 
 <div class="enrich-card {{ cls }}">
-  <h3>Enrichment — {{ ip }}</h3>
+  <h3><i class="fa-solid fa-shield-halved"></i> Enrichment — {{ ip }}</h3>
 
   {# GreyNoise #}
   <div class="enrich-section">
@@ -62,7 +62,7 @@
       {% if sd.get('isp') %}<span class="k">ISP</span><span class="v">{{ sd.isp }}</span>{% endif %}
       {% if sd.get('country_name') %}<span class="k">Country</span><span class="v">{{ sd.country_name }}</span>{% endif %}
       {% if sd.get('ports') %}<span class="k">Open ports</span><span class="v">{{ sd.ports | join(', ') }}</span>{% endif %}
-      {% if sd.get('vulns') %}<span class="k">CVEs</span><span class="v" style="color:var(--red)">{{ sd.vulns | join(', ') }}</span>{% endif %}
+      {% if sd.get('vulns') %}<span class="k">CVEs</span><span class="v cve-list">{{ sd.vulns | join(', ') }}</span>{% endif %}
       {% if sd.get('hostnames') %}<span class="k">Hostnames</span><span class="v">{{ sd.hostnames | join(', ') }}</span>{% endif %}
     </div>
   </div>
@@ -91,9 +91,17 @@
 
   {# Reference URLs #}
   <div class="enrich-urls">
-    <a href="{{ urls.greynoise }}" target="_blank" rel="noopener">GreyNoise ↗</a>
-    <a href="{{ urls.abuseipdb }}" target="_blank" rel="noopener">AbuseIPDB ↗</a>
-    <a href="{{ urls.shodan }}" target="_blank" rel="noopener">Shodan ↗</a>
-    <a href="{{ urls.virustotal }}" target="_blank" rel="noopener">VirusTotal ↗</a>
+    <a href="{{ urls.greynoise }}" target="_blank" rel="noopener">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i> GreyNoise
+    </a>
+    <a href="{{ urls.abuseipdb }}" target="_blank" rel="noopener">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i> AbuseIPDB
+    </a>
+    <a href="{{ urls.shodan }}" target="_blank" rel="noopener">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i> Shodan
+    </a>
+    <a href="{{ urls.virustotal }}" target="_blank" rel="noopener">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i> VirusTotal
+    </a>
   </div>
 </div>

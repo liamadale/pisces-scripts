@@ -124,7 +124,75 @@ def create_app() -> Flask:
             record=record,
             detail_fields=mod.DETAIL_FIELDS,
             idx=i,
+            log_type=log_type,
         )
+
+    # ------------------------------------------------------------------
+    # GET /api/filter/form  — HTMX: render inline filter creation form
+    # ------------------------------------------------------------------
+    @app.route("/api/filter/form")
+    def api_filter_form():
+        from src.querier.fp_manager import load_categories
+        cats_data = load_categories()
+        return render_template(
+            "partials/filter_form.html",
+            src_ip=request.args.get("src_ip", ""),
+            dest_ip=request.args.get("dest_ip", ""),
+            notice_note=request.args.get("notice_note", ""),
+            log_type=request.args.get("log_type", ""),
+            idx=request.args.get("idx", "0"),
+            categories=cats_data.get("categories", {}),
+        )
+
+    # ------------------------------------------------------------------
+    # POST /api/filter/create  — HTMX: write YAML clause, return result card
+    # ------------------------------------------------------------------
+    @app.route("/api/filter/create", methods=["POST"])
+    def api_filter_create():
+        from src.querier.fp_manager import (
+            append_clauses_to_file, ensure_subcategory, filter_file_path,
+        )
+        category    = request.form.get("category", "").strip()
+        subcategory = request.form.get("subcategory", "").strip()
+        filter_type = request.form.get("filter_type", "")
+        src_ip      = request.form.get("src_ip", "")
+        dest_ip     = request.form.get("dest_ip", "")
+        notice_note = request.form.get("notice_note", "")
+        comment     = request.form.get("comment", "").strip()
+        idx         = request.form.get("idx", "0")
+
+        if not category or not subcategory:
+            return render_template("partials/filter_result.html",
+                                   success=False, error="Category and subcategory are required.",
+                                   idx=idx)
+
+        if filter_type == "src_ip":
+            clause = {"term": {"src_ip": src_ip}}
+        elif filter_type == "dest_ip":
+            clause = {"term": {"dest_ip": dest_ip}}
+        elif filter_type == "notice_src_ip_and_note":
+            clause = {"bool": {"must": [
+                {"term": {"src_ip": src_ip}},
+                {"term": {"zeek.notice.note": notice_note}},
+            ]}}
+        else:
+            return render_template("partials/filter_result.html",
+                                   success=False, error=f"Unknown filter type: {filter_type!r}",
+                                   idx=idx)
+
+        if comment:
+            clause["comment"] = comment
+
+        try:
+            path = filter_file_path(category, subcategory)
+            append_clauses_to_file(path, [clause], author="web")
+            ensure_subcategory(category, subcategory)
+            return render_template("partials/filter_result.html",
+                                   success=True, category=category, subcategory=subcategory,
+                                   idx=idx)
+        except Exception as exc:
+            return render_template("partials/filter_result.html",
+                                   success=False, error=str(exc), idx=idx)
 
     # ------------------------------------------------------------------
     # Cache debug endpoints

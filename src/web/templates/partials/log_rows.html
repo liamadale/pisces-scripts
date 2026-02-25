@@ -1,6 +1,12 @@
+{% from "partials/macros.html" import risk_bars %}
 {% for rec in records %}
 {% set idx = loop.index %}
-<tr id="row-{{ idx }}">
+<tr id="row-{{ idx }}"
+    hx-get="/api/detail/{{ log_type }}/{{ idx }}?{{ request.query_string.decode() }}"
+    hx-target="#detail-panel-content"
+    hx-swap="innerHTML"
+    hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
+    onclick="if(!event.target.closest('a')) handleDetailToggle(this)">
   <td class="num">{{ idx }}</td>
   <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
   <td>
@@ -11,34 +17,42 @@
       {{ rec.get('sensor', '—') }}
     {% endif %}
   </td>
-  <td>
+  <td title="{{ rec.get('src_ip','') }}">
     <a class="ip-link" href="/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
       {{ rec.get('src_ip', '—') }}
     </a>
   </td>
   <td class="num">{{ rec.get('src_port', '—') }}</td>
-  <td>{{ rec.get('dest_ip', '—') }}</td>
+  <td title="{{ rec.get('dest_ip','') }}">{{ rec.get('dest_ip', '—') }}</td>
   <td class="num">{{ rec.get('dest_port', '—') }}</td>
+  {% if log_type == 'conn' %}
+  <td>{{ rec.get('app_proto', '—') }}</td>
+  <td class="num">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
+  <td class="num">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
+  {% elif log_type == 'dns' %}
+  <td title="{{ rec.get('query','') }}">{{ rec.get('query', '—') }}</td>
+  {% elif log_type == 'http' %}
+  <td title="{{ rec.get('http_uri','') }}">{{ rec.get('http_uri', '—') }}</td>
+  <td class="num">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
+  <td class="num">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
+  {% elif log_type == 'notice' %}
+  <td title="{{ rec.get('notice_note','') }}">{{ rec.get('notice_note', '—') }}</td>
+  {% elif log_type == 'ssh' %}
+  <td>{{ rec.get('ssh_client', '—') }}</td>
+  {% elif log_type == 'rdp' %}
+  <td>{{ rec.get('rdp_cookie', '—') }}</td>
+  {% elif log_type == 'smtp' %}
+  <td title="{{ rec.get('smtp_subject','') }}">{{ rec.get('smtp_subject', '—') }}</td>
+  {% elif log_type == 'ssl' %}
+  <td>{{ rec.get('ssl_server_name', '—') }}</td>
+  {% elif log_type == 'smb' %}
+  <td>{{ rec.get('smb_path', '—') }}</td>
+  {% elif log_type == 'weird' %}
+  <td>{{ rec.get('weird_name', '—') }}</td>
+  {% endif %}
+  <td class="num">{{ risk_bars(rec) }}</td>
   <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
-  <td>
-    <button class="btn btn-sm"
-            hx-get="/api/detail/{{ log_type }}/{{ idx }}?{{ request.query_string.decode() }}"
-            hx-target="#detail-{{ idx }}"
-            hx-swap="innerHTML"
-            hx-on:click="toggleDetail('detail-{{ idx }}')"
-            title="Expand">+</button>
-  </td>
 </tr>
-<tr class="detail-row"><td colspan="9" id="detail-{{ idx }}"></td></tr>
 {% else %}
-<tr><td colspan="9" style="text-align:center; color: var(--text-dim); padding: 16px;">No records.</td></tr>
+<tr><td colspan="20" style="text-align:center; color: var(--text-dim); padding: 16px;">No records.</td></tr>
 {% endfor %}
-
-<script>
-function toggleDetail(id) {
-  var el = document.getElementById(id);
-  if (el && el.innerHTML.trim()) {
-    el.innerHTML = "";
-  }
-}
-</script>

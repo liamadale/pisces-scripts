@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/macros.html" import risk_bars %}
 {% block title %}PISCES — {{ log_type }}{% endblock %}
 
 {% block content %}
@@ -22,24 +23,62 @@
            placeholder="any">
   </div>
   {% endfor %}
-  <button type="submit" class="btn btn-primary">Filter</button>
+  <button type="submit" class="btn btn-primary">
+    <i class="fa-solid fa-magnifying-glass"></i> Filter
+  </button>
   <span class="htmx-indicator" id="search-spinner">Searching…</span>
 </form>
 {% endif %}
 
 <div class="table-wrap">
   <table id="log-table">
+    <colgroup>
+      <col class="col-num"><col class="col-time"><col class="col-sensor">
+      <col class="col-ip"><col class="col-port">
+      <col class="col-ip"><col class="col-port">
+      <col class="col-info">
+      {% if log_type in ('conn', 'http') %}
+      <col class="col-bytes"><col class="col-bytes">
+      {% endif %}
+      <col class="col-risk">
+      <col class="col-freq">
+    </colgroup>
     <thead>
       <tr>
-        <th>#</th>
+        <th class="num">#</th>
         <th class="sortable">Time</th>
         <th class="sortable">Sensor</th>
         <th class="sortable">Src IP</th>
-        <th class="sortable">Src Port</th>
+        <th class="sortable num">Src Port</th>
         <th class="sortable">Dst IP</th>
-        <th class="sortable">Dst Port</th>
+        <th class="sortable num">Dst Port</th>
+        {% if log_type == 'conn' %}
+        <th class="sortable">App</th>
+        <th class="sortable num">↑ Bytes</th>
+        <th class="sortable num">↓ Bytes</th>
+        {% elif log_type == 'dns' %}
+        <th class="sortable">Query</th>
+        {% elif log_type == 'http' %}
+        <th class="sortable">URI</th>
+        <th class="sortable num">↑ Bytes</th>
+        <th class="sortable num">↓ Bytes</th>
+        {% elif log_type == 'notice' %}
+        <th class="sortable">Note</th>
+        {% elif log_type == 'ssh' %}
+        <th class="sortable">Client</th>
+        {% elif log_type == 'rdp' %}
+        <th class="sortable">Cookie</th>
+        {% elif log_type == 'smtp' %}
+        <th class="sortable">Subject</th>
+        {% elif log_type == 'ssl' %}
+        <th class="sortable">SNI</th>
+        {% elif log_type == 'smb' %}
+        <th class="sortable">Path</th>
+        {% elif log_type == 'weird' %}
+        <th class="sortable">Name</th>
+        {% endif %}
+        <th>Risk</th>
         <th class="sortable num">Freq</th>
-        <th>Detail</th>
       </tr>
     </thead>
     <tbody id="log-tbody">

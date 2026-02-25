@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/macros.html" import risk_bars %}
 {% block title %}PISCES — {{ ip }}{% endblock %}
 
 {% block content %}
@@ -7,7 +8,9 @@
   <button class="btn"
           hx-post="/api/enrich/{{ ip }}"
           hx-target="#enrich-panel"
-          hx-swap="innerHTML">Enrich</button>
+          hx-swap="innerHTML">
+    <i class="fa-solid fa-shield-halved"></i> Enrich
+  </button>
 </div>
 
 <div id="enrich-panel"></div>
@@ -19,46 +22,104 @@
     <span class="proto-tag">{{ lt }}</span>
     <span class="count-note">{{ records|length }} record(s)</span>
     <a class="btn btn-sm" href="/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
-      Full view →
+      <i class="fa-solid fa-arrow-up-right-from-square"></i> Full view
     </a>
   </div>
 
   {% if records %}
   <div class="table-wrap">
     <table>
+      <colgroup>
+        <col class="col-num"><col class="col-time"><col class="col-sensor">
+        <col class="col-ip"><col class="col-port">
+        <col class="col-info">
+        {% if lt in ('conn', 'http') %}
+        <col class="col-bytes"><col class="col-bytes">
+        {% endif %}
+        <col class="col-risk">
+        <col class="col-freq">
+      </colgroup>
       <thead>
         <tr>
-          <th>#</th>
+          <th class="num">#</th>
           <th class="sortable">Time</th>
           <th class="sortable">Sensor</th>
           <th class="sortable">Dst IP</th>
-          <th class="sortable">Dst Port</th>
+          <th class="sortable num">Dst Port</th>
+          {% if lt == 'conn' %}
+          <th class="sortable">App</th>
+          <th class="sortable num">↑ Bytes</th>
+          <th class="sortable num">↓ Bytes</th>
+          {% elif lt == 'dns' %}
+          <th class="sortable">Query</th>
+          {% elif lt == 'http' %}
+          <th class="sortable">URI</th>
+          <th class="sortable num">↑ Bytes</th>
+          <th class="sortable num">↓ Bytes</th>
+          {% elif lt == 'notice' %}
+          <th class="sortable">Note</th>
+          {% elif lt == 'ssh' %}
+          <th class="sortable">Client</th>
+          {% elif lt == 'rdp' %}
+          <th class="sortable">Cookie</th>
+          {% elif lt == 'smtp' %}
+          <th class="sortable">Subject</th>
+          {% elif lt == 'ssl' %}
+          <th class="sortable">SNI</th>
+          {% elif lt == 'smb' %}
+          <th class="sortable">Path</th>
+          {% elif lt == 'weird' %}
+          <th class="sortable">Name</th>
+          {% endif %}
+          <th>Risk</th>
           <th class="sortable num">Freq</th>
-          <th>Detail</th>
         </tr>
       </thead>
       <tbody>
         {% for rec in records %}
         {% set idx = loop.index %}
-        <tr id="{{ lt }}-row-{{ idx }}">
+        <tr id="{{ lt }}-row-{{ idx }}"
+            hx-get="/api/detail/{{ lt }}/{{ idx }}?src_ip={{ ip }}&{{ request.query_string.decode() }}"
+            hx-target="#detail-panel-content"
+            hx-swap="innerHTML"
+            hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
+            onclick="if(!event.target.closest('a')) handleDetailToggle(this)">
           <td class="num">{{ idx }}</td>
           <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
           <td>
             {% set sensors = rec.get('sensors') %}
             {% if sensors %}{{ sensors | join(', ') }}{% else %}{{ rec.get('sensor', '—') }}{% endif %}
           </td>
-          <td>{{ rec.get('dest_ip', '—') }}</td>
+          <td title="{{ rec.get('dest_ip','') }}">{{ rec.get('dest_ip', '—') }}</td>
           <td class="num">{{ rec.get('dest_port', '—') }}</td>
+          {% if lt == 'conn' %}
+          <td>{{ rec.get('app_proto', '—') }}</td>
+          <td class="num">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
+          <td class="num">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
+          {% elif lt == 'dns' %}
+          <td title="{{ rec.get('query','') }}">{{ rec.get('query', '—') }}</td>
+          {% elif lt == 'http' %}
+          <td title="{{ rec.get('http_uri','') }}">{{ rec.get('http_uri', '—') }}</td>
+          <td class="num">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
+          <td class="num">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
+          {% elif lt == 'notice' %}
+          <td title="{{ rec.get('notice_note','') }}">{{ rec.get('notice_note', '—') }}</td>
+          {% elif lt == 'ssh' %}
+          <td>{{ rec.get('ssh_client', '—') }}</td>
+          {% elif lt == 'rdp' %}
+          <td>{{ rec.get('rdp_cookie', '—') }}</td>
+          {% elif lt == 'smtp' %}
+          <td title="{{ rec.get('smtp_subject','') }}">{{ rec.get('smtp_subject', '—') }}</td>
+          {% elif lt == 'ssl' %}
+          <td>{{ rec.get('ssl_server_name', '—') }}</td>
+          {% elif lt == 'smb' %}
+          <td>{{ rec.get('smb_path', '—') }}</td>
+          {% elif lt == 'weird' %}
+          <td>{{ rec.get('weird_name', '—') }}</td>
+          {% endif %}
+          <td class="num">{{ risk_bars(rec) }}</td>
           <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
-          <td>
-            <button class="btn btn-sm"
-                    hx-get="/api/detail/{{ lt }}/{{ idx }}?src_ip={{ ip }}&{{ request.query_string.decode() }}"
-                    hx-target="#{{ lt }}-detail-{{ idx }}"
-                    hx-swap="innerHTML"
-                    title="Expand">+</button>
-          </td>
         </tr>
-        <tr class="detail-row" id="{{ lt }}-detail-{{ idx }}"></tr>
         {% endfor %}
       </tbody>
     </table>

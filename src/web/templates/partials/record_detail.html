@@ -1,28 +1,69 @@
-<div class="detail-grid">
-  {% for label, fn in detail_fields %}
-  <span class="dk">{{ label }}</span>
-  <span class="dv">{{ fn(record) }}</span>
-  {% endfor %}
-  <span class="dk">Freq</span>
-  <span class="dv">{{ record.get('freq', '—') }}</span>
+<div class="detail-panel-header">
+  <div class="detail-panel-title">
+    <span class="title-log-type"><i class="fa-solid fa-file-lines"></i> {{ log_type }} #{{ idx }}</span>
+    <span class="title-timestamp">
+      {{ record.get('timestamp', '')[:19].replace('T', ' ') if record.get('timestamp') else '' }}
+    </span>
+  </div>
+  <button class="btn-icon" onclick="closeDetailPanel()" title="Close">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
 </div>
-{% set src_ip = record.get('src_ip') %}
-{% set dest_ip = record.get('dest_ip') %}
-{% if src_ip or dest_ip %}
-<div class="enrich-triggers">
-  {% if src_ip %}
-  <button class="btn btn-sm"
-          hx-post="/api/enrich/{{ src_ip }}"
-          hx-target="#enrich-src-{{ idx }}"
-          hx-swap="innerHTML">Enrich src {{ src_ip }}</button>
+
+<div class="detail-panel-body">
+
+  <!-- Zone 1: field key-value card -->
+  <div class="detail-card">
+    <div class="detail-grid">
+      {% for label, fn in detail_fields %}
+      <span class="dk">{{ label }}</span><span class="dv">{{ fn(record) }}</span>
+      {% endfor %}
+      <span class="dk">Freq</span><span class="dv">{{ record.get('freq','—') }}</span>
+    </div>
+    <div class="filter-action-row">
+      <button class="btn btn-sm"
+              hx-get="/api/filter/form?src_ip={{ record.get('src_ip','') }}&dest_ip={{ record.get('dest_ip','') }}&notice_note={{ record.get('notice_note','') | urlencode }}&log_type={{ log_type }}&idx={{ idx }}"
+              hx-target="#filter-zone-{{ idx }}"
+              hx-swap="innerHTML">
+        <i class="fa-solid fa-filter-circle-xmark"></i> Create FP Filter
+      </button>
+    </div>
+  </div>
+
+  <div id="filter-zone-{{ idx }}"></div>
+
+  <!-- Zone 2: src / dst enrichment (stacks vertically in narrow panel via CSS) -->
+  {% set src_ip  = record.get('src_ip') %}
+  {% set dest_ip = record.get('dest_ip') %}
+  {% if src_ip or dest_ip %}
+  <div class="enrich-cols">
+    <div class="enrich-col">
+      {% if src_ip %}
+      <div class="enrich-col-header">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> Source — {{ src_ip }}
+      </div>
+      <button class="btn btn-sm"
+              hx-post="/api/enrich/{{ src_ip }}"
+              hx-target="#enrich-src-{{ idx }}" hx-swap="innerHTML">
+        <i class="fa-solid fa-shield-halved"></i> Enrich
+      </button>
+      <div id="enrich-src-{{ idx }}"></div>
+      {% endif %}
+    </div>
+    <div class="enrich-col">
+      {% if dest_ip %}
+      <div class="enrich-col-header">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Destination — {{ dest_ip }}
+      </div>
+      <button class="btn btn-sm"
+              hx-post="/api/enrich/{{ dest_ip }}"
+              hx-target="#enrich-dst-{{ idx }}" hx-swap="innerHTML">
+        <i class="fa-solid fa-shield-halved"></i> Enrich
+      </button>
+      <div id="enrich-dst-{{ idx }}"></div>
+      {% endif %}
+    </div>
+  </div>
   {% endif %}
-  {% if dest_ip %}
-  <button class="btn btn-sm"
-          hx-post="/api/enrich/{{ dest_ip }}"
-          hx-target="#enrich-dst-{{ idx }}"
-          hx-swap="innerHTML">Enrich dst {{ dest_ip }}</button>
-  {% endif %}
+
 </div>
-{% if src_ip %}<div id="enrich-src-{{ idx }}"></div>{% endif %}
-{% if dest_ip %}<div id="enrich-dst-{{ idx }}"></div>{% endif %}
-{% endif %}

@@ -5,15 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 <body>
+
+{% set proto_icons = {
+  'conn':  'fa-network-wired',
+  'dns':   'fa-server',
+  'http':  'fa-globe',
+  'ssl':   'fa-lock',
+  'smtp':  'fa-envelope',
+  'rdp':   'fa-desktop',
+  'smb':   'fa-folder-open',
+  'ssh':   'fa-terminal',
+  'notice':'fa-bell',
+  'weird': 'fa-triangle-exclamation'
+} %}
 
 <nav>
   <a class="brand" href="/">PISCES</a>
   {% for lt in MODULES %}
   <a href="/log/{{ lt }}"
-     class="{% if request.path == '/log/' ~ lt %}active{% endif %}">{{ lt }}</a>
+     class="{% if request.path == '/log/' ~ lt %}active{% endif %}">
+    <i class="fa-solid {{ proto_icons.get(lt, 'fa-file-lines') }}"></i>{{ lt }}
+  </a>
   {% endfor %}
   <div class="spacer"></div>
 </nav>
@@ -68,49 +86,111 @@
     Public&nbsp;only
   </label>
 
-  <button type="submit" class="btn btn-primary">Search</button>
+  <div class="sep"></div>
+
+  <button type="button" id="sticky-toggle" class="btn btn-sm"
+          onclick="toggleStickyHeaders()" title="Pin table headers">
+    <i class="fa-solid fa-thumbtack"></i>
+  </button>
+
+  <button type="submit" class="btn btn-primary">
+    <i class="fa-solid fa-magnifying-glass"></i> Search
+  </button>
 </form>
 
 <main>
 {% block content %}{% endblock %}
 </main>
 
-{# Client-side sortable table — vanilla JS, no deps #}
+<aside id="detail-panel" class="detail-panel-slide" aria-label="Record detail">
+  <div id="detail-panel-content"></div>
+</aside>
+
 <script>
 (function () {
+  /* ── Sortable table ─────────────────────────────────── */
   function sortTable(th) {
-    const table = th.closest("table");
-    const tbody = table.querySelector("tbody");
-    const col = Array.from(th.parentElement.children).indexOf(th);
-    const asc = th.classList.toggle("sort-asc");
+    var table = th.closest("table");
+    var tbody = table.querySelector("tbody");
+    var col = Array.from(th.parentElement.children).indexOf(th);
+    var asc = th.classList.toggle("sort-asc");
     if (!asc) th.classList.add("sort-desc"); else th.classList.remove("sort-desc");
-
-    // Clear sibling sort indicators
-    th.parentElement.querySelectorAll("th").forEach(t => {
-      if (t !== th) { t.classList.remove("sort-asc", "sort-desc"); }
+    th.parentElement.querySelectorAll("th").forEach(function(t) {
+      if (t !== th) t.classList.remove("sort-asc", "sort-desc");
     });
-
-    const rows = Array.from(tbody.querySelectorAll("tr:not(.detail-row)"));
-    rows.sort((a, b) => {
-      const av = a.children[col] ? a.children[col].dataset.val || a.children[col].textContent.trim() : "";
-      const bv = b.children[col] ? b.children[col].dataset.val || b.children[col].textContent.trim() : "";
-      const an = parseFloat(av), bn = parseFloat(bv);
+    var rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.sort(function(a, b) {
+      var av = a.children[col] ? (a.children[col].dataset.val || a.children[col].textContent.trim()) : "";
+      var bv = b.children[col] ? (b.children[col].dataset.val || b.children[col].textContent.trim()) : "";
+      var an = parseFloat(av), bn = parseFloat(bv);
       if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
       return asc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-    // Remove detail rows before re-appending
-    tbody.querySelectorAll("tr.detail-row").forEach(r => r.remove());
-    rows.forEach(r => tbody.appendChild(r));
+    rows.forEach(function(r) { tbody.appendChild(r); });
   }
 
-  document.addEventListener("click", function (e) {
-    const th = e.target.closest("th.sortable");
-    if (th) sortTable(th);
+  /* ── Detail panel ───────────────────────────────────── */
+  function openDetailPanel() {
+    document.getElementById("detail-panel").classList.add("open");
+  }
+
+  window.closeDetailPanel = function() {
+    document.getElementById("detail-panel").classList.remove("open");
+    document.querySelectorAll("tr.row-selected").forEach(function(r) {
+      r.classList.remove("row-selected");
+    });
+  };
+
+  window.handleDetailToggle = function(el) {
+    var row = el.tagName === "TR" ? el : el.closest("tr");
+    var isSelected = row.classList.contains("row-selected");
+    document.querySelectorAll("tr.row-selected").forEach(function(r) {
+      r.classList.remove("row-selected");
+    });
+    if (isSelected) {
+      closeDetailPanel();
+    } else {
+      row.classList.add("row-selected");
+      // HTMX fires because hx-trigger condition is now true
+    }
+  };
+
+  /* ── Sticky headers toggle ──────────────────────────── */
+  window.toggleStickyHeaders = function() {
+    var isSticky = document.body.classList.toggle("sticky-headers");
+    localStorage.setItem("stickyHeaders", isSticky ? "1" : "");
+    var btn = document.getElementById("sticky-toggle");
+    if (btn) btn.classList.toggle("active", isSticky);
+  };
+
+  // Restore preference on page load
+  if (localStorage.getItem("stickyHeaders")) {
+    document.body.classList.add("sticky-headers");
+    var btn = document.getElementById("sticky-toggle");
+    if (btn) btn.classList.add("active");
+  }
+
+  /* ── Global event delegation ────────────────────────── */
+  document.addEventListener("click", function(e) {
+    var th = e.target.closest("th.sortable");
+    if (th) { sortTable(th); return; }
+
+    var panel = document.getElementById("detail-panel");
+    if (panel && panel.classList.contains("open")) {
+      if (!panel.contains(e.target) && !e.target.closest("tbody tr")) {
+        closeDetailPanel();
+      }
+    }
   });
 
-  // Toggle detail row visibility
-  document.addEventListener("htmx:afterSwap", function (e) {
-    // re-attach sort classes after HTMX partial reload
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") closeDetailPanel();
+  });
+
+  document.addEventListener("htmx:afterSwap", function(e) {
+    if (e.detail.target && e.detail.target.id === "detail-panel-content") {
+      openDetailPanel();
+    }
   });
 })();
 </script>
