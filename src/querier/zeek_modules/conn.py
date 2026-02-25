@@ -25,6 +25,8 @@ class ConnModule(ZeekModule):
         "zeek.conn.duration",
         "zeek.conn.conn_state",
         "event.dataset",
+        "event.risk_score",
+        "event.risk_score_norm",
     ]
 
     def build_extra_must(self, search_params: dict) -> list:
@@ -48,6 +50,8 @@ class ConnModule(ZeekModule):
             "bytes_resp":   src.get("destination", {}).get("bytes"),
             "duration":     src.get("zeek", {}).get("conn", {}).get("duration"),
             "conn_state":   src.get("zeek", {}).get("conn", {}).get("conn_state"),
+            "risk_score":      src.get("event", {}).get("risk_score"),
+            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw":         src,
         }
 
@@ -74,6 +78,8 @@ class ConnModule(ZeekModule):
         ("↓ Bytes",    lambda r: _fmt_bytes(r.get("bytes_resp"))),
         ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
         ("Direction",  lambda r: r.get("direction", "—") or "—"),
+        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
+        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
         ("Freq",       lambda r: str(r.get("freq", "—"))),
     ]
 

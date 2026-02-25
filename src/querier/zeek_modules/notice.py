@@ -28,6 +28,8 @@ class NoticeModule(ZeekModule):
         "network.community_id",
         "network.direction",
         "event.dataset",
+        "event.risk_score",
+        "event.risk_score_norm",
     ]
 
     def build_extra_must(self, search_params: dict) -> list:
@@ -53,6 +55,8 @@ class NoticeModule(ZeekModule):
             "notice_dropped": notice.get("dropped"),
             "community_id":  src.get("network", {}).get("community_id", ""),
             "direction":     src.get("network", {}).get("direction", ""),
+            "risk_score":      src.get("event", {}).get("risk_score"),
+            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw":          src,
         }
 
@@ -72,6 +76,8 @@ class NoticeModule(ZeekModule):
         ("Dropped",    lambda r: "✓" if r.get("notice_dropped") is True else ("✗" if r.get("notice_dropped") is False else "—")),
         ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
         ("Direction",  lambda r: r.get("direction", "—") or "—"),
+        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
+        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
         ("Freq",       lambda r: str(r.get("freq", "—"))),
     ]
 
