@@ -5,12 +5,8 @@ import json
 from flask import Flask, render_template, request, abort
 
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import (
-    TIME_RANGES,
-    _fmt_bytes,
-    _fmt_dur,
-    run_query,
-)
+from src.querier.zeek_modules.base import TIME_RANGES, run_query
+from src.utils.format import fmt_bytes, fmt_dur
 from src.web.queries import (
     MODULE_PARAM_KEYS,
     build_search_params_from_request,
@@ -22,8 +18,8 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
     # Register Jinja2 filters
-    app.jinja_env.filters["fmt_bytes"] = _fmt_bytes
-    app.jinja_env.filters["fmt_dur"] = _fmt_dur
+    app.jinja_env.filters["fmt_bytes"] = fmt_bytes
+    app.jinja_env.filters["fmt_dur"] = fmt_dur
 
     # Make TIME_RANGES and MODULES available to all templates
     @app.context_processor

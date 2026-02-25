@@ -19,9 +19,17 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
+from src.utils.format import fmt_bytes, fmt_dur
+from src.utils.cache import cache_path as _cache_path_util, save_cache, load_cache
+from src.utils.terminal import confirm_exit, prompt
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 console = Console()
+
+# Backwards-compatible aliases — zeek modules import these names from .base
+_fmt_bytes = fmt_bytes
+_fmt_dur = fmt_dur
 
 # Project root — four dirname() calls up from src/querier/zeek_modules/base.py
 _BASE = os.path.dirname(
@@ -92,56 +100,6 @@ def is_private(ip: str) -> bool:
         return False
 
 
-def _fmt_bytes(b) -> str:
-    if b is None:
-        return "—"
-    try:
-        b = float(b)
-    except (TypeError, ValueError):
-        return "—"
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(b) < 1000:
-            return f"{b:.1f}{unit}"
-        b /= 1000
-    return f"{b:.1f}PB"
-
-
-def _fmt_dur(d) -> str:
-    if d is None:
-        return "—"
-    try:
-        d = float(d)
-    except (TypeError, ValueError):
-        return str(d)
-    if d < 1:
-        return f"{d * 1000:.0f}ms"
-    if d < 60:
-        return f"{d:.1f}s"
-    return f"{d / 60:.1f}m"
-
-
-def _confirm_exit() -> bool:
-    console.print(
-        "\n  [bold red]CTRL+C[/bold red] again to exit / [bold green]Enter[/bold green] to continue",
-        end=" ",
-    )
-    try:
-        input()
-    except (KeyboardInterrupt, EOFError):
-        print()
-        return True
-    return False
-
-
-def _prompt(text: str) -> str:
-    try:
-        return input(text)
-    except EOFError:
-        return ""
-    except KeyboardInterrupt:
-        console.print("")
-        raise
-
 
 def _sensor_str(rec: dict) -> str:
     """Format the sensor(s) column for display."""
@@ -194,25 +152,11 @@ def _remap_clause(clause: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _cache_path(args_hash: str) -> str:
-    cache_dir = os.path.join(_BASE, "data", "cache")
-    os.makedirs(cache_dir, exist_ok=True)
-    return os.path.join(cache_dir, f"opensearch_{args_hash}.json")
+    return _cache_path_util(f"opensearch_{args_hash}.json")
 
 
-def _save_cache(data: dict, path: str) -> None:
-    try:
-        with open(path, "w") as fh:
-            json.dump(data, fh)
-    except OSError:
-        pass
-
-
-def _load_cache(path: str) -> dict | None:
-    try:
-        with open(path) as fh:
-            return json.load(fh)
-    except (OSError, json.JSONDecodeError):
-        return None
+_save_cache = save_cache
+_load_cache = load_cache
 
 
 # ---------------------------------------------------------------------------
@@ -456,9 +400,9 @@ def interactive_loop(records: list, search_params: dict, module) -> None:
             "[bold cyan]Action[/bold cyan] — enter record # / \\[r]e-search / \\[p]rint (CTRL+C to exit):"
         )
         try:
-            raw = _prompt("  > ").strip().lower()
+            raw = prompt("  > ").strip().lower()
         except KeyboardInterrupt:
-            if _confirm_exit():
+            if confirm_exit():
                 break
             continue
 
@@ -493,7 +437,7 @@ def interactive_loop(records: list, search_params: dict, module) -> None:
         console.print("  \\[e]nrich  \\[f]alse positive  \\[m]antis search  \\[t]icket  \\[s]kip")
 
         try:
-            action = _prompt("  Action: ").strip().lower()
+            action = prompt("  Action: ").strip().lower()
         except KeyboardInterrupt:
             console.print("[dim]Cancelled.[/dim]")
             continue
@@ -551,7 +495,7 @@ def _search_again_prompt(current: dict, module) -> dict:
         """Prompt for a value; returns user input or preserves current (empty string for None)."""
         display = "" if current_val is None else str(current_val)
         try:
-            val = _prompt(f"  {label} [{display}]: ").strip()
+            val = prompt(f"  {label} [{display}]: ").strip()
             return val if val else display
         except KeyboardInterrupt:
             console.print("")

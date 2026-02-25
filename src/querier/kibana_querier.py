@@ -11,7 +11,6 @@ Usage:
 """
 
 import argparse
-import ipaddress
 import json
 import os
 import readline  # noqa: F401 — enables arrow-key history and suppresses escape echoing in input()
@@ -33,8 +32,12 @@ from rich.text import Text
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.querier.filter_loader import load_filters
+from src.querier.zeek_modules.base import is_private
 from src.utils.banner import BANNER
+from src.utils.cache import cache_path as _cache_path_util, save_cache as _save_cache, load_cache as _load_cache
 from src.utils.dns import setup_dns
+from src.utils.format import fmt_bytes as _fmt_bytes
+from src.utils.terminal import confirm_exit as _confirm_exit, prompt as _prompt
 
 console = Console()
 
@@ -54,17 +57,6 @@ TIME_RANGES = [
 
 # Suricata severity → Rich color
 SEVERITY_COLORS = {1: "red", 2: "yellow", 3: "cyan"}
-
-# RFC 1918 + loopback CIDRs — used as ES term queries against an ip-mapped field
-_PRIVATE_CIDRS = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8"]
-
-
-def is_private(ip: str) -> bool:
-    try:
-        addr = ipaddress.ip_address(ip)
-        return any(addr in ipaddress.ip_network(cidr) for cidr in _PRIVATE_CIDRS)
-    except ValueError:
-        return False
 
 
 # ---------------------------------------------------------------------------
@@ -241,16 +233,6 @@ def deduplicate(alerts: list[dict]) -> list[dict]:
 # Display
 # ---------------------------------------------------------------------------
 
-def _fmt_bytes(b: int | None) -> str:
-    """Format a byte count as a human-readable string (B/KB/MB/GB), or '—'."""
-    if b is None:
-        return "—"
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(b) < 1000:
-            return f"{b:.1f}{unit}"
-        b /= 1000
-    return f"{b:.1f}PB"
-
 
 def _sig_col_budget(alerts: list[dict]) -> int:
     """Estimate characters available to the Signature column at current terminal width.
@@ -352,27 +334,6 @@ def display_alerts(alerts: list[dict]) -> None:
 # ---------------------------------------------------------------------------
 # Interactive post-display prompt
 # ---------------------------------------------------------------------------
-
-def _confirm_exit() -> bool:
-    """Ask the analyst to confirm exit. Returns True if confirmed."""
-    console.print("\n  [bold red]CTRL+C[/bold red] again to exit / [bold green]Enter[/bold green] to continue", end=" ")
-    try:
-        input()
-    except (KeyboardInterrupt, EOFError):
-        print()
-        return True
-    return False
-
-
-def _prompt(text: str) -> str:
-    """input() wrapper that raises SystemExit cleanly on Ctrl+C / EOF."""
-    try:
-        return input(text)
-    except EOFError:
-        return ""
-    except KeyboardInterrupt:
-        console.print("")  # move off the input line
-        raise
 
 
 def interactive_loop(alerts: list[dict], search_params: dict) -> None:
@@ -644,25 +605,7 @@ def list_cities(time_range: str = "now-7d") -> None:
 # ---------------------------------------------------------------------------
 
 def _cache_path(args_hash: str) -> str:
-    cache_dir = os.path.join(_BASE, "data", "cache")
-    os.makedirs(cache_dir, exist_ok=True)
-    return os.path.join(cache_dir, f"{args_hash}.json")
-
-
-def _save_cache(data: dict, path: str) -> None:
-    try:
-        with open(path, "w") as fh:
-            json.dump(data, fh)
-    except OSError:
-        pass
-
-
-def _load_cache(path: str) -> dict | None:
-    try:
-        with open(path) as fh:
-            return json.load(fh)
-    except (OSError, json.JSONDecodeError):
-        return None
+    return _cache_path_util(f"{args_hash}.json")
 
 
 # ---------------------------------------------------------------------------
