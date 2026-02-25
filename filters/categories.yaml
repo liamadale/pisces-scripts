@@ -6,6 +6,8 @@ categories:
     - network-misconfigurations
     - normal-flagged-traffic
     - known_bad_blocked
+    - known_smb_servers
+    - ad-traffic
   signatures:
     subcategories:
     - et_scan_suppression
