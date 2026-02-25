@@ -111,7 +111,7 @@ class SslModule(ZeekModule):
             flow = f"{src_ip} → {dest_ip}:{dest_port}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][11:16],
+                rec["timestamp"][5:16].replace("T", " "),
                 _sensor_str(rec),
                 flow,
                 rec.get("ssl_server_name", "") or "—",

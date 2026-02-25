@@ -104,7 +104,7 @@ class ConnModule(ZeekModule):
             app_state = f"{app_proto or proto}/{conn_state}" if (app_proto or proto) else conn_state
             table.add_row(
                 str(idx),
-                rec["timestamp"][11:16],
+                rec["timestamp"][5:16].replace("T", " "),
                 _sensor_str(rec),
                 flow,
                 app_state or "—",

@@ -109,7 +109,7 @@ class HttpModule(ZeekModule):
             status = rec.get("http_status")
             table.add_row(
                 str(idx),
-                rec["timestamp"][11:16],
+                rec["timestamp"][5:16].replace("T", " "),
                 _sensor_str(rec),
                 rec.get("src_ip", ""),
                 request,

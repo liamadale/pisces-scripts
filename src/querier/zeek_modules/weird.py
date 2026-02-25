@@ -87,7 +87,7 @@ class WeirdModule(ZeekModule):
             flow = f"{src_ip} → {dest_ip}"
             table.add_row(
                 str(idx),
-                rec["timestamp"][11:16],
+                rec["timestamp"][5:16].replace("T", " "),
                 _sensor_str(rec),
                 flow,
                 rec.get("weird_name", "") or "—",

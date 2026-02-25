@@ -93,7 +93,7 @@ class NoticeModule(ZeekModule):
         for idx, rec in enumerate(records, 1):
             table.add_row(
                 str(idx),
-                rec["timestamp"][11:16],
+                rec["timestamp"][5:16].replace("T", " "),
                 _sensor_str(rec),
                 rec.get("src_ip", ""),
                 rec.get("notice_note", "") or "—",
