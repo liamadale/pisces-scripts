@@ -6,3 +6,23 @@
   <span class="dk">Freq</span>
   <span class="dv">{{ record.get('freq', '—') }}</span>
 </div>
+{% set src_ip = record.get('src_ip') %}
+{% set dest_ip = record.get('dest_ip') %}
+{% if src_ip or dest_ip %}
+<div class="enrich-triggers">
+  {% if src_ip %}
+  <button class="btn btn-sm"
+          hx-post="/api/enrich/{{ src_ip }}"
+          hx-target="#enrich-src-{{ idx }}"
+          hx-swap="innerHTML">Enrich src {{ src_ip }}</button>
+  {% endif %}
+  {% if dest_ip %}
+  <button class="btn btn-sm"
+          hx-post="/api/enrich/{{ dest_ip }}"
+          hx-target="#enrich-dst-{{ idx }}"
+          hx-swap="innerHTML">Enrich dst {{ dest_ip }}</button>
+  {% endif %}
+</div>
+{% if src_ip %}<div id="enrich-src-{{ idx }}"></div>{% endif %}
+{% if dest_ip %}<div id="enrich-dst-{{ idx }}"></div>{% endif %}
+{% endif %}

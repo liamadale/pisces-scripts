@@ -27,16 +27,9 @@
             hx-swap="innerHTML"
             hx-on:click="toggleDetail('detail-{{ idx }}')"
             title="Expand">+</button>
-    &nbsp;
-    <button class="btn btn-sm"
-            hx-post="/api/enrich/{{ rec.get('src_ip', '') }}"
-            hx-target="#enrich-{{ idx }}"
-            hx-swap="innerHTML"
-            title="Enrich">&#9670;</button>
   </td>
 </tr>
 <tr class="detail-row"><td colspan="9" id="detail-{{ idx }}"></td></tr>
-<tr class="detail-row"><td colspan="9" id="enrich-{{ idx }}"></td></tr>
 {% else %}
 <tr><td colspan="9" style="text-align:center; color: var(--text-dim); padding: 16px;">No records.</td></tr>
 {% endfor %}

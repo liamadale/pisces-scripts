@@ -266,6 +266,9 @@ tr.detail-row td {
 .detail-grid .dk { color: var(--text-dim); }
 .detail-grid .dv { color: var(--text); word-break: break-all; }
 
+/* ── Enrich triggers (inline in record detail) ───────── */
+.enrich-triggers { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+
 /* ── Enrich card ──────────────────────────────────────── */
 .enrich-card {
   border: 2px solid var(--border);
