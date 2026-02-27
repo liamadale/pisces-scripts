@@ -387,8 +387,14 @@ def run_query(module, search_params: dict) -> list:
 # Interactive loop
 # ---------------------------------------------------------------------------
 
-def interactive_loop(records: list, search_params: dict, module) -> None:
-    """Interactive post-display prompt — dispatch to module for protocol actions."""
+def interactive_loop(records: list, search_params: dict, module, query_fn=None) -> None:
+    """Interactive post-display prompt — dispatch to module for protocol actions.
+
+    query_fn: callable with signature (module, search_params) -> list.
+              Defaults to run_query when None.
+    """
+    _query_fn = query_fn if query_fn is not None else run_query
+
     from src.enricher.threat_intel import enrich_ip
     from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis
     from src.mantis.mantis_submit import submit_interactive
@@ -413,7 +419,7 @@ def interactive_loop(records: list, search_params: dict, module) -> None:
 
         if raw in ("r", "research", "search"):
             search_params = _search_again_prompt(search_params, module)
-            new_records = run_query(module, search_params)
+            new_records = _query_fn(module, search_params)
             if new_records:
                 records = new_records
                 module.display(records)
@@ -508,7 +514,8 @@ def _search_again_prompt(current: dict, module) -> dict:
 
     new = dict(current)
     new["time_range"] = _ask("Time range", current.get("time_range", "now-24h"))
-    new["sensor"] = _ask("Sensor (comma-sep or 'all')", current.get("sensor", "all"))
+    if module.SENSOR_PARAM is not None:
+        new[module.SENSOR_PARAM] = _ask("Sensor (comma-sep or 'all')", current.get(module.SENSOR_PARAM, "all"))
 
     pub_raw = _ask("Public only (y/n)", "y" if current.get("public_only") else "n")
     new["public_only"] = pub_raw.lower() in ("y", "yes")
@@ -724,6 +731,7 @@ class ZeekModule:
     DATASETS: list = ["all"]
     SOURCE_FIELDS: list = []
     DETAIL_FIELDS: list = []  # List of (label: str, value_fn: Callable[[dict], str])
+    SENSOR_PARAM: str | None = "sensor"  # Set to None to skip the sensor prompt in re-search
 
     def build_extra_must(self, search_params: dict) -> list:
         """Return protocol-specific must clauses built from search_params."""
