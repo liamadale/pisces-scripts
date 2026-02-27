@@ -214,6 +214,7 @@ data/tickets/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Aider
 .aider/
