@@ -1,0 +1,37 @@
+description: "EXAMPLE — copy and adapt for your environment. Do not commit real IPs."
+author: example
+date_added: '2000-01-01'
+category: ips
+subcategory: known_scanners
+enabled: true
+must_not:
+  # ── Known commercial scanners (subcategory: known_scanners) ──────────────
+  - term:
+      src_ip: 192.0.2.1
+    comment: "Example: Shodan scanning node"
+  - terms:
+      src_ip: [192.0.2.2, 192.0.2.3]
+    comment: "Example: Censys scanning range"
+
+  # ── Normal traffic that routinely triggers rules (subcategory: normal-flagged-traffic) ──
+  - term:
+      src_ip: 198.51.100.10
+    comment: "Example: CDN edge node (Akamai/Fastly/Cloudflare)"
+  - term:
+      dest_ip: 198.51.100.20
+    comment: "Example: SaaS vendor egress IP"
+
+  # ── Internal network gear (subcategory: network-misconfigurations) ───────
+  - term:
+      src_ip: 203.0.113.1
+    comment: "Example: ISP CPE device generating misconfiguration alerts"
+
+  # ── Known-bad, already blocked (subcategory: known_bad_blocked) ──────────
+  - term:
+      src_ip: 203.0.113.99
+    comment: "Example: Confirmed malicious host, blocked at perimeter"
+
+  # ── Internal SMB/AD servers (subcategory: known_smb_servers / ad-traffic) ─
+  - term:
+      src_ip: 203.0.113.50
+    comment: "Example: Domain controller — SMB/Kerberos traffic expected"

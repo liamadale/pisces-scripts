@@ -240,3 +240,17 @@ data/tickets/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ── Filter files (site-specific data — do not commit) ────────────────────────
+# Real filter YAML files contain operational suppression rules specific to your
+# environment. Create your own based on the example-*.yaml templates.
+# Only example templates are tracked by git.
+filters/ips/*.yaml
+filters/signatures/*.yaml
+filters/composite/*.yaml
+filters/ports/*.yaml
+filters/notices/*.yaml
+!filters/ips/example-*.yaml
+!filters/signatures/example-*.yaml
+!filters/composite/example-*.yaml
+!filters/ports/example-*.yaml

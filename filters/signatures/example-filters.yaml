@@ -1,0 +1,21 @@
+description: "EXAMPLE — copy and adapt for your environment. Do not commit real rules."
+author: example
+date_added: '2000-01-01'
+category: signatures
+subcategory: network-misconfiguration
+enabled: true
+must_not:
+  # ── Suricata engine noise (subcategory: network-misconfiguration) ─────────
+  - match_phrase:
+      alert.signature: "SURICATA AF-PACKET truncated packet"
+    comment: "Example: Suricata internal engine message, not a real alert"
+
+  # ── ET scan rules suppressed globally (subcategory: et_scan_suppression) ──
+  - match_phrase:
+      alert.signature: "ET SCAN Example Noisy Scan Rule"
+    comment: "Example: High-volume scan rule with no actionable signal"
+
+  # ── DNS noise (subcategory: dns_noise) ───────────────────────────────────
+  - match_phrase:
+      alert.signature: "ET DNS Query for Example NXDOMAIN Noise"
+    comment: "Example: Routine NXDOMAIN for non-existent internal hostname"

@@ -1,0 +1,28 @@
+description: "EXAMPLE — copy and adapt for your environment. Do not commit real rules."
+author: example
+date_added: '2000-01-01'
+category: composite
+subcategory: false-alerts
+enabled: true
+must_not:
+  # ── IP + notice type pair ─────────────────────────────────────────────────
+  - bool:
+      must:
+        - term:
+            source.ip: "192.0.2.100"
+        - term:
+            destination.ip: "198.51.100.200"
+        - match_phrase:
+            zeek.notice.note: "Ripple20::Treck_TCP_observed"
+    comment: "Example: Known mail server triggering Ripple20 FP"
+
+  # ── IP + destination port + URI fragment ─────────────────────────────────
+  - bool:
+      must:
+        - term:
+            source.ip: "203.0.113.5"
+        - term:
+            destination.port: 80
+        - match_phrase:
+            zeek.notice.note: "HTTPATTACKS::HTTP_Smuggling"
+    comment: "Example: Internal service using WebDAV methods that trigger smuggling rule"

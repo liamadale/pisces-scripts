@@ -1,0 +1,11 @@
+description: "EXAMPLE — copy and adapt for your environment."
+author: example
+date_added: '2000-01-01'
+category: ports
+subcategory: common_services
+enabled: true
+must_not:
+  # ── Common service ports (subcategory: common_services) ──────────────────
+  - term:
+      destination.port: 8080
+    comment: "Example: Internal HTTP proxy port — suppress low-severity conn alerts"
