@@ -72,6 +72,14 @@ MANTIS_API_URL=
 MANTIS_API_TOKEN=
 ```
 
+## Development Transparency - Use of AI Tooling
+
+This project was created with the assistance of AI coding tools. AI was used to:
+- Generate initial code implementations
+- Draft documentation and usage examples
+
+All AI-generated content has been reviewed and tested by a human.
+
 ## Usage
 
 ### Query Malcolm/Zeek Logs (OpenSearch)
