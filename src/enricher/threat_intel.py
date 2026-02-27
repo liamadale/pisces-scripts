@@ -17,6 +17,7 @@ Standalone:
 import argparse
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from dotenv import load_dotenv
 from rich.console import Console
@@ -87,20 +88,21 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
     else:
         console.print("[dim]GreyNoise: not in dataset — querying AbuseIPDB...[/dim]\n")
 
-    # ---- Step 2: AbuseIPDB ----
-    ab = abuseipdb.check_ip(ip)
-    result["abuseipdb"] = ab
-    abuseipdb.display(ip, ab)
+    # ---- Steps 2-4: AbuseIPDB, Shodan, VirusTotal in parallel ----
+    remaining = {
+        "abuseipdb":  abuseipdb.check_ip,
+        "shodan":     shodan.check_ip,
+        "virustotal": virustotal.check_ip,
+    }
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {pool.submit(fn, ip): name for name, fn in remaining.items()}
+        for future in as_completed(futures):
+            result[futures[future]] = future.result()
 
-    # ---- Step 3: Shodan ----
-    sd = shodan.check_ip(ip)
-    result["shodan"] = sd
-    shodan.display(ip, sd)
-
-    # ---- Step 4: VirusTotal ----
-    vt = virustotal.check_ip(ip)
-    result["virustotal"] = vt
-    virustotal.display(ip, vt)
+    # Display in canonical order
+    abuseipdb.display(ip, result["abuseipdb"])
+    shodan.display(ip, result["shodan"])
+    virustotal.display(ip, result["virustotal"])
 
     # ---- Step 5: Reference URLs (always) ----
     _display_urls(ip)
