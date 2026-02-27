@@ -10,7 +10,7 @@
 
 {# Protocol-specific filter form (only shown if the module has extra params) #}
 {% if extra_keys %}
-<form class="filter-form"
+<form class="filter-form" id="notice-filter-form"
       hx-post="/api/search/{{ log_type }}?{{ request.query_string.decode() }}"
       hx-target="#log-tbody"
       hx-swap="innerHTML"
@@ -19,6 +19,7 @@
   <div class="field">
     <label>{{ key.replace('_', ' ').replace(log_type ~ ' ', '') }}</label>
     <input type="text" name="{{ key }}"
+           id="{{ 'notice-note-input' if key == 'notice_note' else '' }}"
            value="{{ search_params.get(key, '') or '' }}"
            placeholder="any">
   </div>
@@ -26,6 +27,15 @@
   <button type="submit" class="btn btn-primary">
     <i class="fa-solid fa-magnifying-glass"></i> Filter
   </button>
+  {% if log_type == 'notice' %}
+  <button type="button" class="btn"
+          hx-get="/api/notice/summary?{{ request.query_string.decode() }}"
+          hx-target="#notice-modal-body"
+          hx-swap="innerHTML"
+          onclick="openNoticeModal()">
+    <i class="fa-solid fa-chart-bar"></i> Browse Alerts
+  </button>
+  {% endif %}
   <span class="htmx-indicator" id="search-spinner">Searching…</span>
 </form>
 {% endif %}
@@ -77,7 +87,7 @@
         {% elif log_type == 'weird' %}
         <th class="sortable">Name</th>
         {% endif %}
-        <th>Risk</th>
+        <th class="sortable num">Risk</th>
         <th class="sortable num">Freq</th>
       </tr>
     </thead>
@@ -86,4 +96,47 @@
     </tbody>
   </table>
 </div>
+
+{% if log_type == 'notice' %}
+<div id="notice-modal-backdrop" class="modal-backdrop" onclick="closeNoticeModal()"></div>
+<div id="notice-modal" class="modal-panel" role="dialog" aria-modal="true"
+     aria-label="Alert frequency browser">
+  <div class="modal-header">
+    <span class="modal-title">
+      <i class="fa-solid fa-chart-bar"></i> Alert Browser
+    </span>
+    <button class="btn-icon" onclick="closeNoticeModal()" title="Close">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="modal-body" id="notice-modal-body">
+  </div>
+</div>
+
+<script>
+function openNoticeModal() {
+  document.getElementById("notice-modal-body").innerHTML = '<p class="ns-loading">Loading\u2026</p>';
+  document.getElementById("notice-modal").classList.add("open");
+  document.getElementById("notice-modal-backdrop").classList.add("open");
+}
+function closeNoticeModal() {
+  document.getElementById("notice-modal").classList.remove("open");
+  document.getElementById("notice-modal-backdrop").classList.remove("open");
+}
+function applyNoticeFilter(noteType) {
+  var inp = document.getElementById("notice-note-input");
+  if (inp) inp.value = noteType;
+  closeNoticeModal();
+  var qs = new URLSearchParams(window.location.search);
+  qs.set("notice_note", noteType);
+  htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
+    target: "#log-tbody",
+    swap: "innerHTML",
+  });
+}
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeNoticeModal();
+});
+</script>
+{% endif %}
 {% endblock %}

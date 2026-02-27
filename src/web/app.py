@@ -5,7 +5,7 @@ import json
 from flask import Flask, render_template, request, abort
 
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import TIME_RANGES
+from src.querier.zeek_modules.base import TIME_RANGES, is_private
 from src.utils.format import fmt_bytes, fmt_dur
 from src.web import cache as wcache
 from src.web.queries import (
@@ -22,6 +22,9 @@ def create_app() -> Flask:
     # Register Jinja2 filters
     app.jinja_env.filters["fmt_bytes"] = fmt_bytes
     app.jinja_env.filters["fmt_dur"] = fmt_dur
+
+    # Register Jinja2 globals
+    app.jinja_env.globals["is_private"] = is_private
 
     # Make TIME_RANGES and MODULES available to all templates
     @app.context_processor
@@ -208,10 +211,68 @@ def create_app() -> Flask:
         return "", 204
 
     # ------------------------------------------------------------------
+    # GET /api/notice/summary  — HTMX: notice type frequency aggregation
+    # ------------------------------------------------------------------
+    @app.route("/api/notice/summary")
+    def api_notice_summary():
+        from src.querier.zeek_modules.base import (
+            build_base_query, load_with_remap, query_opensearch, FILTERS_DIR,
+        )
+        mod = MODULES["notice"]
+        search_params = build_search_params_from_request(request)
+
+        must_not, _, _ = load_with_remap(FILTERS_DIR)
+        sensor_val = search_params.get("sensor", "all")
+        sensors = (
+            [s.strip() for s in str(sensor_val).split(",")]
+            if sensor_val and str(sensor_val).lower() != "all"
+            else None
+        )
+
+        body, params = build_base_query(
+            must_not=must_not,
+            extra_must=[],
+            source_fields=mod.SOURCE_FIELDS,
+            limit=0,
+            time_range=search_params.get("time_range", "now-24h"),
+            sensors=sensors,
+            datasets=mod.DATASETS,
+            public_only=search_params.get("public_only", False),
+            src_ip_filter=search_params.get("src_ip"),
+            direction=search_params.get("direction"),
+            min_risk_score=search_params.get("min_risk_score"),
+        )
+        body["size"] = 0
+        body.pop("sort", None)
+        body.pop("_source", None)
+        body["aggs"] = {
+            "note_types": {
+                "terms": {
+                    "field": "zeek.notice.note",
+                    "size": 500,
+                    "order": {"_count": "asc"},
+                }
+            }
+        }
+
+        raw = query_opensearch(body, params)
+        buckets = []
+        if raw:
+            buckets = raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
+
+        return render_template("partials/notice_summary.html", buckets=buckets)
+
+    # ------------------------------------------------------------------
     # POST /api/enrich/<ip>  — HTMX: run enrichment, return card partial
     # ------------------------------------------------------------------
     @app.route("/api/enrich/<ip>", methods=["POST"])
     def api_enrich(ip: str):
+        if is_private(ip):
+            return (
+                '<p class="empty-note">'
+                '<i class="fa-solid fa-house-lock"></i> Private IP — enrichment unavailable'
+                '</p>'
+            )
         from src.enricher.threat_intel import enrich_ip
         from src.enricher import greynoise, abuseipdb, shodan, virustotal
 

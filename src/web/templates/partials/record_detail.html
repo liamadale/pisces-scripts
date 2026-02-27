@@ -18,7 +18,6 @@
       {% for label, fn in detail_fields %}
       <span class="dk">{{ label }}</span><span class="dv">{{ fn(record) }}</span>
       {% endfor %}
-      <span class="dk">Freq</span><span class="dv">{{ record.get('freq','—') }}</span>
     </div>
     <div class="filter-action-row">
       <button class="btn btn-sm"
@@ -42,11 +41,17 @@
       <div class="enrich-col-header">
         <i class="fa-solid fa-arrow-right-from-bracket"></i> Source — {{ src_ip }}
       </div>
+      {% if is_private(src_ip) %}
+      <span class="badge badge-gray">
+        <i class="fa-solid fa-house-lock"></i> Private IP
+      </span>
+      {% else %}
       <button class="btn btn-sm"
               hx-post="/api/enrich/{{ src_ip }}"
               hx-target="#enrich-src-{{ idx }}" hx-swap="innerHTML">
         <i class="fa-solid fa-shield-halved"></i> Enrich
       </button>
+      {% endif %}
       <div id="enrich-src-{{ idx }}"></div>
       {% endif %}
     </div>
@@ -55,11 +60,17 @@
       <div class="enrich-col-header">
         <i class="fa-solid fa-arrow-right-to-bracket"></i> Destination — {{ dest_ip }}
       </div>
+      {% if is_private(dest_ip) %}
+      <span class="badge badge-gray">
+        <i class="fa-solid fa-house-lock"></i> Private IP
+      </span>
+      {% else %}
       <button class="btn btn-sm"
               hx-post="/api/enrich/{{ dest_ip }}"
               hx-target="#enrich-dst-{{ idx }}" hx-swap="innerHTML">
         <i class="fa-solid fa-shield-halved"></i> Enrich
       </button>
+      {% endif %}
       <div id="enrich-dst-{{ idx }}"></div>
       {% endif %}
     </div>
