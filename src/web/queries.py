@@ -29,10 +29,11 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
         "sensor":      request.values.get("sensor", "all"),
         "limit":       int(request.values.get("limit", 100)),
         "public_only": request.values.get("public_only") in ("on", "true", "1"),
-        "src_ip":      request.values.get("src_ip") or None,
-        "direction":   request.values.get("direction") or None,
-        "no_filters":  False,
-        "use_cache":   False,
+        "src_ip":          request.values.get("src_ip") or None,
+        "direction":       request.values.get("direction") or None,
+        "min_risk_score":  int(v) if (v := request.values.get("min_risk", "").strip()) else None,
+        "no_filters":      False,
+        "use_cache":       False,
     }
     for key in (extra_keys or []):
         params[key] = request.values.get(key) or None
@@ -75,3 +76,4 @@ def run_cross_protocol_query(search_params: dict) -> list:
         [{"src_ip": ip, **data} for ip, data in ip_data.items()],
         key=lambda x: -x["total"],
     )
+

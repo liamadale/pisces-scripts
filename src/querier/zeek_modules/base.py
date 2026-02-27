@@ -240,6 +240,7 @@ def build_base_query(
     public_only: bool = False,
     src_ip_filter: str | None = None,
     direction: str | None = None,
+    min_risk_score: int | None = None,
 ) -> tuple:
     """Build the OpenSearch query body and request params.
 
@@ -260,6 +261,9 @@ def build_base_query(
 
     if direction:
         must_clauses.append({"term": {"network.direction": direction}})
+
+    if min_risk_score:
+        must_clauses.append({"range": {"event.risk_score_norm": {"gte": min_risk_score}}})
 
     must_clauses.extend(extra_must)
 
@@ -346,6 +350,7 @@ def run_query(module, search_params: dict) -> list:
         public_only=search_params.get("public_only", False),
         src_ip_filter=search_params.get("src_ip"),
         direction=search_params.get("direction"),
+        min_risk_score=search_params.get("min_risk_score"),
     )
 
     # Cache handling
