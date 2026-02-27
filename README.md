@@ -13,6 +13,14 @@ The toolkit surfaces actionable threats from high-volume log data by combining:
 - **Interactive false positive management** for rapid filter creation with comment support
 - **Mantis ticketing integration** for incident tracking and submission
 
+## Development Transparency - Use of AI Tooling
+
+This project was created with the assistance of AI coding tools. AI was used to:
+- Generate initial code implementations
+- Draft documentation and usage examples
+
+All AI-generated content has been reviewed and tested by a human.
+
 ## Features
 
 ### 1. Malcolm/Zeek OpenSearch Querier (`src/querier/opensearch_querier.py`)
@@ -71,14 +79,6 @@ VIRUSTOTAL_API_KEY=
 MANTIS_API_URL=
 MANTIS_API_TOKEN=
 ```
-
-## Development Transparency - Use of AI Tooling
-
-This project was created with the assistance of AI coding tools. AI was used to:
-- Generate initial code implementations
-- Draft documentation and usage examples
-
-All AI-generated content has been reviewed and tested by a human.
 
 ## Usage
 
