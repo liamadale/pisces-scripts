@@ -71,7 +71,7 @@
           {% elif lt == 'weird' %}
           <th class="sortable">Name</th>
           {% endif %}
-          <th>Risk</th>
+          <th class="sortable num">Risk</th>
           <th class="sortable num">Freq</th>
         </tr>
       </thead>
@@ -94,14 +94,14 @@
           <td class="num">{{ rec.get('dest_port', '—') }}</td>
           {% if lt == 'conn' %}
           <td>{{ rec.get('app_proto', '—') }}</td>
-          <td class="num">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
-          <td class="num">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
+          <td class="num" data-val="{{ rec.get('bytes_orig') or 0 }}">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
+          <td class="num" data-val="{{ rec.get('bytes_resp') or 0 }}">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
           {% elif lt == 'dns' %}
           <td title="{{ rec.get('query','') }}">{{ rec.get('query', '—') }}</td>
           {% elif lt == 'http' %}
           <td title="{{ rec.get('http_uri','') }}">{{ rec.get('http_uri', '—') }}</td>
-          <td class="num">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
-          <td class="num">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
+          <td class="num" data-val="{{ rec.get('http_req_bytes') or 0 }}">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
+          <td class="num" data-val="{{ rec.get('http_resp_bytes') or 0 }}">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
           {% elif lt == 'notice' %}
           <td title="{{ rec.get('notice_note','') }}">{{ rec.get('notice_note', '—') }}</td>
           {% elif lt == 'ssh' %}
@@ -117,7 +117,7 @@
           {% elif lt == 'weird' %}
           <td>{{ rec.get('weird_name', '—') }}</td>
           {% endif %}
-          <td class="num">{{ risk_bars(rec) }}</td>
+          <td class="num" data-val="{{ rec.get('risk_score_norm') or 0 }}">{{ risk_bars(rec) }}</td>
           <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
         </tr>
         {% endfor %}
@@ -130,3 +130,4 @@
 </div>
 {% endfor %}
 {% endblock %}
+

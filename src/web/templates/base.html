@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 <body>
+<div id="htmx-bar"></div>
 
 {% set proto_icons = {
   'conn':  'fa-network-wired',
@@ -88,6 +89,13 @@
 
   <div class="sep"></div>
 
+  <label>Min Risk</label>
+  <input type="number" name="min_risk" min="1" max="100"
+         value="{{ request.values.get('min_risk', '') }}"
+         placeholder="off">
+
+  <div class="sep"></div>
+
   <button type="button" id="sticky-toggle" class="btn btn-sm"
           onclick="toggleStickyHeaders()" title="Pin table headers">
     <i class="fa-solid fa-thumbtack"></i>
@@ -98,7 +106,7 @@
   </button>
 </form>
 
-<main>
+<main class="{% block main_class %}{% endblock %}">
 {% block content %}{% endblock %}
 </main>
 
@@ -192,8 +200,30 @@
       openDetailPanel();
     }
   });
+
+  /* ── Global HTMX progress bar ───────────────────────── */
+  (function() {
+    var bar = document.getElementById("htmx-bar");
+    var pending = 0;
+
+    document.addEventListener("htmx:beforeRequest", function() {
+      pending++;
+      bar.classList.remove("htmx-bar-done");
+      bar.classList.add("htmx-bar-active");
+    });
+
+    document.addEventListener("htmx:afterRequest", function() {
+      pending = Math.max(0, pending - 1);
+      if (pending === 0) {
+        bar.classList.remove("htmx-bar-active");
+        bar.classList.add("htmx-bar-done");
+        setTimeout(function() { bar.classList.remove("htmx-bar-done"); }, 400);
+      }
+    });
+  })();
 })();
 </script>
 
 </body>
 </html>
+
