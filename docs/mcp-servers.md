@@ -1,0 +1,250 @@
+# MCP Servers
+
+PISCES exposes three MCP (Model Context Protocol) servers that let an AI assistant query the
+same backends used by the CLI and web UI.  Each server is a thin adapter — no logic is
+duplicated from the source modules.
+
+| Server | Path | Tools | Purpose |
+|---|---|---|---|
+| `pisces` | `mcp/pisces/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
+| `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
+| `mantis` | `mcp/mantis/` | 4 | MantisBT ticket search and creation |
+
+---
+
+## Prerequisites
+
+```bash
+# Activate the project virtualenv
+source .venv/bin/activate
+
+# Install the MCP CLI (needed for mcp dev / Inspector)
+pip install "mcp[cli]>=1.0.0"
+
+# Copy the example env file and fill in credentials
+cp .env.example .env
+```
+
+Credentials required by each server:
+
+| Variable | Required by | Purpose |
+|---|---|---|
+| `PISCES_USERNAME` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
+| `PISCES_PASSWORD` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
+| `OPENSEARCH_URL` | pisces | Malcolm/OpenSearch base URL |
+| `MANTIS_API_URL` | mantis | MantisBT instance base URL |
+| `MANTIS_API_TOKEN` | mantis | MantisBT REST API token |
+| `GREYNOISE_API_KEY` | pisces (optional) | GreyNoise enrichment |
+| `ABUSEIPDB_API_KEY` | pisces (optional) | AbuseIPDB enrichment |
+| `SHODAN_API_KEY` | pisces (optional) | Shodan enrichment |
+| `VIRUSTOTAL_API_KEY` | pisces (optional) | VirusTotal enrichment |
+
+---
+
+## Running locally with the MCP Inspector
+
+The Inspector is a browser-based UI for calling tools interactively — useful for testing before
+wiring up a client.
+
+```bash
+# PISCES server (18 tools)
+PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/pisces/server.py
+
+# Kibana server (4 tools)
+PISCES_USERNAME=x PISCES_PASSWORD=y mcp dev mcp/kibana/server.py
+
+# Mantis server (4 tools)
+MANTIS_API_URL=https://mantis.local MANTIS_API_TOKEN=tok mcp dev mcp/mantis/server.py
+```
+
+`mcp dev` reads `.env` automatically when the server starts, so if your credentials are already
+in `.env` you can omit the inline env prefix.
+
+---
+
+## Running via Docker
+
+Each server has its own Dockerfile.  The build context is always the project root so that the
+`src/` package is available inside the container.
+
+```bash
+# Build
+docker build -f mcp/pisces/Dockerfile  -t pisces-mcp  .
+docker build -f mcp/kibana/Dockerfile  -t kibana-mcp  .
+docker build -f mcp/mantis/Dockerfile  -t mantis-mcp  .
+
+# Run (stdio transport — the MCP client connects via stdin/stdout)
+docker run --rm -i \
+  -e PISCES_USERNAME -e PISCES_PASSWORD -e OPENSEARCH_URL \
+  pisces-mcp
+
+docker run --rm -i \
+  -e PISCES_USERNAME -e PISCES_PASSWORD \
+  kibana-mcp
+
+docker run --rm -i \
+  -e MANTIS_API_URL -e MANTIS_API_TOKEN \
+  mantis-mcp
+```
+
+Pass `-e VAR` (without a value) to forward the variable from your current shell environment.
+
+---
+
+## Connecting a client (Claude Desktop / Claude Code)
+
+Add each server to your MCP client configuration.  The exact file location varies by client:
+
+- **Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+  or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+- **Claude Code** — `.claude/settings.json` in the project root, or `~/.claude/settings.json`
+
+### Using the virtualenv directly (no Docker)
+
+```json
+{
+  "mcpServers": {
+    "pisces": {
+      "command": "/path/to/pisces-scripts/.venv/bin/python",
+      "args": ["mcp/pisces/server.py"],
+      "cwd": "/path/to/pisces-scripts",
+      "env": {
+        "PISCES_USERNAME": "your-username",
+        "PISCES_PASSWORD": "your-password",
+        "OPENSEARCH_URL": "https://your-opensearch-host"
+      }
+    },
+    "kibana": {
+      "command": "/path/to/pisces-scripts/.venv/bin/python",
+      "args": ["mcp/kibana/server.py"],
+      "cwd": "/path/to/pisces-scripts",
+      "env": {
+        "PISCES_USERNAME": "your-username",
+        "PISCES_PASSWORD": "your-password"
+      }
+    },
+    "mantis": {
+      "command": "/path/to/pisces-scripts/.venv/bin/python",
+      "args": ["mcp/mantis/server.py"],
+      "cwd": "/path/to/pisces-scripts",
+      "env": {
+        "MANTIS_API_URL": "https://mantis.local",
+        "MANTIS_API_TOKEN": "your-token"
+      }
+    }
+  }
+}
+```
+
+### Using Docker
+
+```json
+{
+  "mcpServers": {
+    "pisces": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i",
+               "-e", "PISCES_USERNAME",
+               "-e", "PISCES_PASSWORD",
+               "-e", "OPENSEARCH_URL",
+               "pisces-mcp"]
+    }
+  }
+}
+```
+
+---
+
+## Tool reference
+
+### pisces (18 tools)
+
+**Zeek protocol logs** — each has `time_range`, `sensor`, `limit`, `public_only`, `src_ip`,
+`dest_ip`, `direction`, `no_filters` plus protocol-specific parameters:
+
+| Tool | Protocol-specific parameters |
+|---|---|
+| `search_conn` | — |
+| `search_dns` | `dns_query`, `dns_rcode`, `dns_qtype` |
+| `search_http` | `http_method`, `http_host`, `http_uri`, `status_code` |
+| `search_ssl` | `ssl_sni`, `ssl_invalid_only` |
+| `search_smtp` | `smtp_mail_from`, `smtp_rcpt_to`, `smtp_subject` |
+| `search_rdp` | `rdp_result`, `rdp_cookie` |
+| `search_smb` | `smb_share`, `smb_action` |
+| `search_ssh` | `ssh_failed_only`, `ssh_auth_result` |
+| `search_notice` | `notice_note` |
+| `search_weird` | `weird_name` |
+
+**Pivot and alert tools:**
+
+| Tool | Description |
+|---|---|
+| `pivot_ip` | Run all 10 Zeek queries in parallel for a single IP |
+| `pivot_alerts` | Check whether an IP has triggered Suricata alerts |
+| `search_alerts` | Search Suricata alerts (no `cities` parameter — use the kibana server for that) |
+
+**Enrichment and utilities:**
+
+| Tool | Description |
+|---|---|
+| `enrich_ip` | Full threat intel pipeline: GreyNoise → AbuseIPDB → Shodan → VirusTotal |
+| `lookup_ip_org` | CIDR-based cloud/CDN/scanner ownership lookup |
+| `list_sensors` | List Malcolm/Zeek sensors active in the given time window |
+| `get_notice_summary` | Top Zeek Notice types by frequency |
+| `raw_opensearch_search` | Send a raw ES DSL query to OpenSearch |
+
+---
+
+### kibana (4 tools)
+
+Exposes the full Kibana/Suricata parameter surface including `cities` filtering and aggregation
+endpoints not available in the pisces server.
+
+| Tool | Description |
+|---|---|
+| `search_alerts` | Search deduplicated Suricata alerts — supports `cities`, `dest_ip`, all severity/signature filters |
+| `list_cities` | Terms aggregation on `clientID` — returns city names and alert counts |
+| `get_signature_summary` | Top Suricata signatures by frequency for a given time window and severity |
+| `raw_kibana_search` | Send a raw ES DSL query body directly to Kibana |
+
+Key parameters for `search_alerts`:
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `time_range` | `now-24h` | Elasticsearch date math |
+| `severity` | `3` | Max severity to include (1=critical, 3=low) |
+| `cities` | `"all"` | Comma-separated `clientID` values, or `"all"` |
+| `src_ip` | — | Post-filter by source IP |
+| `dest_ip` | — | Post-filter by destination IP |
+| `signature` | — | Substring match on `alert.signature` |
+| `public_only` | `false` | Exclude RFC-1918 source IPs |
+
+---
+
+### mantis (4 tools)
+
+| Tool | Description |
+|---|---|
+| `search_tickets` | Search MantisBT by IP, keyword, or phrase |
+| `get_ticket` | Fetch a single issue by numeric ID |
+| `create_ticket` | Create a ticket with summary, description, severity, priority |
+| `create_ticket_from_alert` | Create a ticket pre-filled from a Suricata alert JSON dict |
+
+---
+
+## Response format
+
+All tools return a JSON string.  On success:
+
+```json
+{"status": "ok", "data": { ... }}
+```
+
+On error:
+
+```json
+{"status": "error", "message": "description of what went wrong"}
+```
+
+This consistent envelope means you can always check `status` before reading `data`, and error
+messages are surfaced directly to the LLM rather than causing an exception.
