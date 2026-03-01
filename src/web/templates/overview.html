@@ -28,6 +28,8 @@
       <tr>
         <td>
           <a class="ip-link" href="/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">
+            {%- set _oorg = lookup_org(row.src_ip) %}
+            {%- if _oorg %}<i class="{{ _oorg.icon }} org-icon org-{{ _oorg.category }}" title="{{ _oorg.name }}"></i> {% endif -%}
             {{ row.src_ip }}
           </a>
         </td>

@@ -97,6 +97,59 @@
   </table>
 </div>
 
+<div class="pagination-bar" id="pager">
+  <button class="btn" id="pager-prev" onclick="piscesPaginate(-1)" disabled>
+    &laquo; Prev
+  </button>
+  <span id="pager-info"></span>
+  <button class="btn" id="pager-next" onclick="piscesPaginate(1)">
+    Next &raquo;
+  </button>
+  <select id="pager-size" onchange="piscesSetPageSize(this.value)">
+    <option value="25" selected>25 / page</option>
+    <option value="50">50 / page</option>
+    <option value="100">100 / page</option>
+  </select>
+</div>
+<script>
+(function () {
+  var _ps = 25, _page = 1;
+
+  function _apply() {
+    var rows = Array.from(
+      document.querySelectorAll('#log-tbody tr[id^="row-"]')
+    );
+    var total = rows.length;
+    var start = (_page - 1) * _ps;
+    rows.forEach(function (r, i) {
+      r.style.display = (i >= start && i < start + _ps) ? '' : 'none';
+    });
+    document.getElementById('pager-prev').disabled = (_page === 1);
+    document.getElementById('pager-next').disabled = (start + _ps >= total);
+    var end = Math.min(start + _ps, total);
+    document.getElementById('pager-info').textContent =
+      total ? (start + 1) + '\u2013' + end + ' of ' + total : 'No records';
+  }
+
+  window.piscesPaginate    = function (dir) { _page += dir; _apply(); };
+  window.piscesSetPageSize = function (v)   { _ps = +v; _page = 1; _apply(); };
+
+  // Reset to page 1 whenever HTMX swaps fresh rows into the table body
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.detail.target.id === 'log-tbody') { _page = 1; _apply(); }
+  });
+
+  // Reset to page 1 after column sort (sort runs synchronously before timeout fires)
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('th.sortable')) {
+      setTimeout(function () { _page = 1; _apply(); }, 0);
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', _apply);
+})();
+</script>
+
 {% if log_type == 'notice' %}
 <div id="notice-modal-backdrop" class="modal-backdrop" onclick="closeNoticeModal()"></div>
 <div id="notice-modal" class="modal-panel" role="dialog" aria-modal="true"

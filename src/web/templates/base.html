@@ -74,13 +74,6 @@
 
   <div class="sep"></div>
 
-  <label>Limit</label>
-  <input type="number" name="limit"
-         value="{{ request.values.get('limit', 100) }}"
-         min="10" max="5000">
-
-  <div class="sep"></div>
-
   <label class="check-label">
     <input type="checkbox" name="public_only" value="on"
            {% if request.values.get('public_only') in ('on', 'true', '1') %}checked{% endif %}>
@@ -178,8 +171,77 @@
     if (btn) btn.classList.add("active");
   }
 
+  /* ── Resizable columns ──────────────────────────────── */
+  function initResizableColumns(table) {
+    // <col> elements control widths in table-layout:fixed tables.
+    // Tables without <col> (e.g. overview) fall back to <th> widths.
+    var cols = Array.from(table.querySelectorAll("col"));
+    var allThs = Array.from(table.querySelectorAll("thead th"));
+
+    // No handle on the last column — there is no right neighbour to borrow from.
+    allThs.forEach(function(th, i) {
+      if (th.querySelector(".resize-handle")) return; // already init'd
+      if (i === allThs.length - 1) return;
+
+      var handle = document.createElement("div");
+      handle.className = "resize-handle";
+      th.appendChild(handle);
+
+      handle.addEventListener("mousedown", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // On first drag: snapshot all rendered widths into inline styles so
+        // table-layout:fixed honours them, then switch the overview table from
+        // auto → fixed. Do NOT pin table.style.width — keep width:100% so the
+        // table never overflows its container.
+        if (!table._colsLocked) {
+          var thWidths = allThs.map(function(t) { return t.offsetWidth; });
+          table.style.tableLayout = "fixed";
+          allThs.forEach(function(t, j) {
+            if (cols[j]) cols[j].style.width = thWidths[j] + "px";
+            else t.style.width = thWidths[j] + "px";
+          });
+          table._colsLocked = true;
+        }
+
+        var startX   = e.clientX;
+        var startW   = th.offsetWidth;
+        var nextTh   = allThs[i + 1];
+        var startNextW = nextTh.offsetWidth;
+        var col      = cols[i];
+        var nextCol  = cols[i + 1];
+
+        handle.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+
+        function onMove(ev) {
+          // Clamp so neither column goes below 40px.
+          var delta   = Math.min(startW - 40, Math.max(-(startNextW - 40), ev.clientX - startX));
+          var newW     = startW     + delta;
+          var newNextW = startNextW - delta;
+          if (col)     col.style.width     = newW     + "px";
+          else         th.style.width      = newW     + "px";
+          if (nextCol) nextCol.style.width = newNextW + "px";
+          else         nextTh.style.width  = newNextW + "px";
+        }
+        function onUp() {
+          handle.classList.remove("dragging");
+          document.body.style.cursor = "";
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+        }
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      });
+    });
+  }
+
+  document.querySelectorAll("table").forEach(initResizableColumns);
+
   /* ── Global event delegation ────────────────────────── */
   document.addEventListener("click", function(e) {
+    if (e.target.closest(".resize-handle")) return; // don't sort on handle click
     var th = e.target.closest("th.sortable");
     if (th) { sortTable(th); return; }
 

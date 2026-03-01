@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, abort
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import TIME_RANGES, is_private
 from src.utils.format import fmt_bytes, fmt_dur
+from src.utils.ip_org import lookup_org
 from src.web import cache as wcache
 from src.web.queries import (
     MODULE_PARAM_KEYS,
@@ -25,6 +26,7 @@ def create_app() -> Flask:
 
     # Register Jinja2 globals
     app.jinja_env.globals["is_private"] = is_private
+    app.jinja_env.globals["lookup_org"] = lookup_org
 
     # Make TIME_RANGES and MODULES available to all templates
     @app.context_processor

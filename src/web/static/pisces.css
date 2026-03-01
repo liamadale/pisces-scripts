@@ -283,6 +283,8 @@ table {
   border-collapse: collapse;
   font-size: 0.82rem;
 }
+thead th:last-child,
+tbody td:last-child { border-right: 1px solid var(--outline); }
 
 /* Column width classes — applied via <colgroup> */
 .col-num    { width: 42px; }
@@ -305,6 +307,7 @@ table {
 .rb-off    { background: var(--surface-2); border: 1px solid var(--outline); }
 
 thead th {
+  position: relative;
   background: var(--surface-2);
   color: var(--on-surface-dim);
   font-weight: 600;
@@ -313,6 +316,37 @@ thead th {
   border-bottom: 1px solid var(--outline);
   white-space: nowrap;
   user-select: none;
+}
+
+/* ── Column resize handle ── */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.resize-handle::before,
+.resize-handle::after {
+  content: '';
+  display: block;
+  width: 1px;
+  height: 40%;
+  background: var(--outline);
+  border-radius: 1px;
+  transition: background 0.15s;
+}
+.resize-handle:hover::before,
+.resize-handle:hover::after,
+.resize-handle.dragging::before,
+.resize-handle.dragging::after {
+  background: var(--primary);
 }
 
 thead th.sortable { cursor: pointer; }
@@ -693,6 +727,20 @@ tr.detail-row td {
   margin-top: 4px;
 }
 
+/* ── Org identity icons (inline in IP cells) ── */
+.org-icon {
+  font-size: 0.72rem;
+  margin-right: 3px;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
+.org-icon.org-cdn      { color: var(--primary); }        /* blue   — Cloudflare, Fastly */
+.org-icon.org-cloud    { color: var(--secondary); }      /* teal   — AWS, GCP, Azure */
+.org-icon.org-scanner  { color: var(--yellow); }         /* amber  — Shodan, Censys, Qualys, Rapid7 */
+.org-icon.org-research { color: var(--purple); }         /* purple — ShadowServer, BinaryEdge */
+.org-icon.org-private  { color: var(--on-surface-dim); } /* gray   — RFC 1918, loopback, link-local */
+
 /* ── Misc ─────────────────────────────────────────────── */
 .page-header {
   display: flex;
@@ -846,3 +894,28 @@ tr.detail-row td {
   transition: opacity 0.1s;
 }
 .ns-row:hover .ns-bar-fill { opacity: 1; }
+
+/* ── Pagination bar ── */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 10px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+#pager-info {
+  min-width: 12ch;
+  text-align: center;
+}
+
+.pagination-bar select {
+  background: var(--surface-1);
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

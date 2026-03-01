@@ -19,11 +19,17 @@
   </td>
   <td title="{{ rec.get('src_ip','') }}">
     <a class="ip-link" href="/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
+      {%- set _sorg = lookup_org(rec.get('src_ip','')) %}
+      {%- if _sorg %}<i class="{{ _sorg.icon }} org-icon org-{{ _sorg.category }}" title="{{ _sorg.name }}"></i> {% endif -%}
       {{ rec.get('src_ip', '—') }}
     </a>
   </td>
   <td class="num">{{ rec.get('src_port', '—') }}</td>
-  <td title="{{ rec.get('dest_ip','') }}">{{ rec.get('dest_ip', '—') }}</td>
+  <td title="{{ rec.get('dest_ip','') }}">
+    {%- set _dorg = lookup_org(rec.get('dest_ip','')) %}
+    {%- if _dorg %}<i class="{{ _dorg.icon }} org-icon org-{{ _dorg.category }}" title="{{ _dorg.name }}"></i> {% endif -%}
+    {{ rec.get('dest_ip', '—') }}
+  </td>
   <td class="num">{{ rec.get('dest_port', '—') }}</td>
   {% if log_type == 'conn' %}
   <td>{{ rec.get('app_proto', '—') }}</td>
