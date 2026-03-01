@@ -6,9 +6,10 @@ duplicated from the source modules.
 
 | Server | Path | Tools | Purpose |
 |---|---|---|---|
-| `opensearch` | `mcp/opensearch/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
+| `opensearch` | `mcp/opensearch/` | 16 | Zeek/OpenSearch protocol logs, Suricata alerts, pivot tools, utilities |
 | `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
 | `mantis` | `mcp/mantis/` | 4 | MantisBT ticket search and creation |
+| `enrichment` | `mcp/enrichment/` | 2 | IP threat intelligence and org lookup — no OpenSearch or Kibana required |
 
 ---
 
@@ -35,10 +36,10 @@ Credentials required by each server:
 | `KIBANA_URL` | kibana | Kibana base URL (e.g. `https://kibana.example.com`) |
 | `MANTIS_API_URL` | mantis | MantisBT instance base URL |
 | `MANTIS_API_TOKEN` | mantis | MantisBT REST API token |
-| `GREYNOISE_API_KEY` | opensearch (optional) | GreyNoise enrichment |
-| `ABUSEIPDB_API_KEY` | opensearch (optional) | AbuseIPDB enrichment |
-| `SHODAN_API_KEY` | opensearch (optional) | Shodan enrichment |
-| `VIRUSTOTAL_API_KEY` | opensearch (optional) | VirusTotal enrichment |
+| `GREYNOISE_API_KEY` | opensearch, enrichment (optional) | GreyNoise enrichment |
+| `ABUSEIPDB_API_KEY` | opensearch, enrichment (optional) | AbuseIPDB enrichment |
+| `SHODAN_API_KEY` | opensearch, enrichment (optional) | Shodan enrichment |
+| `VIRUSTOTAL_API_KEY` | opensearch, enrichment (optional) | VirusTotal enrichment |
 
 The `/api/console/proxy` endpoint path is appended automatically by the code — set only the base URL for `OPENSEARCH_URL` and `KIBANA_URL`.
 
@@ -58,6 +59,9 @@ PISCES_USERNAME=x PISCES_PASSWORD=y KIBANA_URL=https://... mcp dev mcp/kibana/se
 
 # Mantis server (4 tools)
 MANTIS_API_URL=https://mantis.local MANTIS_API_TOKEN=tok mcp dev mcp/mantis/server.py
+
+# Enrichment server (2 tools — API keys all optional)
+mcp dev mcp/enrichment/server.py
 ```
 
 `mcp dev` reads `.env` automatically when the server starts, so if your credentials are already
@@ -107,6 +111,17 @@ All servers use the project virtualenv directly — no Docker required.
         "MANTIS_API_URL": "https://mantis.local",
         "MANTIS_API_TOKEN": "your-token"
       }
+    },
+    "enrichment": {
+      "command": "/path/to/pisces-scripts/.venv/bin/python",
+      "args": ["mcp/enrichment/server.py"],
+      "cwd": "/path/to/pisces-scripts",
+      "env": {
+        "GREYNOISE_API_KEY": "your-key",
+        "ABUSEIPDB_API_KEY": "your-key",
+        "SHODAN_API_KEY": "your-key",
+        "VIRUSTOTAL_API_KEY": "your-key"
+      }
     }
   }
 }
@@ -116,7 +131,7 @@ All servers use the project virtualenv directly — no Docker required.
 
 ## Tool reference
 
-### opensearch (18 tools)
+### opensearch (16 tools)
 
 **Zeek protocol logs** — each has `time_range`, `sensor`, `limit`, `public_only`, `src_ip`,
 `dest_ip`, `direction`, `no_filters` plus protocol-specific parameters:
@@ -142,12 +157,10 @@ All servers use the project virtualenv directly — no Docker required.
 | `pivot_alerts` | Check whether an IP has triggered Suricata alerts |
 | `search_alerts` | Search Suricata alerts (no `cities` parameter — use the kibana server for that) |
 
-**Enrichment and utilities:**
+**Utilities:**
 
 | Tool | Description |
 |---|---|
-| `enrich_ip` | Full threat intel pipeline: GreyNoise → AbuseIPDB → Shodan → VirusTotal |
-| `lookup_ip_org` | CIDR-based cloud/CDN/scanner ownership lookup |
 | `list_sensors` | List Malcolm/Zeek sensors active in the given time window |
 | `get_notice_summary` | Top Zeek Notice types by frequency |
 | `raw_opensearch_search` | Send a raw ES DSL query to OpenSearch |
@@ -188,6 +201,18 @@ Key parameters for `search_alerts`:
 | `get_ticket` | Fetch a single issue by numeric ID |
 | `create_ticket` | Create a ticket with summary, description, severity, priority |
 | `create_ticket_from_alert` | Create a ticket pre-filled from a Suricata alert JSON dict |
+
+---
+
+### enrichment (2 tools)
+
+Standalone threat intelligence server — requires no OpenSearch or Kibana connection.
+All API keys are optional; missing keys simply skip that service.
+
+| Tool | Description |
+|---|---|
+| `enrich_ip` | Full pipeline: GreyNoise → AbuseIPDB → Shodan → VirusTotal + org lookup + reference URLs |
+| `lookup_ip_org` | CIDR-based ownership lookup (cloud/CDN/scanner) — no API key required |
 
 ---
 

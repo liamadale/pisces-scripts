@@ -153,9 +153,10 @@ Three MCP servers expose the same backends to AI coding assistants (Claude Code,
 
 | Server | Path | Tools |
 |---|---|---|
-| `opensearch` | `mcp/opensearch/` | 18 — Zeek logs, Suricata alerts, enrichment, org lookup |
+| `opensearch` | `mcp/opensearch/` | 16 — Zeek logs, Suricata alerts, pivot tools, utilities |
 | `kibana` | `mcp/kibana/` | 4 — Suricata alerts with full filter surface + aggregations |
 | `mantis` | `mcp/mantis/` | 4 — MantisBT ticket search and creation |
+| `enrichment` | `mcp/enrichment/` | 2 — IP threat intelligence and org lookup, no backend required |
 
 See [docs/mcp-servers.md](docs/mcp-servers.md) for setup instructions, client configuration, and full tool reference.
 

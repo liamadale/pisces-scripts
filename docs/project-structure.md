@@ -78,7 +78,10 @@ pisces-scripts/
 │   ├── kibana/                         # 4-tool server: Suricata alerts + aggregations
 │   │   ├── server.py
 │   │   └── requirements.txt
-│   └── mantis/                         # 4-tool server: ticket search and creation
+│   ├── mantis/                         # 4-tool server: ticket search and creation
+│   │   ├── server.py
+│   │   └── requirements.txt
+│   └── enrichment/                     # 2-tool server: IP threat intel + org lookup (no backend required)
 │       ├── server.py
 │       └── requirements.txt
 │
