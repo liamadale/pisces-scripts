@@ -153,7 +153,7 @@ Three MCP servers expose the same backends to AI coding assistants (Claude Code,
 
 | Server | Path | Tools |
 |---|---|---|
-| `pisces` | `mcp/opensearch/` | 18 — Zeek logs, Suricata alerts, enrichment, org lookup |
+| `opensearch` | `mcp/opensearch/` | 18 — Zeek logs, Suricata alerts, enrichment, org lookup |
 | `kibana` | `mcp/kibana/` | 4 — Suricata alerts with full filter surface + aggregations |
 | `mantis` | `mcp/mantis/` | 4 — MantisBT ticket search and creation |
 

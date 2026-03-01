@@ -6,7 +6,7 @@ duplicated from the source modules.
 
 | Server | Path | Tools | Purpose |
 |---|---|---|---|
-| `pisces` | `mcp/opensearch/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
+| `opensearch` | `mcp/opensearch/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
 | `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
 | `mantis` | `mcp/mantis/` | 4 | MantisBT ticket search and creation |
 
@@ -29,16 +29,16 @@ Credentials required by each server:
 
 | Variable | Required by | Purpose |
 |---|---|---|
-| `PISCES_USERNAME` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
-| `PISCES_PASSWORD` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
-| `OPENSEARCH_URL` | pisces | Malcolm/OpenSearch base URL (e.g. `https://opensearch.example.com`) |
+| `PISCES_USERNAME` | opensearch, kibana | OpenSearch / Kibana HTTP basic auth |
+| `PISCES_PASSWORD` | opensearch, kibana | OpenSearch / Kibana HTTP basic auth |
+| `OPENSEARCH_URL` | opensearch | Malcolm/OpenSearch base URL (e.g. `https://opensearch.example.com`) |
 | `KIBANA_URL` | kibana | Kibana base URL (e.g. `https://kibana.example.com`) |
 | `MANTIS_API_URL` | mantis | MantisBT instance base URL |
 | `MANTIS_API_TOKEN` | mantis | MantisBT REST API token |
-| `GREYNOISE_API_KEY` | pisces (optional) | GreyNoise enrichment |
-| `ABUSEIPDB_API_KEY` | pisces (optional) | AbuseIPDB enrichment |
-| `SHODAN_API_KEY` | pisces (optional) | Shodan enrichment |
-| `VIRUSTOTAL_API_KEY` | pisces (optional) | VirusTotal enrichment |
+| `GREYNOISE_API_KEY` | opensearch (optional) | GreyNoise enrichment |
+| `ABUSEIPDB_API_KEY` | opensearch (optional) | AbuseIPDB enrichment |
+| `SHODAN_API_KEY` | opensearch (optional) | Shodan enrichment |
+| `VIRUSTOTAL_API_KEY` | opensearch (optional) | VirusTotal enrichment |
 
 The `/api/console/proxy` endpoint path is appended automatically by the code — set only the base URL for `OPENSEARCH_URL` and `KIBANA_URL`.
 
@@ -50,7 +50,7 @@ The Inspector is a browser-based UI for calling tools interactively — useful f
 wiring up a client.
 
 ```bash
-# PISCES server (18 tools)
+# OpenSearch server (18 tools)
 PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/opensearch/server.py
 
 # Kibana server (4 tools)
@@ -79,7 +79,7 @@ All servers use the project virtualenv directly — no Docker required.
 ```json
 {
   "mcpServers": {
-    "pisces": {
+    "opensearch": {
       "command": "/path/to/pisces-scripts/.venv/bin/python",
       "args": ["mcp/opensearch/server.py"],
       "cwd": "/path/to/pisces-scripts",
@@ -116,7 +116,7 @@ All servers use the project virtualenv directly — no Docker required.
 
 ## Tool reference
 
-### pisces (18 tools)
+### opensearch (18 tools)
 
 **Zeek protocol logs** — each has `time_range`, `sensor`, `limit`, `public_only`, `src_ip`,
 `dest_ip`, `direction`, `no_filters` plus protocol-specific parameters:
@@ -157,7 +157,7 @@ All servers use the project virtualenv directly — no Docker required.
 ### kibana (4 tools)
 
 Exposes the full Kibana/Suricata parameter surface including `cities` filtering and aggregation
-endpoints not available in the pisces server.
+endpoints not available in the opensearch server.
 
 | Tool | Description |
 |---|---|
