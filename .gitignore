@@ -182,8 +182,7 @@ cython_debug/
 .abstra/
 
 # PISCES tool
-data/cache/
-data/tickets/
+data/
 .venv/
 
 # Visual Studio Code
