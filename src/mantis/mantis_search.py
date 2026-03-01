@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from src.utils.dns import setup_dns
 
-console = Console()
+console = Console(file=sys.stderr)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

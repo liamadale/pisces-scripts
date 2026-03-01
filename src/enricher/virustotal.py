@@ -6,6 +6,7 @@ country, ASN, and AS owner.
 """
 
 import os
+import sys
 import requests
 from rich.console import Console
 from rich.table import Table
@@ -15,7 +16,7 @@ from rich import box
 _BASE_URL = "https://www.virustotal.com/api/v3/ip_addresses"
 URL = "https://www.virustotal.com/gui/ip-address/{ip}"
 
-console = Console()
+console = Console(file=sys.stderr)
 
 
 def check_ip(ip: str) -> dict:

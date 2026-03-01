@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from src.enricher import greynoise, abuseipdb, shodan, virustotal
 from src.utils.dns import setup_dns
 
-console = Console()
+console = Console(file=sys.stderr)
 
 
 def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:

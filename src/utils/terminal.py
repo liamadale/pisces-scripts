@@ -1,8 +1,9 @@
 """Interactive terminal helpers shared across queriers."""
 
+import sys
 from rich.console import Console
 
-console = Console()
+console = Console(file=sys.stderr)
 
 
 def confirm_exit() -> bool:

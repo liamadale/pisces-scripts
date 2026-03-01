@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from src.utils.dns import setup_dns
 
-console = Console()
+console = Console(file=sys.stderr)
 
 # Mantis severity / priority mappings (adjust to local instance config)
 SEVERITIES = {

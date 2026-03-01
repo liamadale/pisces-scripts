@@ -5,6 +5,7 @@ Returns classification: benign | malicious | not_found
 """
 
 import os
+import sys
 import requests
 from rich.console import Console
 from rich.table import Table
@@ -14,7 +15,7 @@ from rich import box
 _BASE_URL = "https://api.greynoise.io/v3/community"
 URL = "https://viz.greynoise.io/ip/{ip}"
 
-console = Console()
+console = Console(file=sys.stderr)
 
 
 def check_ip(ip: str) -> dict:

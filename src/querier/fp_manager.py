@@ -18,7 +18,7 @@ from rich.console import Console
 from rich.table import Table
 from rich import box
 
-console = Console()
+console = Console(file=sys.stderr)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FILTERS_DIR = os.path.join(_BASE, "filters")
