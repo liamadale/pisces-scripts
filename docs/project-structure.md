@@ -70,10 +70,23 @@ pisces-scripts/
 │   ├── cache/                          # OpenSearch/Kibana response cache — gitignored
 │   └── tickets/                        # Mantis ticket index
 │
+├── mcp/                                # MCP servers (AI assistant integration)
+│   ├── requirements.txt                # MCP-only deps — pip install -r requirements.txt -r mcp/requirements.txt
+│   ├── opensearch/                     # 18-tool server: Zeek logs, alerts, enrichment
+│   │   ├── server.py
+│   │   └── requirements.txt
+│   ├── kibana/                         # 4-tool server: Suricata alerts + aggregations
+│   │   ├── server.py
+│   │   └── requirements.txt
+│   └── mantis/                         # 4-tool server: ticket search and creation
+│       ├── server.py
+│       └── requirements.txt
+│
 ├── docs/                               # Extended documentation
 │   ├── project-structure.md            # This file
 │   ├── filter-schema.md                # Filter YAML format and authoring guide
-│   └── workflow.md                     # End-to-end analyst workflow walkthrough
+│   ├── workflow.md                     # End-to-end analyst workflow walkthrough
+│   └── mcp-servers.md                  # MCP server setup and tool reference
 │
 ├── .env                                # Credentials — gitignored
 ├── .env.example                        # Credential template

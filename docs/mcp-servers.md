@@ -6,7 +6,7 @@ duplicated from the source modules.
 
 | Server | Path | Tools | Purpose |
 |---|---|---|---|
-| `pisces` | `mcp/pisces/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
+| `pisces` | `mcp/opensearch/` | 18 | Zeek/OpenSearch protocol logs, Suricata alerts, enrichment, org lookup |
 | `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
 | `mantis` | `mcp/mantis/` | 4 | MantisBT ticket search and creation |
 
@@ -18,8 +18,8 @@ duplicated from the source modules.
 # Activate the project virtualenv
 source .venv/bin/activate
 
-# Install the MCP CLI (needed for mcp dev / Inspector)
-pip install "mcp[cli]>=1.0.0"
+# Install project + MCP dependencies
+pip install -r requirements.txt -r mcp/requirements.txt
 
 # Copy the example env file and fill in credentials
 cp .env.example .env
@@ -31,13 +31,16 @@ Credentials required by each server:
 |---|---|---|
 | `PISCES_USERNAME` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
 | `PISCES_PASSWORD` | pisces, kibana | OpenSearch / Kibana HTTP basic auth |
-| `OPENSEARCH_URL` | pisces | Malcolm/OpenSearch base URL |
+| `OPENSEARCH_URL` | pisces | Malcolm/OpenSearch base URL (e.g. `https://opensearch.example.com`) |
+| `KIBANA_URL` | kibana | Kibana base URL (e.g. `https://kibana.example.com`) |
 | `MANTIS_API_URL` | mantis | MantisBT instance base URL |
 | `MANTIS_API_TOKEN` | mantis | MantisBT REST API token |
 | `GREYNOISE_API_KEY` | pisces (optional) | GreyNoise enrichment |
 | `ABUSEIPDB_API_KEY` | pisces (optional) | AbuseIPDB enrichment |
 | `SHODAN_API_KEY` | pisces (optional) | Shodan enrichment |
 | `VIRUSTOTAL_API_KEY` | pisces (optional) | VirusTotal enrichment |
+
+The `/api/console/proxy` endpoint path is appended automatically by the code — set only the base URL for `OPENSEARCH_URL` and `KIBANA_URL`.
 
 ---
 
@@ -48,10 +51,10 @@ wiring up a client.
 
 ```bash
 # PISCES server (18 tools)
-PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/pisces/server.py
+PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/opensearch/server.py
 
 # Kibana server (4 tools)
-PISCES_USERNAME=x PISCES_PASSWORD=y mcp dev mcp/kibana/server.py
+PISCES_USERNAME=x PISCES_PASSWORD=y KIBANA_URL=https://... mcp dev mcp/kibana/server.py
 
 # Mantis server (4 tools)
 MANTIS_API_URL=https://mantis.local MANTIS_API_TOKEN=tok mcp dev mcp/mantis/server.py
@@ -62,51 +65,23 @@ in `.env` you can omit the inline env prefix.
 
 ---
 
-## Running via Docker
-
-Each server has its own Dockerfile.  The build context is always the project root so that the
-`src/` package is available inside the container.
-
-```bash
-# Build
-docker build -f mcp/pisces/Dockerfile  -t pisces-mcp  .
-docker build -f mcp/kibana/Dockerfile  -t kibana-mcp  .
-docker build -f mcp/mantis/Dockerfile  -t mantis-mcp  .
-
-# Run (stdio transport — the MCP client connects via stdin/stdout)
-docker run --rm -i \
-  -e PISCES_USERNAME -e PISCES_PASSWORD -e OPENSEARCH_URL \
-  pisces-mcp
-
-docker run --rm -i \
-  -e PISCES_USERNAME -e PISCES_PASSWORD \
-  kibana-mcp
-
-docker run --rm -i \
-  -e MANTIS_API_URL -e MANTIS_API_TOKEN \
-  mantis-mcp
-```
-
-Pass `-e VAR` (without a value) to forward the variable from your current shell environment.
-
----
-
-## Connecting a client (Claude Desktop / Claude Code)
+## Connecting a client (Claude Desktop / Claude Code / kiro-cli)
 
 Add each server to your MCP client configuration.  The exact file location varies by client:
 
 - **Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
 - **Claude Code** — `.claude/settings.json` in the project root, or `~/.claude/settings.json`
+- **kiro-cli** — `.kiro/settings/mcp.json` in the project root
 
-### Using the virtualenv directly (no Docker)
+All servers use the project virtualenv directly — no Docker required.
 
 ```json
 {
   "mcpServers": {
     "pisces": {
       "command": "/path/to/pisces-scripts/.venv/bin/python",
-      "args": ["mcp/pisces/server.py"],
+      "args": ["mcp/opensearch/server.py"],
       "cwd": "/path/to/pisces-scripts",
       "env": {
         "PISCES_USERNAME": "your-username",
@@ -120,7 +95,8 @@ Add each server to your MCP client configuration.  The exact file location varie
       "cwd": "/path/to/pisces-scripts",
       "env": {
         "PISCES_USERNAME": "your-username",
-        "PISCES_PASSWORD": "your-password"
+        "PISCES_PASSWORD": "your-password",
+        "KIBANA_URL": "https://your-kibana-host"
       }
     },
     "mantis": {
@@ -131,23 +107,6 @@ Add each server to your MCP client configuration.  The exact file location varie
         "MANTIS_API_URL": "https://mantis.local",
         "MANTIS_API_TOKEN": "your-token"
       }
-    }
-  }
-}
-```
-
-### Using Docker
-
-```json
-{
-  "mcpServers": {
-    "pisces": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i",
-               "-e", "PISCES_USERNAME",
-               "-e", "PISCES_PASSWORD",
-               "-e", "OPENSEARCH_URL",
-               "pisces-mcp"]
     }
   }
 }

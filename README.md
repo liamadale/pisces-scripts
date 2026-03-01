@@ -57,6 +57,9 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 
+# Optional: MCP server support (AI assistant integration)
+pip install -r mcp/requirements.txt
+
 cp .env.example .env
 # Edit .env with your credentials
 ```
@@ -64,10 +67,13 @@ cp .env.example .env
 ## Configuration
 
 ```bash
-# OpenSearch / Malcolm / Kibana (used by kibana_querier.py, opensearch_querier.py and web UI)
+# OpenSearch / Malcolm (opensearch_querier.py, web UI, MCP opensearch server)
 PISCES_USERNAME=
 PISCES_PASSWORD=
-OPENSEARCH_URL=
+OPENSEARCH_URL=      # base URL only — /api/console/proxy is appended automatically
+
+# Kibana / Suricata (kibana_querier.py, MCP kibana server)
+KIBANA_URL=          # base URL only — /api/console/proxy is appended automatically
 
 # Threat intelligence enrichment (all optional — missing keys skip that service)
 GREYNOISE_API_KEY=
@@ -140,6 +146,18 @@ MANTIS_API_TOKEN=
 # Validate all filter files
 .venv/bin/python src/querier/fp_manager.py --validate
 ```
+
+## MCP Servers (AI Assistant Integration)
+
+Three MCP servers expose the same backends to AI coding assistants (Claude Code, Claude Desktop, kiro-cli):
+
+| Server | Path | Tools |
+|---|---|---|
+| `pisces` | `mcp/opensearch/` | 18 — Zeek logs, Suricata alerts, enrichment, org lookup |
+| `kibana` | `mcp/kibana/` | 4 — Suricata alerts with full filter surface + aggregations |
+| `mantis` | `mcp/mantis/` | 4 — MantisBT ticket search and creation |
+
+See [docs/mcp-servers.md](docs/mcp-servers.md) for setup instructions, client configuration, and full tool reference.
 
 ## Workflow
 
