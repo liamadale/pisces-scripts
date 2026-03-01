@@ -5,10 +5,10 @@ All 16 tools are defined here.  No existing source files are modified.
 
 Run locally (MCP Inspector):
     source .venv/bin/activate && pip install mcp[cli]
-    PISCES_USERNAME=x PISCES_PASSWORD=y mcp dev mcp/server.py
+    PISCES_USERNAME=x PISCES_PASSWORD=y mcp dev mcp/pisces/server.py
 
 Run via Docker:
-    docker build -f mcp/Dockerfile -t pisces-mcp .
+    docker build -f mcp/pisces/Dockerfile -t pisces-mcp .
     docker run --rm -i -e PISCES_USERNAME -e PISCES_PASSWORD -e OPENSEARCH_URL pisces-mcp
 """
 
@@ -18,14 +18,14 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
-# Allow importing project modules when run from the mcp/ directory or as a
+# Allow importing project modules when run from the mcp/pisces/ directory or as a
 # Docker container with WORKDIR /app.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from dotenv import load_dotenv
 
 # Load credentials before any project import that checks env vars.
-_env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+_env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 load_dotenv(os.path.abspath(_env_path))
 
 from src.utils.dns import setup_dns
