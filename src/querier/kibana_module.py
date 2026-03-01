@@ -8,6 +8,7 @@ for future web-layer integration.
 import hashlib
 import json
 import os
+import sys
 from collections import defaultdict
 
 import requests
@@ -24,12 +25,13 @@ from src.utils.format import fmt_bytes as _fmt_bytes
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-console = Console()
+console = Console(file=sys.stderr)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FILTERS_DIR = os.path.join(_BASE, "filters")
 
-KIBANA_URL = "https://wa-kibana.cyberrangepoulsbo.com/api/console/proxy"
+KIBANA_BASE_URL = os.environ.get("KIBANA_URL", "")
+KIBANA_URL = KIBANA_BASE_URL + "/api/console/proxy" if KIBANA_BASE_URL else ""
 INDEX = "suricata*"
 
 TIME_RANGES = [
@@ -125,9 +127,14 @@ def build_query(
 # ---------------------------------------------------------------------------
 
 def query_kibana(body: dict, params: dict) -> dict | None:
+    kibana_base = os.environ.get("KIBANA_URL", KIBANA_BASE_URL)
+    kibana_url = kibana_base + "/api/console/proxy" if kibana_base else ""
     username = os.environ.get("PISCES_USERNAME", "")
     password = os.environ.get("PISCES_PASSWORD", "")
 
+    if not kibana_url:
+        console.print("[red]KIBANA_URL must be set in .env[/red]")
+        return None
     if not username or not password:
         console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
         return None
@@ -139,7 +146,7 @@ def query_kibana(body: dict, params: dict) -> dict | None:
 
     try:
         resp = requests.post(
-            KIBANA_URL,
+            kibana_url,
             params=params,
             json=body,
             headers=headers,
