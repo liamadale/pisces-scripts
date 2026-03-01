@@ -91,6 +91,7 @@ def _base_params(
         "limit": limit,
         "public_only": public_only,
         "no_filters": no_filters,
+        "raise_on_error": True,
     }
     if src_ip:
         params["src_ip"] = src_ip

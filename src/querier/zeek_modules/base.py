@@ -11,6 +11,7 @@ import ipaddress
 import json
 import os
 import readline  # noqa: F401 — enables arrow-key history in input()
+import sys
 from collections import defaultdict
 
 import requests
@@ -25,7 +26,7 @@ from src.utils.terminal import confirm_exit, prompt
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-console = Console()
+console = Console(file=sys.stderr)
 
 # Backwards-compatible aliases — zeek modules import these names from .base
 _fmt_bytes = fmt_bytes
@@ -370,6 +371,8 @@ def run_query(module, search_params: dict) -> list:
         )
         raw = query_opensearch(body, params)
         if raw is None:
+            if search_params.get("raise_on_error"):
+                raise RuntimeError("OpenSearch query failed — check credentials and OPENSEARCH_URL")
             return []
         _save_cache(raw, cpath)
 
