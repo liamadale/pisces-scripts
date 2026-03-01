@@ -36,8 +36,6 @@ from mcp.server.fastmcp import FastMCP
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query, query_opensearch, INDEX
 from src.querier.kibana_module import KibanaModule, run_kibana_query
-from src.enricher.threat_intel import enrich_ip as _enrich_ip
-from src.enricher import greynoise, abuseipdb, shodan, virustotal
 from src.utils.ip_org import lookup_org
 
 mcp = FastMCP("pisces")
@@ -583,59 +581,6 @@ def search_alerts(
             alerts = [a for a in alerts if a.get("src_ip") == src_ip]
 
         return _ok({"count": len(alerts), "alerts": _serialise_alerts(alerts)})
-    except Exception as exc:
-        return _err(str(exc))
-
-
-# ---------------------------------------------------------------------------
-# Enrichment / org lookup
-# ---------------------------------------------------------------------------
-
-@mcp.tool()
-def enrich_ip(ip: str) -> str:
-    """Run the full threat intelligence enrichment pipeline for an IP address.
-
-    Calls in order: GreyNoise → AbuseIPDB → Shodan → VirusTotal (AbuseIPDB/Shodan/VT
-    run concurrently).  If GreyNoise classifies the IP as benign, the remaining
-    services are skipped.
-
-    Also appends the org lookup result (cloud/CDN/scanner) and reference URLs
-    for each service.
-
-    Returns a dict with keys: ip, org, urls, greynoise, abuseipdb, shodan, virustotal.
-    """
-    try:
-        result = _enrich_ip(ip, offer_fp=False)
-
-        # Strip raw sub-keys to keep the response LLM-friendly
-        for key in ("greynoise", "abuseipdb", "shodan", "virustotal"):
-            if isinstance(result.get(key), dict):
-                result[key] = {k: v for k, v in result[key].items() if k != "raw"}
-
-        result["org"] = lookup_org(ip)
-        result["urls"] = {
-            "greynoise":  greynoise.URL.format(ip=ip),
-            "abuseipdb":  abuseipdb.URL.format(ip=ip),
-            "shodan":     shodan.URL.format(ip=ip),
-            "virustotal": virustotal.URL.format(ip=ip),
-        }
-        return _ok(result)
-    except Exception as exc:
-        return _err(str(exc))
-
-
-@mcp.tool()
-def lookup_ip_org(ip: str) -> str:
-    """Look up the organisation, cloud provider, CDN, or scanner that owns an IP.
-
-    Uses bundled CIDR tables (Cloudflare, Fastly, Shodan, Censys, etc.) plus a
-    disk-cached copy of AWS/GCP/Azure IP ranges.  Returns None for unknown IPs.
-
-    Returns: {name, icon, category} or null.
-    """
-    try:
-        org = lookup_org(ip)
-        return _ok({"ip": ip, "org": org})
     except Exception as exc:
         return _err(str(exc))
 
