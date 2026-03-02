@@ -466,14 +466,7 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
             module.fp_action(record)
         elif key == "m":
             dest_ip = record.get("dest_ip", "")
-
-            def _is_public(ip: str) -> bool:
-                try:
-                    return not ipaddress.ip_address(ip).is_private
-                except ValueError:
-                    return True
-
-            queries = dict.fromkeys(ip for ip in [src_ip, dest_ip] if ip and _is_public(ip))
+            queries = dict.fromkeys(ip for ip in [src_ip, dest_ip] if ip)
             combined: list = []
             seen_ids: set = set()
             for q in queries:
