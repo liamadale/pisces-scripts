@@ -254,3 +254,4 @@ filters/notices/*.yaml
 !filters/signatures/example-*.yaml
 !filters/composite/example-*.yaml
 !filters/ports/example-*.yaml
+reports/
