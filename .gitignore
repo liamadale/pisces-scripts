@@ -255,3 +255,4 @@ filters/notices/*.yaml
 !filters/composite/example-*.yaml
 !filters/ports/example-*.yaml
 reports/
+AGENT.md
