@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES{% endblock %}</title>
+  <script>
+    /* Apply saved theme before CSS loads to prevent flash */
+    (function() {
+      var t = localStorage.getItem('pisces-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -35,6 +42,9 @@
   </a>
   {% endfor %}
   <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
 </nav>
 
 {# Global search controls — persisted across pages via form GET #}
@@ -89,11 +99,6 @@
 
   <div class="sep"></div>
 
-  <button type="button" id="sticky-toggle" class="btn btn-sm"
-          onclick="toggleStickyHeaders()" title="Pin table headers">
-    <i class="fa-solid fa-thumbtack"></i>
-  </button>
-
   <button type="submit" class="btn btn-primary">
     <i class="fa-solid fa-magnifying-glass"></i> Search
   </button>
@@ -109,6 +114,31 @@
 
 <script>
 (function () {
+  /* ── Theme toggle ────────────────────────────────────── */
+  window.toggleTheme = function() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pisces-theme', next);
+    updateThemeIcon(next);
+  };
+
+  function updateThemeIcon(theme) {
+    var icon = document.getElementById('theme-icon');
+    if (!icon) return;
+    if (theme === 'dark') {
+      icon.classList.remove('fa-sun');
+      icon.classList.add('fa-moon');
+    } else {
+      icon.classList.remove('fa-moon');
+      icon.classList.add('fa-sun');
+    }
+  }
+
+  // Set correct icon on load
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
   /* ── Sortable table ─────────────────────────────────── */
   function sortTable(th) {
     var table = th.closest("table");
@@ -152,35 +182,16 @@
       closeDetailPanel();
     } else {
       row.classList.add("row-selected");
-      // HTMX fires because hx-trigger condition is now true
     }
   };
 
-  /* ── Sticky headers toggle ──────────────────────────── */
-  window.toggleStickyHeaders = function() {
-    var isSticky = document.body.classList.toggle("sticky-headers");
-    localStorage.setItem("stickyHeaders", isSticky ? "1" : "");
-    var btn = document.getElementById("sticky-toggle");
-    if (btn) btn.classList.toggle("active", isSticky);
-  };
-
-  // Restore preference on page load
-  if (localStorage.getItem("stickyHeaders")) {
-    document.body.classList.add("sticky-headers");
-    var btn = document.getElementById("sticky-toggle");
-    if (btn) btn.classList.add("active");
-  }
-
   /* ── Resizable columns ──────────────────────────────── */
   function initResizableColumns(table) {
-    // <col> elements control widths in table-layout:fixed tables.
-    // Tables without <col> (e.g. overview) fall back to <th> widths.
     var cols = Array.from(table.querySelectorAll("col"));
     var allThs = Array.from(table.querySelectorAll("thead th"));
 
-    // No handle on the last column — there is no right neighbour to borrow from.
     allThs.forEach(function(th, i) {
-      if (th.querySelector(".resize-handle")) return; // already init'd
+      if (th.querySelector(".resize-handle")) return;
       if (i === allThs.length - 1) return;
 
       var handle = document.createElement("div");
@@ -191,10 +202,6 @@
         e.preventDefault();
         e.stopPropagation();
 
-        // On first drag: snapshot all rendered widths into inline styles so
-        // table-layout:fixed honours them, then switch the overview table from
-        // auto → fixed. Do NOT pin table.style.width — keep width:100% so the
-        // table never overflows its container.
         if (!table._colsLocked) {
           var thWidths = allThs.map(function(t) { return t.offsetWidth; });
           table.style.tableLayout = "fixed";
@@ -216,7 +223,6 @@
         document.body.style.cursor = "col-resize";
 
         function onMove(ev) {
-          // Clamp so neither column goes below 40px.
           var delta   = Math.min(startW - 40, Math.max(-(startNextW - 40), ev.clientX - startX));
           var newW     = startW     + delta;
           var newNextW = startNextW - delta;
@@ -241,7 +247,7 @@
 
   /* ── Global event delegation ────────────────────────── */
   document.addEventListener("click", function(e) {
-    if (e.target.closest(".resize-handle")) return; // don't sort on handle click
+    if (e.target.closest(".resize-handle")) return;
     var th = e.target.closest("th.sortable");
     if (th) { sortTable(th); return; }
 
@@ -288,4 +294,3 @@
 
 </body>
 </html>
-
