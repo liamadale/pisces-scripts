@@ -5,12 +5,18 @@
 {% block content %}
 <div class="page-header">
   <h1>IP Pivot: {{ ip }}</h1>
+  {% if is_private(ip) %}
+  <button class="btn" disabled title="Enrichment not available for private IPs">
+    <i class="fa-solid fa-house-lock"></i> Enrich
+  </button>
+  {% else %}
   <button class="btn"
           hx-post="/api/enrich/{{ ip }}"
           hx-target="#enrich-panel"
           hx-swap="innerHTML">
     <i class="fa-solid fa-shield-halved"></i> Enrich
   </button>
+  {% endif %}
 </div>
 
 <div id="enrich-panel"></div>
