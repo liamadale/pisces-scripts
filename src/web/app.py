@@ -278,6 +278,59 @@ def create_app() -> Flask:
         return render_template("partials/notice_summary.html", buckets=buckets)
 
     # ------------------------------------------------------------------
+    # GET /api/sensor/summary  — HTMX: sensor activity aggregation
+    # ------------------------------------------------------------------
+    @app.route("/api/sensor/summary")
+    def api_sensor_summary():
+        from src.querier.zeek_modules.base import (
+            build_base_query, query_opensearch,
+        )
+        search_params = build_search_params_from_request(request)
+
+        body, params = build_base_query(
+            must_not=[],
+            extra_must=[],
+            source_fields=[],
+            limit=0,
+            time_range=search_params.get("time_range", "now-24h"),
+            sensors=None,
+            datasets=["all"],
+            public_only=False,
+            src_ip_filter=None,
+            direction=None,
+            min_risk_score=None,
+        )
+        body["size"] = 0
+        body.pop("sort", None)
+        body.pop("_source", None)
+        body["aggs"] = {
+            "sensors": {
+                "terms": {
+                    "field": "host.name",
+                    "size": 500,
+                    "order": {"_count": "desc"},
+                }
+            }
+        }
+
+        raw = query_opensearch(body, params)
+        buckets = []
+        if raw:
+            buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", [])
+
+        current_sensors = [
+            s.strip()
+            for s in search_params.get("sensor", "").split(",")
+            if s.strip() and s.strip().lower() != "all"
+        ]
+
+        return render_template(
+            "partials/sensor_summary.html",
+            buckets=buckets,
+            current_sensors=current_sensors,
+        )
+
+    # ------------------------------------------------------------------
     # POST /api/enrich/<ip>  — HTMX: run enrichment, return card partial
     # ------------------------------------------------------------------
     @app.route("/api/enrich/<ip>", methods=["POST"])

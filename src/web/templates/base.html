@@ -50,7 +50,7 @@
 {# Global search controls — persisted across pages via form GET #}
 <form class="search-bar" method="GET" action="{{ request.path }}" id="global-search">
   <label>Time</label>
-  <select name="time_range" onchange="this.form.submit()">
+  <select name="time_range" onchange="localStorage.setItem('pisces-time-range', this.value); this.form.submit()">
     {% for tr in TIME_RANGES %}
     <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
       {{ tr.replace('now-', '') }}
@@ -61,9 +61,14 @@
   <div class="sep"></div>
 
   <label>Sensor</label>
-  <input type="text" name="sensor"
+  <input type="text" name="sensor" id="sensor-input"
          value="{{ request.values.get('sensor', 'all') }}"
          placeholder="all">
+  <button type="button" class="btn-icon"
+          onclick="openSensorModal()"
+          title="Browse sensors">
+    <i class="fa-solid fa-list-check"></i>
+  </button>
 
   <div class="sep"></div>
 
@@ -107,6 +112,20 @@
 <main class="{% block main_class %}{% endblock %}">
 {% block content %}{% endblock %}
 </main>
+
+<div id="sensor-modal-backdrop" class="modal-backdrop"
+     onclick="if(event.target===this)closeSensorModal()"></div>
+<div id="sensor-modal" class="modal-panel" role="dialog" aria-modal="true" aria-label="Sensor browser">
+  <div class="modal-header">
+    <span class="modal-title"><i class="fa-solid fa-satellite-dish"></i> Browse Sensors</span>
+    <button class="btn-icon" onclick="closeSensorModal()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div id="sensor-modal-body" class="modal-body" style="padding:12px;">
+    <p class="ss-empty">Loading&hellip;</p>
+  </div>
+</div>
 
 <aside id="detail-panel" class="detail-panel-slide" aria-label="Record detail">
   <div id="detail-panel-content"></div>
@@ -260,8 +279,64 @@
   });
 
   document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape") closeDetailPanel();
+    if (e.key === "Escape") { closeDetailPanel(); closeSensorModal(); }
   });
+
+  /* ── Sensor browser modal ────────────────────────────── */
+  window.openSensorModal = function() {
+    // Only fetch sensor list on first open; preserve checkbox state on re-open
+    if (!document.querySelector('#sensor-modal-body .ss-list')) {
+      htmx.ajax('GET', '/api/sensor/summary' + window.location.search,
+                {target: '#sensor-modal-body', swap: 'innerHTML'});
+    }
+    document.getElementById('sensor-modal-backdrop').classList.add('open');
+    document.getElementById('sensor-modal').classList.add('open');
+  };
+  window.closeSensorModal = function() {
+    document.getElementById('sensor-modal-backdrop').classList.remove('open');
+    document.getElementById('sensor-modal').classList.remove('open');
+  };
+  window.sensorSelectAll = function(state) {
+    document.querySelectorAll('#sensor-modal-body .ss-check')
+      .forEach(function(cb) { cb.checked = state; });
+  };
+  window.applySensorSelection = function() {
+    var checked = Array.from(
+      document.querySelectorAll('#sensor-modal-body .ss-check:checked')
+    ).map(function(cb) { return cb.value; });
+    var input = document.getElementById('sensor-input');
+    input.value = checked.length ? checked.join(',') : 'all';
+    closeSensorModal();
+    document.getElementById('global-search').submit();
+  };
+
+  /* ── Sticky search params (time_range + sensor) ─────── */
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var changed = false;
+
+    // If sensor is present in the URL, persist it; otherwise restore it.
+    // This handles all submission paths (button click, programmatic submit,
+    // time_range onchange) without relying on the submit event.
+    if (params.has('sensor')) {
+      var sv = params.get('sensor');
+      if (sv && sv.toLowerCase() !== 'all') {
+        localStorage.setItem('pisces-sensor', sv);
+      } else {
+        localStorage.removeItem('pisces-sensor');
+      }
+    } else {
+      var savedSensor = localStorage.getItem('pisces-sensor');
+      if (savedSensor) { params.set('sensor', savedSensor); changed = true; }
+    }
+
+    if (!params.has('time_range')) {
+      var savedTR = localStorage.getItem('pisces-time-range');
+      if (savedTR) { params.set('time_range', savedTR); changed = true; }
+    }
+
+    if (changed) window.location.replace(window.location.pathname + '?' + params.toString());
+  })();
 
   document.addEventListener("htmx:afterSwap", function(e) {
     if (e.detail.target && e.detail.target.id === "detail-panel-content") {
