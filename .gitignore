@@ -198,6 +198,9 @@ data/
 # PyPI configuration file
 .pypirc
 
+# Playwright MCP browser state
+.playwright-mcp/
+
 # ── IDE & agentic AI tooling ──────────────────────────────────────────────────
 
 # Cursor
