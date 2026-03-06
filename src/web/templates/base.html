@@ -97,6 +97,13 @@
 
   <div class="sep"></div>
 
+  <label>Limit</label>
+  <input type="number" name="limit" min="1" max="10000"
+         value="{{ request.values.get('limit', '500') }}"
+         placeholder="500">
+
+  <div class="sep"></div>
+
   <label>Min Risk</label>
   <input type="number" name="min_risk" min="1" max="100"
          value="{{ request.values.get('min_risk', '') }}"
