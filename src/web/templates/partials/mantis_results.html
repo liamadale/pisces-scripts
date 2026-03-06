@@ -1,0 +1,23 @@
+{% if not tickets %}
+<p class="empty-note">
+  <i class="fa-solid fa-ticket"></i>
+  {% if query %}No tickets found for <strong>{{ query }}</strong>.{% else %}Enter a query above.{% endif %}
+</p>
+{% else %}
+<div class="mantis-ticket-list">
+  {% for t in tickets %}
+  <div class="mantis-ticket-row">
+    <a class="mantis-ticket-id" href="{{ t.url }}" target="_blank" rel="noopener">
+      #{{ t.id }}
+    </a>
+    <span class="mantis-ticket-summary" title="{{ t.summary }}">{{ t.summary }}</span>
+    <span class="badge {% if t.status in ('resolved', 'closed') %}badge-green{% elif t.status in ('new', 'acknowledged') %}badge-blue{% else %}badge-yellow{% endif %}">
+      {{ t.status or '—' }}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+<p style="font-size:0.75rem; color:var(--on-surface-dim); margin-top:6px;">
+  {{ tickets | length }} ticket{{ 's' if tickets | length != 1 else '' }} found
+</p>
+{% endif %}

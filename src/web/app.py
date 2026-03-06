@@ -200,6 +200,19 @@ def create_app() -> Flask:
                                    success=False, error=str(exc), idx=idx)
 
     # ------------------------------------------------------------------
+    # GET /api/mantis/search  — HTMX: search Mantis tickets, return card partial
+    # ------------------------------------------------------------------
+    @app.route("/api/mantis/search")
+    def api_mantis_search():
+        from src.mantis.mantis_search import search
+        query = request.args.get("query", "").strip()
+        live = request.args.get("live", "0") == "1"
+        idx = request.args.get("idx", "0")
+        tickets = search(query, live=live) if query else []
+        return render_template("partials/mantis_results.html",
+                               tickets=tickets, query=query, idx=idx)
+
+    # ------------------------------------------------------------------
     # Cache debug endpoints
     # ------------------------------------------------------------------
     @app.route("/api/cache/stats")

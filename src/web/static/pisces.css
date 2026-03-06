@@ -722,6 +722,31 @@ tr.detail-row td {
 .badge-gray    { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
 
 
+/* ── 7b. Mantis Ticket Card ───────────────────────────── */
+
+.mantis-lookup-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.mantis-ticket-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.mantis-ticket-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-container-highest);
+  align-items: center;
+}
+.mantis-ticket-id { color: var(--primary); font-weight: 600; white-space: nowrap; }
+.mantis-ticket-id:hover { text-decoration: underline; }
+.mantis-ticket-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
 /* ── 8. Filter Forms ──────────────────────────────────── */
 
 .filter-form {
