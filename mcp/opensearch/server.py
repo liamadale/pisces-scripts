@@ -13,6 +13,7 @@ Run via Docker:
 """
 
 import json
+import math
 import sys
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -34,9 +35,11 @@ setup_dns()
 from mcp.server.fastmcp import FastMCP
 
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import run_query, query_opensearch, INDEX
+from src.querier.zeek_modules.base import run_query, query_opensearch, INDEX, is_private
 from src.querier.kibana_module import KibanaModule, run_kibana_query
 from src.utils.ip_org import lookup_org
+from src.enricher.threat_intel import enrich_ip
+from src.querier.fp_manager import append_clauses_to_file, ensure_subcategory, filter_file_path
 
 mcp = FastMCP("pisces")
 
@@ -704,6 +707,316 @@ def raw_opensearch_search(
         if raw is None:
             return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         return _ok(raw)
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Aggregation / analysis tools
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def aggregate_by_source_ip(
+    notice_type: str,
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 25,
+) -> str:
+    """Rank source IPs by how many times they triggered a specific Zeek notice type.
+
+    Complements get_notice_summary (which ranks by notice type) — this ranks by
+    source IP *within* a single notice type.
+
+    Args:
+        notice_type: Exact notice type to filter by, e.g. "Scan::Port_Scan".
+        limit: Maximum number of source IPs to return.
+    """
+    try:
+        must: list = [
+            {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+            {"terms": {"event.dataset": MODULES["notice"].DATASETS}},
+            {"term": {"zeek.notice.note": notice_type}},
+        ]
+        if sensor != "all":
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
+        body = {
+            "size": 0,
+            "query": {"bool": {"must": must}},
+            "aggs": {
+                "top_sources": {
+                    "terms": {"field": "source.ip", "size": limit, "order": {"_count": "desc"}}
+                }
+            },
+        }
+        params = {"path": f"{INDEX}/_search", "method": "POST"}
+        raw = query_opensearch(body, params)
+        if raw is None:
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+        buckets = raw.get("aggregations", {}).get("top_sources", {}).get("buckets", [])
+        sources = [{"ip": b["key"], "count": b["doc_count"]} for b in buckets]
+        return _ok({"notice_type": notice_type, "time_range": time_range, "sources": sources})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def get_attack_chain(
+    src_ip: str,
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    no_filters: bool = False,
+) -> str:
+    """Retrieve all ATTACK::* Zeek notices from a single source IP in chronological order.
+
+    Reconstructs a kill-chain narrative without requiring multiple search_notice calls.
+    Returns notices sorted by timestamp ascending so the sequence of events is clear.
+
+    Args:
+        src_ip: Source IP address to investigate.
+        no_filters: If True, bypass FP filter files (show suppressed events too).
+    """
+    try:
+        must: list = [
+            {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+            {"terms": {"event.dataset": MODULES["notice"].DATASETS}},
+            {"term": {"source.ip": src_ip}},
+            {"prefix": {"zeek.notice.note": "ATTACK::"}},
+        ]
+        if sensor != "all":
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
+        body = {
+            "size": 500,
+            "query": {"bool": {"must": must}},
+            "sort": [{"@timestamp": {"order": "asc"}}],
+            "_source": MODULES["notice"].SOURCE_FIELDS,
+        }
+        params = {"path": f"{INDEX}/_search", "method": "POST"}
+        raw = query_opensearch(body, params)
+        if raw is None:
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+        hits = raw.get("hits", {}).get("hits", [])
+        records = [MODULES["notice"].parse_hit(h["_source"]) for h in hits]
+        return _ok({"ip": src_ip, "count": len(records), "chain": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def enrich_top_talkers(
+    notice_type: str,
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 10,
+) -> str:
+    """Aggregate top source IPs for a notice type and enrich them all in one call.
+
+    Combines aggregate_by_source_ip + bulk enrich_ip. Private/RFC-1918 IPs are
+    skipped (no enrichment data available for them).
+
+    Args:
+        notice_type: Exact notice type to filter by, e.g. "SSH::Password_Guessing".
+        limit: Maximum number of top IPs to enrich.
+    """
+    try:
+        must: list = [
+            {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+            {"terms": {"event.dataset": MODULES["notice"].DATASETS}},
+            {"term": {"zeek.notice.note": notice_type}},
+        ]
+        if sensor != "all":
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
+        body = {
+            "size": 0,
+            "query": {"bool": {"must": must}},
+            "aggs": {
+                "top_sources": {
+                    "terms": {"field": "source.ip", "size": limit, "order": {"_count": "desc"}}
+                }
+            },
+        }
+        params = {"path": f"{INDEX}/_search", "method": "POST"}
+        raw = query_opensearch(body, params)
+        if raw is None:
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+        buckets = raw.get("aggregations", {}).get("top_sources", {}).get("buckets", [])
+        public_ips = [(b["key"], b["doc_count"]) for b in buckets if not is_private(b["key"])]
+
+        def _enrich_one(item: tuple) -> dict:
+            ip, count = item
+            enrichment = enrich_ip(ip, offer_fp=False)
+            return {"ip": ip, "count": count, "enrichment": enrichment}
+
+        results: list = []
+        if public_ips:
+            with ThreadPoolExecutor(max_workers=min(len(public_ips), 5)) as pool:
+                futures = {pool.submit(_enrich_one, item): item for item in public_ips}
+                for future in as_completed(futures):
+                    results.append(future.result())
+            results.sort(key=lambda x: x["count"], reverse=True)
+
+        return _ok({"notice_type": notice_type, "time_range": time_range, "results": results})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def compare_to_baseline(
+    notice_type: str,
+    current_count: int,
+    baseline_days: int = 30,
+) -> str:
+    """Compare a current notice count against a historical daily baseline.
+
+    Computes daily mean and stddev from a date histogram over the last
+    baseline_days days, then calculates a z-score for current_count.
+
+    Assessment thresholds: |z| < 1 → normal, 1-2 → elevated, 2-3 → high,
+    > 3 → significantly elevated. When stddev is zero (all days identical),
+    returns a ratio vs mean instead of a z-score.
+
+    Args:
+        notice_type: Exact notice type to analyse, e.g. "Scan::Port_Scan".
+        current_count: The count you want to compare against baseline.
+        baseline_days: How many past days to use for the baseline (default 30).
+    """
+    try:
+        body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"range": {"@timestamp": {"gte": f"now-{baseline_days}d", "lte": "now"}}},
+                        {"terms": {"event.dataset": MODULES["notice"].DATASETS}},
+                        {"term": {"zeek.notice.note": notice_type}},
+                    ]
+                }
+            },
+            "aggs": {
+                "daily": {"date_histogram": {"field": "@timestamp", "calendar_interval": "1d"}}
+            },
+        }
+        params = {"path": f"{INDEX}/_search", "method": "POST"}
+        raw = query_opensearch(body, params)
+        if raw is None:
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+        buckets = raw.get("aggregations", {}).get("daily", {}).get("buckets", [])
+        counts = [b["doc_count"] for b in buckets] if buckets else []
+
+        if not counts:
+            return _ok({
+                "notice_type": notice_type,
+                "current_count": current_count,
+                "baseline_daily_mean": 0,
+                "baseline_daily_stddev": 0,
+                "z_score": None,
+                "assessment": "no baseline data available",
+            })
+
+        mean = sum(counts) / len(counts)
+        variance = sum((c - mean) ** 2 for c in counts) / len(counts)
+        stddev = math.sqrt(variance)
+
+        if stddev == 0:
+            ratio = current_count / mean if mean > 0 else 0.0
+            if ratio < 1.1:
+                assessment = "normal"
+            elif ratio < 2:
+                assessment = "elevated"
+            elif ratio < 3:
+                assessment = "high"
+            else:
+                assessment = "significantly elevated"
+            return _ok({
+                "notice_type": notice_type,
+                "current_count": current_count,
+                "baseline_daily_mean": round(mean, 2),
+                "baseline_daily_stddev": 0,
+                "z_score": None,
+                "ratio_vs_mean": round(ratio, 2),
+                "assessment": assessment,
+            })
+
+        z = (current_count - mean) / stddev
+        abs_z = abs(z)
+        if abs_z < 1:
+            assessment = "normal"
+        elif abs_z < 2:
+            assessment = "elevated"
+        elif abs_z < 3:
+            assessment = "high"
+        else:
+            assessment = "significantly elevated"
+
+        return _ok({
+            "notice_type": notice_type,
+            "current_count": current_count,
+            "baseline_daily_mean": round(mean, 2),
+            "baseline_daily_stddev": round(stddev, 2),
+            "z_score": round(z, 2),
+            "assessment": assessment,
+        })
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def create_fp_filter(
+    src_ip: str,
+    category: str,
+    subcategory: str,
+    scope: str = "src_ip",
+    notice_note: str = "",
+    comment: str = "",
+) -> str:
+    """Create a false-positive filter file entry non-interactively.
+
+    Writes a must_not clause to filters/{category}/{subcategory}.yaml and
+    registers the category/subcategory in categories.yaml.
+
+    Args:
+        src_ip: Source IP address to suppress.
+        category: Filter category directory, e.g. "ips" or "notices".
+        subcategory: Filter subcategory (filename without .yaml), e.g. "false_positives".
+        scope: "src_ip" suppresses all alerts from this IP; "src_ip_and_note"
+               suppresses only the specific notice type (requires notice_note).
+        notice_note: Exact notice type, e.g. "Scan::Port_Scan". Required when
+                     scope="src_ip_and_note".
+        comment: Optional comment to embed in the filter clause.
+    """
+    try:
+        if scope == "src_ip_and_note" and not notice_note:
+            return _err("notice_note is required when scope='src_ip_and_note'")
+        if scope not in ("src_ip", "src_ip_and_note"):
+            return _err(f"Invalid scope '{scope}'. Must be 'src_ip' or 'src_ip_and_note'.")
+
+        if scope == "src_ip":
+            clause: dict = {"term": {"src_ip": src_ip}}
+        else:
+            clause = {
+                "bool": {
+                    "must": [
+                        {"term": {"src_ip": src_ip}},
+                        {"term": {"zeek.notice.note": notice_note}},
+                    ]
+                }
+            }
+
+        if comment:
+            clause["comment"] = comment
+
+        path = filter_file_path(category, subcategory)
+        append_clauses_to_file(path, [clause], author="mcp")
+        ensure_subcategory(category, subcategory)
+
+        return _ok({
+            "written": True,
+            "file": path,
+            "scope": scope,
+            "src_ip": src_ip,
+            "notice_note": notice_note or None,
+            "category": category,
+            "subcategory": subcategory,
+        })
     except Exception as exc:
         return _err(str(exc))
 
