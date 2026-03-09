@@ -683,18 +683,19 @@ def get_notice_summary(
 def raw_opensearch_search(
     query_body: str,
     index_path: str = f"{INDEX}/_search",
+    method: str = "POST",
 ) -> str:
     """Send a raw Elasticsearch DSL query body directly to OpenSearch.
 
-    Use this escape hatch for advanced aggregations, span queries, or any field
-    access not covered by the other tools.
+    Use this escape hatch for advanced aggregations, span queries, non-default
+    index queries, or any field access not covered by the other tools.
 
     Args:
-        query_body: JSON string containing the full ES query body (e.g. size, query, aggs).
+        query_body: JSON string containing the full ES query body. Pass '{}' for GET requests.
         index_path: Index path portion of the URL, default "arkime_sessions3-*/_search".
-
-    Example:
-        query_body = '{"size": 1, "query": {"match_all": {}}}'
+                    Use "_cat/indices?format=json&s=docs.count:desc" to discover available indices.
+        method: HTTP method the proxy will use against ES — "POST" (default) or "GET".
+                Use "GET" for _cat/* and other read-only ES APIs that don't accept a body.
     """
     try:
         try:
@@ -702,7 +703,7 @@ def raw_opensearch_search(
         except json.JSONDecodeError as exc:
             return _err(f"Invalid JSON in query_body: {exc}")
 
-        params = {"path": index_path, "method": "POST"}
+        params = {"path": index_path, "method": method}
         raw = query_opensearch(body, params)
         if raw is None:
             return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
