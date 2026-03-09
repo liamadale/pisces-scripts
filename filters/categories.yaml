@@ -8,6 +8,7 @@ categories:
     - known_bad_blocked
     - known_smb_servers
     - ad-traffic
+    - false_positives
   signatures:
     subcategories:
     - et_scan_suppression
