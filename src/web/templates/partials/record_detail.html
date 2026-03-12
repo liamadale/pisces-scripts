@@ -40,9 +40,10 @@
       <i class="fa-solid fa-bug"></i> Mantis Tickets
     </div>
     <div class="mantis-lookup-btns">
+      {% set _sensor = record.get('sensor', 'all') %}
       {% if src_ip %}
       <button class="btn btn-sm"
-              hx-get="/api/mantis/search?query={{ src_ip }}&live=1&idx={{ idx }}"
+              hx-get="/api/mantis/search?query={{ src_ip }}&sensor={{ _sensor }}&idx={{ idx }}"
               hx-target="#mantis-results-{{ idx }}"
               hx-swap="innerHTML">
         <i class="fa-solid fa-arrow-right-from-bracket"></i> {{ src_ip }}
@@ -50,7 +51,7 @@
       {% endif %}
       {% if dest_ip %}
       <button class="btn btn-sm"
-              hx-get="/api/mantis/search?query={{ dest_ip }}&live=1&idx={{ idx }}"
+              hx-get="/api/mantis/search?query={{ dest_ip }}&sensor={{ _sensor }}&idx={{ idx }}"
               hx-target="#mantis-results-{{ idx }}"
               hx-swap="innerHTML">
         <i class="fa-solid fa-arrow-right-to-bracket"></i> {{ dest_ip }}
@@ -58,7 +59,7 @@
       {% endif %}
       {% if record.get('notice_note') %}
       <button class="btn btn-sm"
-              hx-get="/api/mantis/search?query={{ record.get('notice_note','') | urlencode }}&live=1&idx={{ idx }}"
+              hx-get="/api/mantis/search?query={{ record.get('notice_note','') | urlencode }}&sensor={{ _sensor }}&idx={{ idx }}"
               hx-target="#mantis-results-{{ idx }}"
               hx-swap="innerHTML">
         <i class="fa-solid fa-signature"></i> Signature

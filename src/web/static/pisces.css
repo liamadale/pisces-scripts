@@ -731,20 +731,81 @@ tr.detail-row td {
   align-items: center;
   margin-bottom: 8px;
 }
-.mantis-ticket-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.mantis-ticket-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 6px;
+.mantis-ticket-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+
+.mantis-ticket-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 0.8rem;
-  padding: 4px 6px;
+  padding: 8px 10px;
   border-radius: var(--radius-xs);
+  border: 1px solid var(--outline);
   background: var(--surface-container-highest);
-  align-items: center;
 }
-.mantis-ticket-id { color: var(--primary); font-weight: 600; white-space: nowrap; }
+.mantis-ticket-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mantis-ticket-id {
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
 .mantis-ticket-id:hover { text-decoration: underline; }
-.mantis-ticket-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mantis-ticket-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mantis-ticket-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--on-surface-dim);
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+.mantis-admin-note {
+  border-left: 3px solid var(--primary);
+  padding: 4px 8px;
+  margin-top: 2px;
+  font-size: 0.77rem;
+  color: var(--on-surface);
+  background: var(--surface-container-low);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.mantis-ticket-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.mantis-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--outline);
+  color: var(--on-surface-dim);
+  font-size: 0.72rem;
+  text-decoration: none;
+  background: var(--surface-container-high);
+  transition: border-color 0.15s, color 0.15s;
+}
+.mantis-link:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 
 
 /* ── 8. Filter Forms ──────────────────────────────────── */

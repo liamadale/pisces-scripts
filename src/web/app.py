@@ -27,6 +27,14 @@ def create_app() -> Flask:
     # Register Jinja2 globals
     app.jinja_env.globals["is_private"] = is_private
     app.jinja_env.globals["lookup_org"] = lookup_org
+    app.jinja_env.globals["mantis_status_badge"] = lambda s: {
+        "resolved": "badge-green", "closed": "badge-green",
+        "new": "badge-blue", "acknowledged": "badge-blue",
+    }.get(s, "badge-yellow")
+    app.jinja_env.globals["mantis_sev_badge"] = lambda s: {
+        "major": "badge-yellow", "critical": "badge-red",
+        "minor": "badge-blue",
+    }.get(s, "badge-gray")
 
     # Make TIME_RANGES and MODULES available to all templates
     @app.context_processor
@@ -204,11 +212,11 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/mantis/search")
     def api_mantis_search():
-        from src.mantis.mantis_search import search
+        from src.mantis.mantis_search import search, sensor_to_project
         query = request.args.get("query", "").strip()
-        live = request.args.get("live", "0") == "1"
         idx = request.args.get("idx", "0")
-        tickets = search(query, live=live) if query else []
+        city = sensor_to_project(request.args.get("sensor", "all"))
+        tickets = search(query, city=city) if query else []
         return render_template("partials/mantis_results.html",
                                tickets=tickets, query=query, idx=idx)
 
