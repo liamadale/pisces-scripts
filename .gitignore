@@ -259,3 +259,5 @@ filters/notices/*.yaml
 !filters/ports/example-*.yaml
 reports/
 AGENT.md
+
+threat_modeling
