@@ -9,12 +9,13 @@ Search priority:
 
 Usage:
     python src/mantis/mantis_search.py --query 72.10.3.212
-    python src/mantis/mantis_search.py --query "STREAM anomaly" --live
 """
 
 import argparse
+import ipaddress
 import json
 import os
+import re
 import sys
 
 import requests
@@ -23,6 +24,7 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 from rich import box
+from rich.text import Text
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -31,8 +33,156 @@ from src.utils.dns import setup_dns
 console = Console(file=sys.stderr)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
+def sensor_to_project(sensor_val: str) -> str | None:
+    """Convert an OpenSearch sensor value to a Mantis project name filter.
+
+    Strips the 'hedgehog-' prefix used by Malcolm sensors.
+    Returns None for 'all' or multi-sensor selections (can't map to one project).
+
+    Examples:
+        "hedgehog-bonney-lake" → "bonney-lake"
+        "all"                  → None
+        "hedgehog-a,hedgehog-b"→ None
+    """
+    if not sensor_val or sensor_val.lower() == "all":
+        return None
+    sensors = [s.strip() for s in sensor_val.split(",") if s.strip()]
+    if len(sensors) != 1:
+        return None
+    return sensors[0].removeprefix("hedgehog-")
+
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TICKETS_INDEX = os.path.join(_BASE, "data", "tickets", "tickets_index.json")
+
+# Regex patterns
+_IP_RE = re.compile(
+    r'\b(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})\b'
+)
+_URL_RE = re.compile(r'https?://[^\s\'"<>]+')
+
+_KIBANA_DOMAINS = {"kibana", "opensearch", "elastic"}
+_TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
+
+
+# ---------------------------------------------------------------------------
+# Helper: IP extraction
+# ---------------------------------------------------------------------------
+
+def _extract_ips(texts: list[str]) -> list[str]:
+    """Extract unique public IPs (including defanged like 1.2.3[.]4) from text list."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for text in texts:
+        for m in _IP_RE.finditer(text):
+            ip_str = f"{m.group(1)}.{m.group(2)}.{m.group(3)}.{m.group(4)}"
+            if ip_str in seen:
+                continue
+            seen.add(ip_str)
+            try:
+                addr = ipaddress.ip_address(ip_str)
+                if not addr.is_private and not addr.is_loopback and not addr.is_reserved:
+                    result.append(ip_str)
+            except ValueError:
+                pass
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Helper: link extraction
+# ---------------------------------------------------------------------------
+
+def _extract_links(text: str) -> tuple[list[str], list[str]]:
+    """Extract URLs from text, classify into (kibana_links, ti_links)."""
+    kibana: list[str] = []
+    ti: list[str] = []
+    for url in _URL_RE.findall(text or ""):
+        lower = url.lower()
+        if any(d in lower for d in _KIBANA_DOMAINS):
+            kibana.append(url)
+        elif any(d in lower for d in _TI_DOMAINS):
+            ti.append(url)
+    return kibana, ti
+
+
+# ---------------------------------------------------------------------------
+# Helper: normalize a raw Mantis API issue dict → standard ticket schema
+# ---------------------------------------------------------------------------
+
+def _normalize_issue(issue: dict, api_url: str) -> dict:
+    """Convert a raw MantisBT API issue dict to the normalized ticket schema."""
+    issue_id = str(issue.get("id", ""))
+
+    handler_raw = issue.get("handler")
+    handler = (
+        {"id": handler_raw["id"], "name": handler_raw.get("name", "")}
+        if handler_raw
+        else None
+    )
+    handler_id = handler_raw["id"] if handler_raw else None
+
+    reporter_raw = issue.get("reporter", {})
+    reporter = {"id": reporter_raw.get("id", 0), "name": reporter_raw.get("name", "")}
+
+    notes_raw = issue.get("notes", []) or []
+    notes = []
+    for n in notes_raw:
+        note_reporter_raw = n.get("reporter", {})
+        note_reporter = {
+            "id": note_reporter_raw.get("id", 0),
+            "name": note_reporter_raw.get("name", ""),
+        }
+        notes.append({
+            "id": n.get("id", 0),
+            "reporter": note_reporter,
+            "text": n.get("text", ""),
+            "created_at": n.get("created_at", ""),
+            "is_admin_note": handler_id is not None and note_reporter["id"] == handler_id,
+        })
+
+    description = issue.get("description", "") or ""
+    steps = issue.get("steps_to_reproduce", "") or ""
+    additional = issue.get("additional_information", "") or ""
+
+    ips = _extract_ips([
+        issue.get("summary", "") or "",
+        description,
+        steps,
+        additional,
+        " ".join(n["text"] for n in notes),
+    ])
+
+    kibana_links, _ = _extract_links(steps)
+    _, ti_links = _extract_links(additional)
+
+    admin_note_count = sum(1 for n in notes if n["is_admin_note"])
+
+    return {
+        "id": issue_id,
+        "url": f"{api_url}/view.php?id={issue_id}",
+        "status": (issue.get("status") or {}).get("name", ""),
+        "resolution": (issue.get("resolution") or {}).get("name", ""),
+        "severity": (issue.get("severity") or {}).get("name", ""),
+        "priority": (issue.get("priority") or {}).get("name", ""),
+        "created_at": (issue.get("created_at") or "")[:10],
+        "updated_at": (issue.get("updated_at") or "")[:10],
+        # Keep last_updated alias for backward compat with existing templates
+        "last_updated": (issue.get("updated_at") or "")[:10],
+        "project": (issue.get("project") or {}).get("name", ""),
+        "category": (issue.get("category") or {}).get("name", ""),
+        "reporter": reporter,
+        "handler": handler,
+        "summary": issue.get("summary", ""),
+        "description": description,
+        "steps_to_reproduce": steps,
+        "additional_information": additional,
+        "notes": notes,
+        "ips": ips,
+        "kibana_links": kibana_links,
+        "ti_links": ti_links,
+        "note_count": len(notes),
+        "admin_note_count": admin_note_count,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -54,8 +204,11 @@ def search_offline(query: str, city: str | None = None) -> list[dict]:
     for ticket in tickets:
         if query_lower not in json.dumps(ticket).lower():
             continue
-        if city and ticket.get("city", "").lower() != city.lower():
-            continue
+        if city:
+            # Check both 'project' (new schema) and 'city' (legacy field) as substring match
+            project = ticket.get("project", ticket.get("city", "")).lower()
+            if city.lower() not in project:
+                continue
         results.append(ticket)
     return results
 
@@ -65,11 +218,7 @@ def search_offline(query: str, city: str | None = None) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> list[dict]:
-    """Fetch issues from MantisBT REST API and filter client-side for query string.
-
-    Fetches up to max_pages * 100 recent issues and returns those whose summary
-    or description contain the query text.
-    """
+    """Fetch issues from MantisBT REST API and filter client-side for query string."""
     api_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
     api_token = os.environ.get("MANTIS_API_TOKEN", "")
 
@@ -109,10 +258,11 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
             break
 
         for issue in issues:
-            # Search in summary + description
             text = (
                 issue.get("summary", "") + " " +
                 issue.get("description", "") + " " +
+                (issue.get("steps_to_reproduce") or "") + " " +
+                (issue.get("additional_information") or "") + " " +
                 " ".join(n.get("text", "") for n in issue.get("notes", []))
             ).lower()
 
@@ -124,18 +274,12 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
                 if city.lower() not in project_name:
                     continue
 
-            issue_id = str(issue.get("id", ""))
-            results.append({
-                "id": issue_id,
-                "summary": issue.get("summary", ""),
-                "status": issue.get("status", {}).get("name", ""),
-                "last_updated": issue.get("updated_at", "")[:10] if issue.get("updated_at") else "",
-                "url": f"{api_url}/view.php?id={issue_id}",
-            })
+            results.append(_normalize_issue(issue, api_url))
 
-        # Stop if this was the last page
-        total = data.get("total_count", len(issues))
-        if page * 100 >= total:
+        total = data.get("total_count") or None
+        if total is not None and page * 100 >= total:
+            break
+        if len(issues) < 100:
             break
 
     return results
@@ -162,7 +306,6 @@ def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
 
     session = requests.Session()
 
-    # Login
     try:
         resp = session.post(
             f"{mantis_url}/login.php",
@@ -179,7 +322,6 @@ def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
         console.print("[red]Mantis authentication failed — check credentials[/red]")
         return []
 
-    # Search via view_all_bug_page.php
     try:
         resp = session.get(
             f"{mantis_url}/view_all_bug_page.php",
@@ -204,10 +346,6 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
         if len(cells) < 5:
             continue
 
-        # MantisBT column layout (default view):
-        #  0: checkbox  1: ID  2: project  3: category  4: severity
-        #  5: status    6: updated  7: summary (with link)
-        # Find the ID cell — it contains a link to view.php?id=N
         issue_id = ""
         ticket_url = ""
         summary = ""
@@ -218,33 +356,24 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
             a = cell.find("a", href=True)
             if a and "view.php?id=" in a.get("href", ""):
                 href = a["href"]
-                # ID cell: short numeric text
                 if a.text.strip().isdigit() and not issue_id:
                     issue_id = a.text.strip()
                     ticket_url = href if href.startswith("http") else base_url + "/" + href.lstrip("/")
-                # Summary cell: longer descriptive text
                 elif len(a.text.strip()) > 6:
                     summary = a.text.strip()
 
         if not issue_id:
             continue
 
-        # Guard against view_all_bug_page returning an unfiltered default view:
-        # require the query to appear in the summary if we have one.
         if query and summary and query.lower() not in summary.lower():
             continue
 
-        # Pull status and last-updated from their cells by position
-        # (positions vary by MantisBT config, so grab non-link text cells)
         text_cells = [c.get_text(strip=True) for c in cells if not c.find("input")]
-        # status is usually a short word like "new", "resolved", "acknowledged"
         status_candidates = [t for t in text_cells if t.lower() in (
             "new", "feedback", "acknowledged", "confirmed", "assigned",
             "resolved", "closed"
         )]
         status = status_candidates[0] if status_candidates else ""
-        # last updated: look for date-like strings (YYYY-MM-DD or similar)
-        import re
         date_candidates = [t for t in text_cells if re.search(r"\d{4}-\d{2}-\d{2}", t)]
         last_updated = date_candidates[-1][:10] if date_candidates else ""
 
@@ -254,6 +383,25 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
             "status": status,
             "last_updated": last_updated,
             "url": ticket_url,
+            # Minimal fields for scraping-only results
+            "resolution": "",
+            "severity": "",
+            "priority": "",
+            "created_at": "",
+            "updated_at": last_updated,
+            "project": "",
+            "category": "",
+            "reporter": {"id": 0, "name": ""},
+            "handler": None,
+            "description": "",
+            "steps_to_reproduce": "",
+            "additional_information": "",
+            "notes": [],
+            "ips": [],
+            "kibana_links": [],
+            "ti_links": [],
+            "note_count": 0,
+            "admin_note_count": 0,
         })
 
     return results
@@ -263,35 +411,30 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
 # Public API
 # ---------------------------------------------------------------------------
 
-def search(query: str, city: str | None = None, live: bool = False) -> list[dict]:
+def search(query: str, city: str | None = None) -> list[dict]:
     """Search for tickets matching query.
 
-    Args:
-        query: IP address, keyword, or phrase to search for.
-        city:  Optional municipality filter.
-        live:  If True, query both the REST API (summaries) AND web scraping
-               (full-text including descriptions/notes) and merge results.
-               REST API alone misses IPs that only appear in ticket bodies.
+    Always queries offline index first, then REST API, then web scraping.
+    Live API results take precedence over offline results for the same ticket ID.
 
     Returns:
         Deduplicated list of ticket dicts sorted by ID descending.
     """
-    results = search_offline(query, city)
-    seen = {r["id"] for r in results}
+    offline = search_offline(query, city)
+    offline_by_id = {r["id"]: r for r in offline}
 
-    if live:
-        # Run both — REST API searches summaries only; scraping does full-text
-        for r in search_via_api(query, city):
-            if r["id"] not in seen:
-                results.append(r)
-                seen.add(r["id"])
+    # Live results override offline for same ID
+    live_results: dict[str, dict] = {}
+    for r in search_via_api(query, city):
+        live_results[r["id"]] = r
 
-        for r in search_via_scraping(query, city):
-            if r["id"] not in seen:
-                results.append(r)
-                seen.add(r["id"])
+    for r in search_via_scraping(query, city):
+        if r["id"] not in live_results:
+            live_results[r["id"]] = r
 
-    # Sort by ID descending (newest first)
+    # Merge: live overrides offline
+    combined: dict[str, dict] = {**offline_by_id, **live_results}
+    results = list(combined.values())
     results.sort(key=lambda r: int(r["id"]) if r["id"].isdigit() else 0, reverse=True)
     return results
 
@@ -305,17 +448,37 @@ def display_results(results: list[dict]) -> None:
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Summary", ratio=2)
     table.add_column("Status", style="green", no_wrap=True)
+    table.add_column("Sev", no_wrap=True)
+    table.add_column("Handler", no_wrap=True)
+    table.add_column("Notes", no_wrap=True)
     table.add_column("Updated", no_wrap=True)
-    table.add_column("URL", style="dim")
 
     for t in results:
+        handler_name = t.get("handler", {}) or {}
+        handler_str = handler_name.get("name", "—") if isinstance(handler_name, dict) else "—"
+        note_count = t.get("note_count", 0)
+        admin_count = t.get("admin_note_count", 0)
+        notes_str = f"{note_count}" + (f" ({admin_count}★)" if admin_count else "")
+
         table.add_row(
             t.get("id", ""),
             t.get("summary", ""),
             t.get("status", ""),
-            t.get("last_updated", ""),
-            t.get("url", ""),
+            t.get("severity", ""),
+            handler_str,
+            notes_str,
+            t.get("last_updated", "") or t.get("updated_at", ""),
         )
+
+        # Show admin note previews as sub-rows
+        for n in t.get("notes", []):
+            if n.get("is_admin_note"):
+                preview = n["text"][:120].replace("\n", " ")
+                table.add_row(
+                    "",
+                    Text(f"★ {preview}", style="dim"),
+                    "", "", "", "", "",
+                )
 
     console.print(table)
 
@@ -324,14 +487,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES Mantis Ticket Search")
     parser.add_argument("--query", required=True, help="Search term (IP, keyword, etc.)")
     parser.add_argument("--city", help="Municipality filter")
-    parser.add_argument("--live", action="store_true",
-                        help="Query live Mantis (REST API + scraping fallback)")
     args = parser.parse_args()
 
     load_dotenv()
     setup_dns()
 
-    results = search(args.query, city=args.city, live=args.live)
+    results = search(args.query, city=args.city)
     display_results(results)
 
 

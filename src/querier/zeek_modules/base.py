@@ -399,7 +399,7 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
     _query_fn = query_fn if query_fn is not None else run_query
 
     from src.enricher.threat_intel import enrich_ip
-    from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis
+    from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis, sensor_to_project
     from src.mantis.mantis_submit import submit_interactive
 
     last_record: dict | None = None
@@ -467,11 +467,14 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
         elif key == "m":
             dest_ip = record.get("dest_ip", "")
             queries = dict.fromkeys(ip for ip in [src_ip, dest_ip] if ip)
+            city = sensor_to_project(record.get("sensor", "all"))
+            if city:
+                console.print(f"[dim]Filtering Mantis to project '{city}'[/dim]")
             combined: list = []
             seen_ids: set = set()
             for q in queries:
                 console.print(f"[dim]Searching Mantis for '{q}'...[/dim]")
-                for r in mantis_search(q, live=True):
+                for r in mantis_search(q, city=city):
                     if r["id"] not in seen_ids:
                         combined.append(r)
                         seen_ids.add(r["id"])
