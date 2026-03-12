@@ -1,0 +1,906 @@
+/* ================================================================
+   Threat Modeling App — Dark SOC Analyst Theme
+   Self-contained; does not depend on pisces.css
+   ================================================================ */
+
+/* ── 1. Design Tokens ─────────────────────────────────── */
+
+[data-theme="dark"] {
+  --surface:                  #0d0f14;
+  --surface-container-low:    #161a24;
+  --surface-container:        #1a1f2e;
+  --surface-container-high:   #1e2433;
+  --surface-container-highest:#232840;
+  --outline:     #2a3045;
+  --outline-dim: #1e2233;
+  --on-surface:     #c8ccd8;
+  --on-surface-dim: #5a6278;
+  --primary:     #4f8ef7;
+  --primary-dim: #3a7ae8;
+  --secondary:   #7ec8e3;
+  --tertiary:    #bc8cff;
+  --green:  #3fb950; --yellow: #d29922;
+  --red:    #f85149; --orange: #e3763c; --purple: #bc8cff;
+  --state-hover: rgba(79,142,247,0.08);
+  --state-press: rgba(79,142,247,0.12);
+  --badge-green-bg:  rgba(63,185,80,0.2);
+  --badge-red-bg:    rgba(248,81,73,0.2);
+  --badge-yellow-bg: rgba(210,153,34,0.2);
+  --badge-blue-bg:   rgba(79,142,247,0.2);
+  --badge-gray-bg:   rgba(90,98,120,0.3);
+  --focus-ring: rgba(79,142,247,0.25);
+  --panel-shadow: rgba(0,0,0,0.45);
+}
+
+[data-theme="light"] {
+  --surface:                  #f8f9fc;
+  --surface-container-low:    #f0f1f5;
+  --surface-container:        #e8eaef;
+  --surface-container-high:   #e1e3e9;
+  --surface-container-highest:#d8dbe2;
+  --outline:     #c4c8d4;
+  --outline-dim: #dcdfe6;
+  --on-surface:     #1a1c24;
+  --on-surface-dim: #5c6070;
+  --primary:     #2563eb;
+  --primary-dim: #1d4fd8;
+  --secondary:   #0d7490;
+  --tertiary:    #7c3aed;
+  --green:  #16a34a; --yellow: #ca8a04;
+  --red:    #dc2626; --orange: #ea580c; --purple: #7c3aed;
+  --state-hover: rgba(37,99,235,0.06);
+  --state-press: rgba(37,99,235,0.10);
+  --badge-green-bg:  rgba(22,163,74,0.12);
+  --badge-red-bg:    rgba(220,38,38,0.12);
+  --badge-yellow-bg: rgba(202,138,4,0.12);
+  --badge-blue-bg:   rgba(37,99,235,0.10);
+  --badge-gray-bg:   rgba(92,96,112,0.12);
+  --focus-ring: rgba(37,99,235,0.25);
+  --panel-shadow: rgba(0,0,0,0.15);
+}
+
+:root {
+  --bg:      var(--surface);
+  --bg2:     var(--surface-container-low);
+  --bg3:     var(--surface-container-high);
+  --text:    var(--on-surface);
+  --text-dim:var(--on-surface-dim);
+  --border:  var(--outline);
+  --accent:  var(--primary);
+
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-pill: 28px;
+
+  --font: "JetBrains Mono","Fira Mono","Courier New",monospace;
+  --sans: system-ui,-apple-system,sans-serif;
+}
+
+
+/* ── 2. Reset & Base ──────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+
+/* ── 3. Nav ───────────────────────────────────────────── */
+
+nav {
+  flex-shrink: 0;
+  background: var(--surface-container-low);
+  border-bottom: 1px solid var(--outline);
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 48px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+nav .brand {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--secondary);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+
+.nav-badge {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  color: var(--on-surface-dim);
+  white-space: nowrap;
+}
+.nav-badge.danger  { border-color: var(--red);   color: var(--red); }
+.nav-badge.success { border-color: var(--green);  color: var(--green); }
+.nav-badge.info    { border-color: var(--primary); color: var(--primary); }
+
+nav .spacer { flex: 1; }
+
+.btn-theme {
+  background: transparent;
+  border: none;
+  color: var(--on-surface-dim);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: color 0.15s;
+}
+.btn-theme:hover { color: var(--primary); }
+
+
+/* ── 4. Main scroll area ──────────────────────────────── */
+
+main {
+  flex: 1;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+
+/* ── 5. Search bar ────────────────────────────────────── */
+
+.tm-search-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1rem;
+}
+
+.tm-search-bar input[type="text"] {
+  flex: 1;
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  color: var(--on-surface);
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  height: 32px;
+  outline: none;
+  min-width: 200px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tm-search-bar input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.tm-search-result-area {
+  min-height: 0;
+}
+
+
+/* ── 6. Buttons ───────────────────────────────────────── */
+
+.btn {
+  position: relative;
+  font-family: var(--sans);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  color: var(--on-surface);
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 0.82rem;
+  height: 32px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--primary-dim); border-color: var(--primary-dim); color: #fff; }
+
+.btn-sm { padding: 0 10px; font-size: 0.78rem; height: 26px; }
+
+
+/* ── 7. Sections ──────────────────────────────────────── */
+
+.tm-section {
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--surface-container-high);
+  border-bottom: 1px solid var(--outline);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tm-section-header h2 {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.tm-section-header .count-note {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--on-surface-dim);
+}
+
+.section-spacer { flex: 1; }
+
+/* Card slot (row-click target) */
+.tm-card-slot {
+  flex-shrink: 0;
+}
+
+/* Filter bar inside section header */
+.tm-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface-container);
+  flex-shrink: 0;
+}
+
+.tm-filter-bar label {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--on-surface-dim);
+  margin-right: 2px;
+}
+
+.tm-filter-bar select,
+.tm-filter-bar input[type="text"],
+.tm-filter-bar input[type="number"] {
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  color: var(--on-surface);
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  height: 28px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.tm-filter-bar select:focus,
+.tm-filter-bar input:focus { border-color: var(--primary); }
+
+.filter-sep {
+  width: 1px; height: 18px;
+  background: var(--outline);
+  margin: 0 2px;
+}
+
+/* Table wrapper inside section */
+.section-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+}
+
+
+/* ── 8. Tables ────────────────────────────────────────── */
+
+table {
+  table-layout: auto;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-container-high);
+  color: var(--on-surface-dim);
+  font-family: var(--sans);
+  font-weight: 600;
+  padding: 7px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--outline);
+  white-space: nowrap;
+  user-select: none;
+}
+
+thead th.sortable { cursor: pointer; }
+thead th.sortable:hover { color: var(--primary); }
+thead th.sort-asc::after  { content: " ↑"; color: var(--primary); }
+thead th.sort-desc::after { content: " ↓"; color: var(--primary); }
+
+tbody tr {
+  border-bottom: 1px solid var(--outline-dim);
+  transition: background 0.1s;
+  cursor: pointer;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface-container-highest); }
+tbody tr.row-selected {
+  background: var(--surface-container-highest) !important;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+tbody td {
+  padding: 4px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.zero { color: var(--on-surface-dim); }
+
+.loading-row td {
+  text-align: center;
+  color: var(--on-surface-dim);
+  padding: 20px;
+  font-style: italic;
+}
+
+
+/* ── 9. Badges ────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-green   { background: var(--badge-green-bg);  color: var(--green); }
+.badge-red     { background: var(--badge-red-bg);    color: var(--red); }
+.badge-yellow  { background: var(--badge-yellow-bg); color: var(--yellow); }
+.badge-blue    { background: var(--badge-blue-bg);   color: var(--primary); }
+.badge-gray    { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
+
+/* FP category badges */
+.badge-fp-benign          { background: var(--badge-green-bg);  color: var(--green); }
+.badge-fp-malicious_blocked { background: var(--badge-red-bg); color: var(--red); }
+.badge-fp-unknown         { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
+.badge-fp-suspicious      { background: var(--badge-yellow-bg); color: var(--yellow); }
+
+
+/* ── 10. Threat Card ──────────────────────────────────── */
+
+.threat-card {
+  border: 2px solid var(--outline);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+  overflow: hidden;
+  margin: 0.75rem 1rem;
+}
+
+.threat-card.verdict-malicious { border-color: var(--red); }
+.threat-card.verdict-fp        { border-color: var(--green); }
+.threat-card.verdict-observed  { border-color: var(--yellow); }
+.threat-card.verdict-unknown   { border-color: var(--outline); }
+
+.threat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--surface-container-high);
+  border-bottom: 1px solid var(--outline);
+  flex-wrap: wrap;
+}
+
+.threat-card-header .verdict-label {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.verdict-malicious .verdict-label { color: var(--red); }
+.verdict-fp        .verdict-label { color: var(--green); }
+.verdict-observed  .verdict-label { color: var(--yellow); }
+.verdict-unknown   .verdict-label { color: var(--on-surface-dim); }
+
+.threat-card-ip {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.threat-card-header-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--on-surface-dim);
+  cursor: pointer;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  transition: color 0.15s;
+}
+.threat-card-header-close:hover { color: var(--primary); }
+
+.threat-card-body {
+  padding: 0.75rem 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+}
+@media (max-width: 800px) {
+  .threat-card-body { grid-template-columns: 1fr; }
+}
+
+.threat-kv { display: grid; grid-template-columns: 120px 1fr; gap: 2px 8px; font-size: 0.81rem; }
+.threat-kv .k { color: var(--on-surface-dim); }
+.threat-kv .v { color: var(--on-surface); word-break: break-all; }
+.threat-kv .v.cve { color: var(--red); }
+
+.threat-summaries {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+}
+.threat-summaries ul {
+  list-style: disc;
+  padding-left: 1.2rem;
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+}
+.threat-summaries ul li { margin-bottom: 2px; }
+
+
+/* ── 11. Ticket Section (inside card) ─────────────────── */
+
+.tm-ticket-section {
+  border-top: 1px solid var(--outline);
+  padding: 0.75rem 1rem;
+}
+
+.tm-ticket-section h4 {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--on-surface-dim);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tm-ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.tm-ticket-table thead th {
+  background: var(--surface-container);
+  color: var(--on-surface-dim);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--outline);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  cursor: default;
+}
+
+.tm-ticket-table tbody tr {
+  border-bottom: 1px solid var(--outline-dim);
+  transition: background 0.1s;
+  cursor: default;
+}
+.tm-ticket-table tbody tr:hover { background: var(--surface-container); }
+
+.tm-ticket-table tbody td {
+  padding: 4px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.ticket-id-link {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+.ticket-id-link:hover { text-decoration: underline; }
+
+.ticket-summary-cell {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tm-ticket-no-data {
+  color: var(--on-surface-dim);
+  font-style: italic;
+  font-size: 0.82rem;
+  padding: 0.5rem 0;
+}
+
+
+/* ── 12. Ticket pagination ────────────────────────────── */
+
+.ticket-pager {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0 0;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+}
+
+
+/* ── 13. Pagination bar (table) ───────────────────────── */
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 1rem;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--on-surface-dim);
+  border-top: 1px solid var(--outline);
+  flex-shrink: 0;
+}
+
+.pagination-bar select {
+  background: var(--surface-container);
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+#pager-info-tp, #pager-info-fp {
+  min-width: 14ch;
+  text-align: center;
+}
+
+
+/* ── 14. Ticket detail slide panel ───────────────────── */
+
+.ticket-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 500px;
+  max-width: 94vw;
+  height: 100vh;
+  background: var(--surface-container-low);
+  border-left: 1px solid var(--outline);
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 250;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: none;
+}
+
+.ticket-panel.open {
+  transform: translateX(0);
+  box-shadow: -8px 0 40px var(--panel-shadow);
+}
+
+.ticket-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface-container-high);
+  flex-shrink: 0;
+}
+
+.ticket-panel-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ticket-panel-id {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ticket-panel-summary {
+  font-size: 0.88rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ticket-panel-close {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--on-surface-dim);
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 1rem;
+  transition: color 0.15s;
+}
+.ticket-panel-close:hover { color: var(--primary); }
+
+.ticket-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Meta row: status + severity + date + link */
+.ticket-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ticket-mantis-link {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  color: var(--primary);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: border-color 0.15s;
+  text-decoration: none;
+}
+.ticket-mantis-link:hover { border-color: var(--primary); text-decoration: none; }
+
+.ticket-date {
+  font-family: var(--font);
+  font-size: 0.78rem;
+  color: var(--on-surface-dim);
+}
+
+/* Field blocks */
+.ticket-field {
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.ticket-field-label {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--on-surface-dim);
+  padding: 5px 10px 4px;
+  border-bottom: 1px solid var(--outline);
+  background: var(--surface-container-highest);
+}
+
+.ticket-field-body {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  color: var(--on-surface);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* Notes section */
+.ticket-notes-label {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--on-surface-dim);
+  margin-bottom: 6px;
+}
+
+.ticket-note {
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ticket-note-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--surface-container-high);
+  border-bottom: 1px solid var(--outline);
+  font-size: 0.76rem;
+  flex-wrap: wrap;
+}
+
+.ticket-note-author {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.ticket-note-date {
+  font-family: var(--font);
+  color: var(--on-surface-dim);
+  font-size: 0.73rem;
+}
+
+/* Admin note gets an accent left border + tinted background */
+.ticket-note.admin-note {
+  border-color: var(--primary);
+}
+
+.ticket-note.admin-note .ticket-note-header {
+  background: rgba(79, 142, 247, 0.12);
+  border-bottom-color: var(--primary);
+}
+
+.ticket-note-body {
+  padding: 7px 10px;
+  font-size: 0.81rem;
+  color: var(--on-surface);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface-container);
+}
+
+.ticket-note.admin-note .ticket-note-body {
+  background: rgba(79, 142, 247, 0.05);
+}
+
+/* Row highlight when its panel is open */
+tr.ticket-row-active {
+  background: var(--surface-container-highest) !important;
+  box-shadow: inset 3px 0 0 var(--secondary);
+}
+
+/* Panel backdrop for mobile */
+.ticket-panel-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 249;
+}
+.ticket-panel-backdrop.open { display: block; }
+
+/* HTMX indicators ──────────────────────────────────── */
+
+#htmx-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+}
+#htmx-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 45%;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+  transform: translateX(-120%);
+}
+#htmx-bar.htmx-bar-active::after {
+  animation: htmx-sweep 1.4s ease-in-out infinite;
+}
+#htmx-bar.htmx-bar-done::after {
+  animation: none;
+  transform: translateX(280%);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
+}
+@keyframes htmx-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
+
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator { display: inline; }
+
+
+/* ── 15. Utilities ────────────────────────────────────── */
+
+.empty-note {
+  color: var(--on-surface-dim);
+  font-style: italic;
+  font-size: 0.82rem;
+}
+
+.cve-text { color: var(--red); }
+
+.country-flag { margin-right: 4px; }

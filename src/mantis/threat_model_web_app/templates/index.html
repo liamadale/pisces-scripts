@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}PISCES Threat Intel{% endblock %}
+
+{% block content %}
+
+{# ── Search bar ────────────────────────────────────────────── #}
+<div class="tm-search-bar">
+  <i class="fa-solid fa-magnifying-glass" style="color:var(--on-surface-dim)"></i>
+  <input type="text"
+         id="search-input"
+         placeholder="Search any IP address…"
+         autocomplete="off"
+         hx-get="/api/search"
+         hx-target="#search-result"
+         hx-swap="innerHTML"
+         hx-trigger="keyup changed delay:300ms, search"
+         hx-push-url="true"
+         name="q">
+  <span class="empty-note htmx-indicator" style="margin-left:4px">Searching…</span>
+</div>
+
+{# ── Single threat card area — controlled by search, TP rows, and FP rows ── #}
+<div id="search-result" class="tm-search-result-area"></div>
+
+{# ── True Positives section ────────────────────────────────── #}
+<section class="tm-section">
+  <div class="tm-section-header">
+    <h2><i class="fa-solid fa-skull-crossbones"></i> Malicious IPs</h2>
+    <span class="count-note" id="tp-count-note">{{ tp_total }} IPs</span>
+    <div class="section-spacer"></div>
+  </div>
+
+  {# Filter bar #}
+  <div class="tm-filter-bar">
+    {# Hidden state for sort/order #}
+    <input type="hidden" id="tp-sort" value="tickets">
+    <input type="hidden" id="tp-order" value="desc">
+
+    <label>Attack</label>
+    <select id="tp-filter-attack" onchange="reloadTpRows(1)">
+      <option value="">All</option>
+      {% for at in all_attack_types %}
+      <option value="{{ at }}">{{ at|replace('_',' ')|title }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="filter-sep"></div>
+    <label>Blocklist</label>
+    <select id="tp-filter-blocklist" onchange="reloadTpRows(1)">
+      <option value="">All</option>
+      {% for bl in all_blocklists %}
+      <option value="{{ bl }}">{{ bl|replace('_',' ')|title }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="filter-sep"></div>
+    <label>IP</label>
+    <input type="text" id="tp-filter-q" placeholder="filter…" style="width:120px"
+           oninput="reloadTpRows(1)">
+
+    <div class="filter-sep"></div>
+    <label>Min Tickets</label>
+    <input type="number" id="tp-filter-min-tickets" min="0" placeholder="0"
+           style="width:60px" oninput="reloadTpRows(1)">
+
+    <div class="section-spacer"></div>
+    <label>Per page</label>
+    <select id="tp-per-page" onchange="tpPerPageChanged(this)">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+    </select>
+  </div>
+
+  {# Table #}
+  <div class="section-table-wrap">
+    <table>
+      <colgroup>
+        <col style="min-width:120px">
+        <col style="min-width:80px">
+        <col style="min-width:70px">
+        <col style="min-width:90px">
+        <col>
+        <col style="min-width:140px">
+        <col style="min-width:100px">
+        <col style="min-width:100px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="tpSort('ip')">IP</th>
+          <th class="sortable" onclick="tpSort('country')">Country</th>
+          <th class="sortable num" onclick="tpSort('tickets')">Tickets</th>
+          <th class="sortable num" onclick="tpSort('days_active')">Days Active</th>
+          <th class="sortable" onclick="tpSort('attack_str')">Attack Types</th>
+          <th class="sortable cve-text" onclick="tpSort('cve_str')">CVEs</th>
+          <th class="sortable" onclick="tpSort('first_seen')">First Seen</th>
+          <th class="sortable" onclick="tpSort('last_seen')">Last Seen</th>
+        </tr>
+      </thead>
+      <tbody id="tp-tbody"
+             hx-get="/api/tp/rows"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+        <tr class="loading-row"><td colspan="8">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination bar #}
+  <div class="pagination-bar">
+    <button class="btn btn-sm" id="pager-prev-tp" disabled onclick="tpNav(-1)">
+      <i class="fa-solid fa-chevron-left"></i> Prev
+    </button>
+    <span id="pager-info-tp">—</span>
+    <button class="btn btn-sm" id="pager-next-tp" disabled onclick="tpNav(1)">
+      Next <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  </div>
+</section>
+
+{# ── False Positives section ───────────────────────────────── #}
+<section class="tm-section">
+  <div class="tm-section-header">
+    <h2><i class="fa-solid fa-circle-check"></i> False Positives</h2>
+    <span class="count-note" id="fp-count-note">{{ fp_total }} IPs</span>
+    <div class="section-spacer"></div>
+  </div>
+
+  {# Filter bar #}
+  <div class="tm-filter-bar">
+    <input type="hidden" id="fp-sort" value="score">
+    <input type="hidden" id="fp-order" value="desc">
+
+    <label>Category</label>
+    <select id="fp-filter-category" onchange="reloadFpRows(1)">
+      <option value="">All</option>
+      {% for cat in all_fp_categories %}
+      <option value="{{ cat }}">{{ cat|replace('_',' ')|title }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="filter-sep"></div>
+    <label>IP</label>
+    <input type="text" id="fp-filter-q" placeholder="filter…" style="width:120px"
+           oninput="reloadFpRows(1)">
+
+    <div class="filter-sep"></div>
+    <label>Min Score</label>
+    <input type="number" id="fp-filter-min-score" min="0" step="0.1" placeholder="0"
+           style="width:70px" oninput="reloadFpRows(1)">
+
+    <div class="section-spacer"></div>
+    <label>Per page</label>
+    <select id="fp-per-page" onchange="fpPerPageChanged(this)">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+    </select>
+  </div>
+
+  {# Table #}
+  <div class="section-table-wrap">
+    <table>
+      <colgroup>
+        <col style="min-width:120px">
+        <col style="min-width:140px">
+        <col style="min-width:130px">
+        <col style="min-width:70px">
+        <col style="min-width:60px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="fpSort('ip')">IP</th>
+          <th class="sortable" onclick="fpSort('category')">Category</th>
+          <th class="sortable" onclick="fpSort('threat_type')">Threat Type</th>
+          <th class="sortable num" onclick="fpSort('score')">Score</th>
+          <th class="sortable num" onclick="fpSort('ticket_count')">Tickets</th>
+        </tr>
+      </thead>
+      <tbody id="fp-tbody"
+             hx-get="/api/fp/rows"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+        <tr class="loading-row"><td colspan="4">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination-bar">
+    <button class="btn btn-sm" id="pager-prev-fp" disabled onclick="fpNav(-1)">
+      <i class="fa-solid fa-chevron-left"></i> Prev
+    </button>
+    <span id="pager-info-fp">—</span>
+    <button class="btn btn-sm" id="pager-next-fp" disabled onclick="fpNav(1)">
+      Next <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  </div>
+</section>
+
+{% endblock %}

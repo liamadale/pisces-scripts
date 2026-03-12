@@ -1,0 +1,149 @@
+{# Full ticket detail rendered into the slide panel body #}
+
+{# Meta row — status, severity, project, date #}
+<div class="ticket-meta-row">
+  {% set status = t.status or '' %}
+  {% if status in ('resolved', 'closed') %}
+    <span class="badge badge-green">{{ status }}</span>
+  {% elif status in ('new', 'acknowledged') %}
+    <span class="badge badge-blue">{{ status }}</span>
+  {% else %}
+    <span class="badge badge-gray">{{ status or '—' }}</span>
+  {% endif %}
+
+  {% set sev = (t.severity or '')|lower %}
+  {% if sev == 'critical' %}
+    <span class="badge badge-red">{{ t.severity }}</span>
+  {% elif sev == 'major' %}
+    <span class="badge badge-yellow">{{ t.severity }}</span>
+  {% elif sev == 'minor' %}
+    <span class="badge badge-blue">{{ t.severity }}</span>
+  {% else %}
+    <span class="badge badge-gray">{{ t.severity or '—' }}</span>
+  {% endif %}
+
+  {% if t.priority %}
+    <span class="badge badge-gray">{{ t.priority }}</span>
+  {% endif %}
+
+  {% if t.project %}
+    <span class="badge badge-gray" title="Project">
+      <i class="fa-solid fa-building" style="font-size:0.65rem"></i> {{ t.project }}
+    </span>
+  {% endif %}
+
+  <span class="ticket-date">{{ (t.created_at or '')[:10] }}</span>
+
+  {% if t.url %}
+  <a class="ticket-mantis-link" href="{{ t.url }}" target="_blank" rel="noopener">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Mantis
+  </a>
+  {% endif %}
+</div>
+
+{# Reporter / handler #}
+{% set reporter_name = (t.reporter or {}).get('name') or (t.reporter if t.reporter is string else None) %}
+{% set handler_name  = (t.handler  or {}).get('name') or (t.handler  if t.handler  is string else None) %}
+{% if reporter_name or handler_name %}
+<div style="display:flex;gap:1.5rem;font-size:0.78rem;color:var(--on-surface-dim)">
+  {% if reporter_name %}
+  <span><i class="fa-solid fa-user" style="margin-right:4px"></i>Reporter: <strong style="color:var(--on-surface)">{{ reporter_name }}</strong></span>
+  {% endif %}
+  {% if handler_name %}
+  <span><i class="fa-solid fa-user-gear" style="margin-right:4px"></i>Handler: <strong style="color:var(--on-surface)">{{ handler_name }}</strong></span>
+  {% endif %}
+</div>
+{% endif %}
+
+{# IPs observed in this ticket #}
+{% if t.ips %}
+<div style="font-size:0.78rem;color:var(--on-surface-dim);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+  <i class="fa-solid fa-network-wired"></i> IPs:
+  {% for ip in (t.ips or [])[:20] %}
+  <code style="color:var(--secondary);font-size:0.78rem">{{ ip }}</code>
+  {% endfor %}
+  {% if (t.ips or [])|length > 20 %}
+  <span>+{{ (t.ips|length) - 20 }} more</span>
+  {% endif %}
+</div>
+{% endif %}
+
+{# Description #}
+{% if t.description and t.description.strip() %}
+<div class="ticket-field">
+  <div class="ticket-field-label"><i class="fa-solid fa-align-left"></i> Description</div>
+  <div class="ticket-field-body">{{ t.description.strip() }}</div>
+</div>
+{% endif %}
+
+{# Steps to Reproduce #}
+{% if t.steps_to_reproduce and t.steps_to_reproduce.strip() %}
+<div class="ticket-field">
+  <div class="ticket-field-label"><i class="fa-solid fa-list-ol"></i> Steps to Reproduce</div>
+  <div class="ticket-field-body">{{ t.steps_to_reproduce.strip() }}</div>
+</div>
+{% endif %}
+
+{# Additional Information #}
+{% if t.additional_information and t.additional_information.strip() %}
+<div class="ticket-field">
+  <div class="ticket-field-label"><i class="fa-solid fa-circle-info"></i> Additional Information</div>
+  <div class="ticket-field-body">{{ t.additional_information.strip() }}</div>
+</div>
+{% endif %}
+
+{# External links #}
+{% set all_links = ((t.kibana_links or []) + (t.ti_links or [])) %}
+{% if all_links %}
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+  <span style="font-size:0.75rem;color:var(--on-surface-dim);font-family:var(--sans)">Links:</span>
+  {% for url in all_links %}
+  <a class="ticket-mantis-link" href="{{ url }}" target="_blank" rel="noopener">
+    {% if 'kibana' in url|lower or 'elastic' in url|lower %}
+      <i class="fa-solid fa-chart-line"></i> Kibana
+    {% elif 'virustotal' in url|lower %}
+      <i class="fa-solid fa-virus"></i> VirusTotal
+    {% else %}
+      <i class="fa-solid fa-link"></i> Link
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# Notes / Comments #}
+{% set notes = t.notes or [] %}
+{% if notes %}
+<div>
+  <div class="ticket-notes-label">
+    <i class="fa-solid fa-comments"></i>
+    Comments ({{ notes|length }})
+  </div>
+  {% for note in notes %}
+  {% set is_admin = note.get('is_admin_note', False) %}
+  {% set note_reporter = (note.get('reporter') or {}).get('name') or 'Unknown' %}
+  {% set note_text = (note.get('text') or '').strip() %}
+  {% if note_text %}
+  <div class="ticket-note{% if is_admin %} admin-note{% endif %}">
+    <div class="ticket-note-header">
+      {% if is_admin %}
+      <span class="badge badge-blue" style="font-size:0.65rem">
+        <i class="fa-solid fa-shield-halved"></i> Admin
+      </span>
+      {% endif %}
+      <span class="ticket-note-author">{{ note_reporter }}</span>
+      {% set note_date = note.get('date_submitted') or note.get('created_at') or '' %}
+      {% if note_date %}
+      <span class="ticket-note-date">{{ note_date[:10] }}</span>
+      {% endif %}
+    </div>
+    <div class="ticket-note-body">{{ note_text }}</div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not t.description and not t.steps_to_reproduce and not t.additional_information and not (t.notes or []) %}
+<p style="color:var(--on-surface-dim);font-style:italic;font-size:0.82rem">No additional details available for this ticket.</p>
+{% endif %}

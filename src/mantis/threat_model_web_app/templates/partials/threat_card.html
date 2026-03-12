@@ -1,0 +1,119 @@
+{% set ip_slug = ip|replace('.', '_') %}
+<div class="threat-card verdict-{{ verdict }}">
+  <div class="threat-card-header">
+    <span class="verdict-label">
+      {% if verdict == 'malicious' %}
+        <i class="fa-solid fa-skull-crossbones"></i> THREAT
+      {% elif verdict == 'fp' %}
+        <i class="fa-solid fa-circle-check"></i> FALSE POSITIVE
+      {% elif verdict == 'observed' %}
+        <i class="fa-solid fa-eye"></i> OBSERVED
+      {% else %}
+        <i class="fa-solid fa-circle-question"></i> UNKNOWN
+      {% endif %}
+    </span>
+    <span class="threat-card-ip">{{ ip }}</span>
+    {% if malicious %}
+      <span class="badge badge-red">{{ malicious.ticket_count }} tickets</span>
+      {% if malicious.country %}
+        <span>{{ malicious.country }}</span>
+      {% endif %}
+      <span style="color:var(--on-surface-dim);font-size:0.78rem">
+        {{ malicious.first_seen }} → {{ malicious.last_seen }}
+      </span>
+    {% elif fp %}
+      <span class="badge badge-green" style="font-size:0.72rem">{{ fp.category or '—' }}</span>
+      <span style="color:var(--on-surface-dim);font-size:0.78rem">score: {{ fp.score }}</span>
+    {% elif verdict == 'observed' %}
+      <span class="badge badge-yellow">{{ ticket_total }} ticket{{ 's' if ticket_total != 1 else '' }}</span>
+    {% else %}
+      <span class="badge badge-gray">not in database</span>
+    {% endif %}
+    <button class="threat-card-header-close"
+            onclick="clearThreatCard()"
+            title="Close">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  {% if malicious %}
+  <div class="threat-card-body">
+    <div>
+      <div class="threat-kv">
+        <span class="k">Attack Types</span>
+        <span class="v">{{ malicious.attack_str or '—' }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">CVEs</span>
+        <span class="v cve">{{ malicious.cve_str }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">Blocklists</span>
+        <span class="v">{{ malicious.blocklist_str }}</span>
+      </div>
+    </div>
+    <div>
+      <div class="threat-kv">
+        <span class="k">ISP</span>
+        <span class="v">{{ malicious.isp }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">ASN</span>
+        <span class="v">{{ malicious.asn }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">Usage Type</span>
+        <span class="v">{{ malicious.usage_type }}</span>
+      </div>
+    </div>
+    {% if malicious.summaries %}
+    <div class="threat-summaries">
+      <div class="threat-kv" style="margin-bottom:4px">
+        <span class="k" style="font-weight:600">Summaries</span>
+        <span></span>
+      </div>
+      <ul style="list-style:disc;padding-left:1.2rem;font-size:0.8rem;color:var(--on-surface-dim)">
+        {% for s in malicious.summaries %}
+        <li>{{ s[:200] }}{% if s|length > 200 %}…{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% elif fp %}
+  <div class="threat-card-body">
+    <div>
+      <div class="threat-kv">
+        <span class="k">Category</span>
+        <span class="v">{{ fp.category or '—' }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">Threat Type</span>
+        <span class="v">{{ fp.threat_type or '—' }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">Actor</span>
+        <span class="v">{{ fp.actor or '—' }}</span>
+      </div>
+      <div class="threat-kv">
+        <span class="k">Score</span>
+        <span class="v">{{ fp.score }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Ticket section #}
+  <div class="tm-ticket-section">
+    <h4>
+      <i class="fa-solid fa-ticket"></i>
+      Ticket History
+      {% if ticket_total > 0 %}
+        <span class="badge badge-blue">{{ ticket_total }}</span>
+      {% endif %}
+    </h4>
+    <div id="ticket-list-{{ ip_slug }}">
+      {% include "partials/ticket_list.html" %}
+    </div>
+  </div>
+</div>

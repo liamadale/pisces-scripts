@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PISCES Threat Modeling{% endblock %}</title>
+  <script>
+    (function() {
+      var t = localStorage.getItem('tm-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='tm.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+</head>
+<body>
+<div id="htmx-bar"></div>
+
+<nav>
+  <a class="brand" href="/">PISCES Threat Intel</a>
+  <span class="nav-badge danger">{{ tp_total|default(0) }} malicious</span>
+  <span class="nav-badge success">{{ fp_total|default(0) }} FP</span>
+  <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+</nav>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+{# ── Ticket detail side panel ──────────────────────── #}
+<div id="ticket-panel-backdrop" class="ticket-panel-backdrop"
+     onclick="closeTicketPanel()"></div>
+<aside id="ticket-panel" class="ticket-panel" aria-label="Ticket detail">
+  <div class="ticket-panel-header">
+    <div class="ticket-panel-title">
+      <span class="ticket-panel-id" id="ticket-panel-id">
+        <i class="fa-solid fa-ticket"></i> —
+      </span>
+      <span class="ticket-panel-summary" id="ticket-panel-summary"></span>
+    </div>
+    <button class="ticket-panel-close" onclick="closeTicketPanel()" title="Close panel">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="ticket-panel-body" id="ticket-panel-content">
+    <p style="color:var(--on-surface-dim);font-style:italic">Loading…</p>
+  </div>
+</aside>
+
+<script>
+(function() {
+  /* ── Theme toggle ──────────────────────────────── */
+  window.toggleTheme = function() {
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('tm-theme', next);
+    updateThemeIcon(next);
+  };
+
+  function updateThemeIcon(theme) {
+    var icon = document.getElementById('theme-icon');
+    if (!icon) return;
+    icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  }
+
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── HTMX progress bar ─────────────────────────── */
+  var bar = document.getElementById('htmx-bar');
+  var pending = 0;
+  document.addEventListener('htmx:beforeRequest', function() {
+    pending++;
+    bar.classList.remove('htmx-bar-done');
+    bar.classList.add('htmx-bar-active');
+  });
+  document.addEventListener('htmx:afterRequest', function() {
+    pending = Math.max(0, pending - 1);
+    if (pending === 0) {
+      bar.classList.remove('htmx-bar-active');
+      bar.classList.add('htmx-bar-done');
+      setTimeout(function() { bar.classList.remove('htmx-bar-done'); }, 400);
+    }
+  });
+
+  /* ── Pagination meta row reader ────────────────── */
+  function readPagerMeta(sectionId) {
+    var meta = document.getElementById(sectionId + '-pager-meta');
+    if (!meta) return null;
+    return {
+      total:     parseInt(meta.dataset.total, 10) || 0,
+      page:      parseInt(meta.dataset.page, 10)  || 1,
+      perPage:   parseInt(meta.dataset.perPage, 10) || 50,
+      totalPages:parseInt(meta.dataset.totalPages, 10) || 1,
+    };
+  }
+
+  function updatePaginationBar(sectionId) {
+    var m = readPagerMeta(sectionId);
+    if (!m) return;
+    var infoEl = document.getElementById('pager-info-' + sectionId);
+    if (infoEl) {
+      var start = (m.page - 1) * m.perPage + 1;
+      var end   = Math.min(m.page * m.perPage, m.total);
+      infoEl.textContent = m.total === 0 ? '0 results' : (start + '–' + end + ' of ' + m.total.toLocaleString());
+    }
+    var prevBtn = document.getElementById('pager-prev-' + sectionId);
+    var nextBtn = document.getElementById('pager-next-' + sectionId);
+    if (prevBtn) prevBtn.disabled = m.page <= 1;
+    if (nextBtn) nextBtn.disabled = m.page >= m.totalPages;
+  }
+
+  document.addEventListener('htmx:afterSwap', function(e) {
+    var target = e.detail.target;
+    if (!target) return;
+    var id = target.id;
+    if (id === 'tp-tbody') updatePaginationBar('tp');
+    if (id === 'fp-tbody') updatePaginationBar('fp');
+  });
+
+  /* ── TP table navigation ───────────────────────── */
+  window.tpNav = function(delta) {
+    var meta = readPagerMeta('tp');
+    if (!meta) return;
+    var newPage = Math.max(1, Math.min(meta.totalPages, meta.page + delta));
+    if (newPage === meta.page) return;
+    reloadTpRows(newPage);
+  };
+  window.tpPerPageChanged = function(sel) {
+    reloadTpRows(1, sel.value);
+  };
+
+  function reloadTpRows(page, perPage) {
+    var params = collectTpParams();
+    params.page = page || 1;
+    if (perPage) params.per_page = perPage;
+    htmx.ajax('GET', '/api/tp/rows?' + new URLSearchParams(params).toString(),
+              {target: '#tp-tbody', swap: 'innerHTML'});
+  }
+  window.reloadTpRows = reloadTpRows;
+
+  function collectTpParams() {
+    return {
+      sort:        document.getElementById('tp-sort')        ? document.getElementById('tp-sort').value        : 'tickets',
+      order:       document.getElementById('tp-order')       ? document.getElementById('tp-order').value       : 'desc',
+      attack:      document.getElementById('tp-filter-attack')    ? document.getElementById('tp-filter-attack').value    : '',
+      blocklist:   document.getElementById('tp-filter-blocklist') ? document.getElementById('tp-filter-blocklist').value : '',
+      q:           document.getElementById('tp-filter-q')    ? document.getElementById('tp-filter-q').value    : '',
+      min_tickets: document.getElementById('tp-filter-min-tickets') ? document.getElementById('tp-filter-min-tickets').value : '',
+      per_page:    document.getElementById('tp-per-page')    ? document.getElementById('tp-per-page').value    : '50',
+      page:        1,
+    };
+  }
+
+  /* ── FP table navigation ───────────────────────── */
+  window.fpNav = function(delta) {
+    var meta = readPagerMeta('fp');
+    if (!meta) return;
+    var newPage = Math.max(1, Math.min(meta.totalPages, meta.page + delta));
+    if (newPage === meta.page) return;
+    reloadFpRows(newPage);
+  };
+  window.fpPerPageChanged = function(sel) {
+    reloadFpRows(1, sel.value);
+  };
+
+  function reloadFpRows(page, perPage) {
+    var params = collectFpParams();
+    params.page = page || 1;
+    if (perPage) params.per_page = perPage;
+    htmx.ajax('GET', '/api/fp/rows?' + new URLSearchParams(params).toString(),
+              {target: '#fp-tbody', swap: 'innerHTML'});
+  }
+  window.reloadFpRows = reloadFpRows;
+
+  function collectFpParams() {
+    return {
+      sort:      document.getElementById('fp-sort')          ? document.getElementById('fp-sort').value          : 'score',
+      order:     document.getElementById('fp-order')         ? document.getElementById('fp-order').value         : 'desc',
+      category:  document.getElementById('fp-filter-category') ? document.getElementById('fp-filter-category').value : '',
+      q:         document.getElementById('fp-filter-q')      ? document.getElementById('fp-filter-q').value      : '',
+      min_score: document.getElementById('fp-filter-min-score') ? document.getElementById('fp-filter-min-score').value : '',
+      per_page:  document.getElementById('fp-per-page')      ? document.getElementById('fp-per-page').value      : '50',
+      page:      1,
+    };
+  }
+
+  /* ── Server-side sort on th click ─────────────── */
+  window.tpSort = function(field) {
+    var sortEl  = document.getElementById('tp-sort');
+    var orderEl = document.getElementById('tp-order');
+    var cur = sortEl ? sortEl.value : 'tickets';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    reloadTpRows(1);
+  };
+
+  window.fpSort = function(field) {
+    var sortEl  = document.getElementById('fp-sort');
+    var orderEl = document.getElementById('fp-order');
+    var cur = sortEl ? sortEl.value : 'score';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    reloadFpRows(1);
+  };
+
+  /* ── Ticket detail panel ───────────────────────── */
+  window.openTicketPanel = function(tid, summary, url) {
+    var panel = document.getElementById('ticket-panel');
+    var backdrop = document.getElementById('ticket-panel-backdrop');
+    var idEl = document.getElementById('ticket-panel-id');
+    var sumEl = document.getElementById('ticket-panel-summary');
+    if (idEl) idEl.innerHTML = '<i class="fa-solid fa-ticket"></i> #' + tid
+      + (url ? ' <a class="ticket-mantis-link" href="' + url + '" target="_blank" rel="noopener">'
+             + '<i class="fa-solid fa-arrow-up-right-from-square"></i> Mantis</a>' : '');
+    if (sumEl) sumEl.textContent = summary || '';
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    htmx.ajax('GET', '/api/ticket/' + tid,
+              {target: '#ticket-panel-content', swap: 'innerHTML'});
+  };
+
+  window.closeTicketPanel = function() {
+    document.getElementById('ticket-panel').classList.remove('open');
+    document.getElementById('ticket-panel-backdrop').classList.remove('open');
+    document.querySelectorAll('tr.ticket-row-active').forEach(function(r) {
+      r.classList.remove('ticket-row-active');
+    });
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTicketPanel();
+  });
+
+  /* ── Row click card toggle ─────────────────────── */
+  function clearAllRowSelections() {
+    document.querySelectorAll('#tp-tbody tr.row-selected, #fp-tbody tr.row-selected').forEach(function(r) {
+      r.classList.remove('row-selected');
+    });
+  }
+
+  window.clearThreatCard = function() {
+    document.getElementById('search-result').innerHTML = '';
+    clearAllRowSelections();
+  };
+
+  // Keep legacy names so threat_card.html close button works
+  window.clearSearchResult = window.clearThreatCard;
+  window.clearTpCard       = window.clearThreatCard;
+  window.clearFpCard       = window.clearThreatCard;
+
+  window.handleTpRowClick = function(tr) {
+    var isSelected = tr.classList.contains('row-selected');
+    clearAllRowSelections();
+    if (isSelected) {
+      document.getElementById('search-result').innerHTML = '';
+    } else {
+      tr.classList.add('row-selected');
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  };
+
+  window.handleFpRowClick = function(tr) {
+    var isSelected = tr.classList.contains('row-selected');
+    clearAllRowSelections();
+    if (isSelected) {
+      document.getElementById('search-result').innerHTML = '';
+    } else {
+      tr.classList.add('row-selected');
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  };
+
+  /* ── On load: restore q param → search ─────────── */
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('q');
+    if (q) {
+      var inp = document.getElementById('search-input');
+      if (inp) inp.value = q;
+      htmx.ajax('GET', '/api/search?q=' + encodeURIComponent(q),
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  })();
+
+})();
+</script>
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% for r in rows %}
+<tr data-ip="{{ r.ip }}"
+    onclick="handleFpRowClick(this)"
+    style="cursor:pointer">
+  <td><span style="font-weight:600">{{ r.ip }}</span></td>
+  <td>
+    {% set cat = r.category_raw|lower %}
+    {% if cat == 'benign' or 'benign' in cat %}
+      <span class="badge badge-fp-benign">{{ r.category }}</span>
+    {% elif 'malicious' in cat %}
+      <span class="badge badge-fp-malicious_blocked">{{ r.category }}</span>
+    {% elif cat == 'suspicious' %}
+      <span class="badge badge-fp-suspicious">{{ r.category }}</span>
+    {% else %}
+      <span class="badge badge-gray">{{ r.category or '—' }}</span>
+    {% endif %}
+  </td>
+  <td style="color:var(--on-surface-dim);font-size:0.82rem">
+    {{ r.threat_type if r.threat_type != '—' else '' }}
+  </td>
+  <td class="num">{{ r.score }}</td>
+  <td class="num">{% if r.ticket_count %}{{ r.ticket_count }}{% else %}<span class="zero">0</span>{% endif %}</td>
+</tr>
+{% else %}
+<tr class="loading-row"><td colspan="5">No results.</td></tr>
+{% endfor %}
+{# Hidden pagination meta row #}
+<tr id="fp-pager-meta"
+    data-total="{{ total }}"
+    data-page="{{ page }}"
+    data-per-page="{{ per_page }}"
+    data-total-pages="{{ total_pages }}"
+    style="display:none" aria-hidden="true"></tr>

@@ -1,0 +1,96 @@
+{% set ip_slug = ip|replace('.', '_') %}
+{% if tickets %}
+<table class="tm-ticket-table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Date</th>
+      <th>Location</th>
+      <th>Status</th>
+      <th>Severity</th>
+      <th>Summary</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in tickets %}
+    {% set tid = t.id|string %}
+    {% set summary_js = (t.summary or '')|replace("'", "\\'")|replace('"', '\\"') %}
+    {% set url_js = (t.url or '')|replace("'", "\\'") %}
+    <tr class="ticket-table-row"
+        onclick="
+          document.querySelectorAll('tr.ticket-row-active').forEach(function(r){r.classList.remove('ticket-row-active')});
+          this.classList.add('ticket-row-active');
+          openTicketPanel('{{ tid }}', '{{ summary_js }}', '{{ url_js }}');
+        "
+        title="Click to view ticket details"
+        style="cursor:pointer">
+      <td>
+        <span class="ticket-id-link">#{{ tid }}</span>
+      </td>
+      <td style="color:var(--on-surface-dim);font-size:0.78rem">
+        {{ (t.created_at or '')[:10] }}
+      </td>
+      <td style="color:var(--secondary);font-size:0.78rem;white-space:nowrap">
+        {{ (t.project or '—')|replace('-',' ')|title }}
+      </td>
+      <td>
+        {% set status = t.status or '' %}
+        {% if status in ('resolved', 'closed') %}
+          <span class="badge badge-green">{{ status }}</span>
+        {% elif status in ('new', 'acknowledged') %}
+          <span class="badge badge-blue">{{ status }}</span>
+        {% else %}
+          <span class="badge badge-gray">{{ status or '—' }}</span>
+        {% endif %}
+      </td>
+      <td>
+        {% set sev = (t.severity or '')|lower %}
+        {% if sev == 'critical' %}
+          <span class="badge badge-red">{{ t.severity }}</span>
+        {% elif sev == 'major' %}
+          <span class="badge badge-yellow">{{ t.severity }}</span>
+        {% elif sev == 'minor' %}
+          <span class="badge badge-blue">{{ t.severity }}</span>
+        {% else %}
+          <span class="badge badge-gray">{{ t.severity or '—' }}</span>
+        {% endif %}
+      </td>
+      <td class="ticket-summary-cell" title="{{ t.summary or '' }}">
+        {{ (t.summary or '')[:120] }}{% if (t.summary or '')|length > 120 %}…{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if ticket_pages > 1 %}
+<div class="ticket-pager">
+  {% if ticket_page > 1 %}
+  <button class="btn btn-sm"
+          hx-get="/api/ip/{{ ip }}/tickets?page={{ ticket_page - 1 }}"
+          hx-target="#ticket-list-{{ ip_slug }}"
+          hx-swap="innerHTML">
+    <i class="fa-solid fa-chevron-left"></i> Prev
+  </button>
+  {% else %}
+  <button class="btn btn-sm" disabled><i class="fa-solid fa-chevron-left"></i> Prev</button>
+  {% endif %}
+
+  <span style="font-size:0.78rem">{{ ticket_page }} / {{ ticket_pages }}</span>
+
+  {% if ticket_page < ticket_pages %}
+  <button class="btn btn-sm"
+          hx-get="/api/ip/{{ ip }}/tickets?page={{ ticket_page + 1 }}"
+          hx-target="#ticket-list-{{ ip_slug }}"
+          hx-swap="innerHTML">
+    Next <i class="fa-solid fa-chevron-right"></i>
+  </button>
+  {% else %}
+  <button class="btn btn-sm" disabled>Next <i class="fa-solid fa-chevron-right"></i></button>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<p class="tm-ticket-no-data">No tickets found for this IP.</p>
+{% endif %}
