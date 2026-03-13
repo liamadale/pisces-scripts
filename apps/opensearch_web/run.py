@@ -4,7 +4,9 @@ import argparse
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _repo not in sys.path:
+    sys.path.insert(0, _repo)
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -12,7 +14,7 @@ load_dotenv()
 from src.utils.dns import setup_dns
 setup_dns()
 
-from src.web.app import create_app
+from apps.opensearch_web.app import create_app
 app = create_app()
 
 if __name__ == "__main__":

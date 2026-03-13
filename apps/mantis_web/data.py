@@ -6,8 +6,8 @@ from collections import defaultdict
 from datetime import datetime
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-# src/mantis/threat_model_web_app/ → go 3 levels up to reach repo root
-_REPO = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))
+# apps/mantis_web/ → go 2 levels up to reach repo root
+_REPO = os.path.dirname(os.path.dirname(_HERE))
 DATA_DIR = os.path.join(_REPO, "data", "tickets")
 
 

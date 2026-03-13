@@ -8,8 +8,8 @@ from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import TIME_RANGES, is_private
 from src.utils.format import fmt_bytes, fmt_dur
 from src.utils.ip_org import lookup_org
-from src.web import cache as wcache
-from src.web.queries import (
+from apps.opensearch_web import cache as wcache
+from apps.opensearch_web.queries import (
     MODULE_PARAM_KEYS,
     build_search_params_from_request,
     cached_run_query,

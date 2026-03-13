@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query
-from src.web import cache as wcache
+from apps.opensearch_web import cache as wcache
 
 # Protocol-specific search_params keys forwarded from HTTP request
 MODULE_PARAM_KEYS: dict = {

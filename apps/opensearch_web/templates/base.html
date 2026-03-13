@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
   <script>
     /* Apply saved theme before CSS loads to prevent flash */
     (function() {
@@ -34,7 +35,7 @@
 } %}
 
 <nav>
-  <a class="brand" href="/">PISCES</a>
+  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES</a>
   {% for lt in MODULES %}
   <a href="/log/{{ lt }}"
      class="{% if request.path == '/log/' ~ lt %}active{% endif %}">
