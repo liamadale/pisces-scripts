@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PISCES · Kibana{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
+  <script>
+    /* Apply saved theme before CSS loads to prevent flash */
+    (function() {
+      var t = localStorage.getItem('pisces-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+</head>
+<body>
+<div id="htmx-bar"></div>
+
+<nav>
+  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Kibana</span></a>
+  <a href="/" class="{% if request.path == '/' %}active{% endif %}">
+    <i class="fa-solid fa-table-cells"></i> Overview
+  </a>
+  <a href="/alerts" class="{% if request.path == '/alerts' %}active{% endif %}">
+    <i class="fa-solid fa-shield-halved"></i> Alerts
+  </a>
+  <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+</nav>
+
+{# Global search controls #}
+<form class="search-bar" method="GET" action="{{ request.path }}" id="global-search">
+  <label>Time</label>
+  <select name="time_range" onchange="localStorage.setItem('kibana-time-range', this.value); this.form.submit()">
+    {% for tr in TIME_RANGES %}
+    <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
+      {{ tr.replace('now-', '') }}
+    </option>
+    {% endfor %}
+  </select>
+
+  <div class="sep"></div>
+
+  <label>Severity</label>
+  <select name="severity">
+    <option value="3" {% if request.values.get('severity', '3') == '3' %}selected{% endif %}>All (1-3)</option>
+    <option value="1" {% if request.values.get('severity') == '1' %}selected{% endif %}>1 High only</option>
+    <option value="2" {% if request.values.get('severity') == '2' %}selected{% endif %}>1-2 Med+</option>
+  </select>
+
+  <div class="sep"></div>
+
+  <label>Cities</label>
+  <input type="text" name="cities" id="cities-input"
+         value="{{ request.values.get('cities', 'all') }}"
+         placeholder="all">
+  <button type="button" class="btn-icon"
+          onclick="openCityModal()"
+          title="Browse cities">
+    <i class="fa-solid fa-list-check"></i>
+  </button>
+
+  <div class="sep"></div>
+
+  <label>Src IP</label>
+  <input type="text" name="src_ip"
+         value="{{ request.values.get('src_ip', '') }}"
+         placeholder="any">
+
+  <div class="sep"></div>
+
+  <label>Signature</label>
+  <input type="text" name="signature"
+         value="{{ request.values.get('signature', '') }}"
+         placeholder="any">
+
+  <div class="sep"></div>
+
+  <label class="check-label">
+    <input type="checkbox" name="public_only" value="on"
+           {% if request.values.get('public_only') in ('on', 'true', '1') %}checked{% endif %}>
+    Public&nbsp;only
+  </label>
+
+  <div class="sep"></div>
+
+  <label>Limit</label>
+  <input type="number" name="limit" min="1" max="10000"
+         value="{{ request.values.get('limit', '500') }}"
+         placeholder="500">
+
+  <div class="sep"></div>
+
+  <button type="submit" class="btn btn-primary">
+    <i class="fa-solid fa-magnifying-glass"></i> Search
+  </button>
+</form>
+
+<main class="{% block main_class %}{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+
+<div id="city-modal-backdrop" class="modal-backdrop"
+     onclick="if(event.target===this)closeCityModal()"></div>
+<div id="city-modal" class="modal-panel" role="dialog" aria-modal="true" aria-label="City browser">
+  <div class="modal-header">
+    <span class="modal-title"><i class="fa-solid fa-city"></i> Browse Cities</span>
+    <button class="btn-icon" onclick="closeCityModal()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div id="city-modal-body" class="modal-body" style="padding:12px;">
+    <p class="ss-empty">Loading&hellip;</p>
+  </div>
+</div>
+
+<aside id="detail-panel" class="detail-panel-slide" aria-label="Record detail">
+  <div id="detail-panel-content"></div>
+</aside>
+
+<script>
+(function () {
+  /* ── Theme toggle ────────────────────────────────────── */
+  window.toggleTheme = function() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pisces-theme', next);
+    updateThemeIcon(next);
+  };
+
+  function updateThemeIcon(theme) {
+    var icon = document.getElementById('theme-icon');
+    if (!icon) return;
+    if (theme === 'dark') {
+      icon.classList.remove('fa-sun');
+      icon.classList.add('fa-moon');
+    } else {
+      icon.classList.remove('fa-moon');
+      icon.classList.add('fa-sun');
+    }
+  }
+
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── Sortable table ─────────────────────────────────── */
+  function sortTable(th) {
+    var table = th.closest("table");
+    var tbody = table.querySelector("tbody");
+    var col = Array.from(th.parentElement.children).indexOf(th);
+    var asc = th.classList.toggle("sort-asc");
+    if (!asc) th.classList.add("sort-desc"); else th.classList.remove("sort-desc");
+    th.parentElement.querySelectorAll("th").forEach(function(t) {
+      if (t !== th) t.classList.remove("sort-asc", "sort-desc");
+    });
+    var rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.sort(function(a, b) {
+      var av = a.children[col] ? (a.children[col].dataset.val || a.children[col].textContent.trim()) : "";
+      var bv = b.children[col] ? (b.children[col].dataset.val || b.children[col].textContent.trim()) : "";
+      var an = parseFloat(av), bn = parseFloat(bv);
+      if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+  }
+
+  /* ── Detail panel ───────────────────────────────────── */
+  function openDetailPanel() {
+    document.getElementById("detail-panel").classList.add("open");
+  }
+
+  window.closeDetailPanel = function() {
+    document.getElementById("detail-panel").classList.remove("open");
+    document.querySelectorAll("tr.row-selected").forEach(function(r) {
+      r.classList.remove("row-selected");
+    });
+  };
+
+  window.handleDetailToggle = function(el) {
+    var row = el.tagName === "TR" ? el : el.closest("tr");
+    var isSelected = row.classList.contains("row-selected");
+    document.querySelectorAll("tr.row-selected").forEach(function(r) {
+      r.classList.remove("row-selected");
+    });
+    if (isSelected) {
+      closeDetailPanel();
+    } else {
+      row.classList.add("row-selected");
+    }
+  };
+
+  /* ── Resizable columns ──────────────────────────────── */
+  function initResizableColumns(table) {
+    var cols = Array.from(table.querySelectorAll("col"));
+    var allThs = Array.from(table.querySelectorAll("thead th"));
+
+    allThs.forEach(function(th, i) {
+      if (th.querySelector(".resize-handle")) return;
+      if (i === allThs.length - 1) return;
+
+      var handle = document.createElement("div");
+      handle.className = "resize-handle";
+      th.appendChild(handle);
+
+      handle.addEventListener("mousedown", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!table._colsLocked) {
+          var thWidths = allThs.map(function(t) { return t.offsetWidth; });
+          table.style.tableLayout = "fixed";
+          allThs.forEach(function(t, j) {
+            if (cols[j]) cols[j].style.width = thWidths[j] + "px";
+            else t.style.width = thWidths[j] + "px";
+          });
+          table._colsLocked = true;
+        }
+
+        var startX   = e.clientX;
+        var startW   = th.offsetWidth;
+        var nextTh   = allThs[i + 1];
+        var startNextW = nextTh.offsetWidth;
+        var col      = cols[i];
+        var nextCol  = cols[i + 1];
+
+        handle.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+
+        function onMove(ev) {
+          var delta   = Math.min(startW - 40, Math.max(-(startNextW - 40), ev.clientX - startX));
+          var newW     = startW     + delta;
+          var newNextW = startNextW - delta;
+          if (col)     col.style.width     = newW     + "px";
+          else         th.style.width      = newW     + "px";
+          if (nextCol) nextCol.style.width = newNextW + "px";
+          else         nextTh.style.width  = newNextW + "px";
+        }
+        function onUp() {
+          handle.classList.remove("dragging");
+          document.body.style.cursor = "";
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+        }
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      });
+    });
+  }
+
+  document.querySelectorAll("table").forEach(initResizableColumns);
+
+  /* ── Global event delegation ────────────────────────── */
+  document.addEventListener("click", function(e) {
+    if (e.target.closest(".resize-handle")) return;
+    var th = e.target.closest("th.sortable");
+    if (th) { sortTable(th); return; }
+
+    var panel = document.getElementById("detail-panel");
+    if (panel && panel.classList.contains("open")) {
+      if (!panel.contains(e.target) && !e.target.closest("tbody tr")) {
+        closeDetailPanel();
+      }
+    }
+  });
+
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") { closeDetailPanel(); closeCityModal(); }
+  });
+
+  /* ── City browser modal ──────────────────────────────── */
+  window.openCityModal = function() {
+    if (!document.querySelector('#city-modal-body .ss-list')) {
+      htmx.ajax('GET', '/api/city/summary' + window.location.search,
+                {target: '#city-modal-body', swap: 'innerHTML'});
+    }
+    document.getElementById('city-modal-backdrop').classList.add('open');
+    document.getElementById('city-modal').classList.add('open');
+  };
+  window.closeCityModal = function() {
+    document.getElementById('city-modal-backdrop').classList.remove('open');
+    document.getElementById('city-modal').classList.remove('open');
+  };
+  window.citySelectAll = function(state) {
+    document.querySelectorAll('#city-modal-body .ss-check')
+      .forEach(function(cb) { cb.checked = state; });
+  };
+  window.applyCitySelection = function() {
+    var checked = Array.from(
+      document.querySelectorAll('#city-modal-body .ss-check:checked')
+    ).map(function(cb) { return cb.value; });
+    var input = document.getElementById('cities-input');
+    input.value = checked.length ? checked.join(',') : 'all';
+    closeCityModal();
+    document.getElementById('global-search').submit();
+  };
+
+  /* ── Sticky search params (time_range + cities) ─────── */
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var changed = false;
+
+    if (params.has('cities')) {
+      var cv = params.get('cities');
+      if (cv && cv.toLowerCase() !== 'all') {
+        localStorage.setItem('kibana-cities', cv);
+      } else {
+        localStorage.removeItem('kibana-cities');
+      }
+    } else {
+      var savedCities = localStorage.getItem('kibana-cities');
+      if (savedCities) { params.set('cities', savedCities); changed = true; }
+    }
+
+    if (!params.has('time_range')) {
+      var savedTR = localStorage.getItem('kibana-time-range');
+      if (savedTR) { params.set('time_range', savedTR); changed = true; }
+    }
+
+    if (changed) window.location.replace(window.location.pathname + '?' + params.toString());
+  })();
+
+  document.addEventListener("htmx:afterSwap", function(e) {
+    if (e.detail.target && e.detail.target.id === "detail-panel-content") {
+      openDetailPanel();
+    }
+  });
+
+  /* ── Global HTMX progress bar ───────────────────────── */
+  (function() {
+    var bar = document.getElementById("htmx-bar");
+    var pending = 0;
+
+    document.addEventListener("htmx:beforeRequest", function() {
+      pending++;
+      bar.classList.remove("htmx-bar-done");
+      bar.classList.add("htmx-bar-active");
+    });
+
+    document.addEventListener("htmx:afterRequest", function() {
+      pending = Math.max(0, pending - 1);
+      if (pending === 0) {
+        bar.classList.remove("htmx-bar-active");
+        bar.classList.add("htmx-bar-done");
+        setTimeout(function() { bar.classList.remove("htmx-bar-done"); }, 400);
+      }
+    });
+  })();
+})();
+</script>
+
+</body>
+</html>

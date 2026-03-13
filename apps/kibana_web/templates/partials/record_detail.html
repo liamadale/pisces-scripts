@@ -1,0 +1,124 @@
+<div class="detail-panel-header">
+  <div class="detail-panel-title">
+    <span class="title-log-type"><i class="fa-solid fa-shield-halved"></i> alert #{{ idx }}</span>
+    <span class="title-timestamp">
+      {{ record.get('timestamp', '')[:19].replace('T', ' ') if record.get('timestamp') else '' }}
+    </span>
+  </div>
+  <button class="btn-icon" onclick="closeDetailPanel()" title="Close">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
+
+<div class="detail-panel-body">
+
+  <!-- Zone 1: field key-value card -->
+  <div class="detail-card">
+    <div class="detail-grid">
+      {% for label, fn in detail_fields %}
+      <span class="dk">{{ label }}</span><span class="dv">{{ fn(record) }}</span>
+      {% endfor %}
+    </div>
+    <div class="filter-action-row">
+      <button class="btn btn-sm"
+              hx-get="/api/filter/form?src_ip={{ record.get('src_ip','') }}&dest_ip={{ record.get('dest_ip','') }}&signature={{ record.get('signature','') | urlencode }}&idx={{ idx }}"
+              hx-target="#filter-zone-{{ idx }}"
+              hx-swap="innerHTML">
+        <i class="fa-solid fa-filter-circle-xmark"></i> Create FP Filter
+      </button>
+    </div>
+  </div>
+
+  <div id="filter-zone-{{ idx }}"></div>
+
+  <!-- Zone 2.5: Mantis ticket lookup -->
+  {% set src_ip  = record.get('src_ip') %}
+  {% set dest_ip = record.get('dest_ip') %}
+  {% set signature = record.get('signature') %}
+  {% if src_ip or dest_ip or signature %}
+  <div class="detail-card">
+    <div class="enrich-col-header">
+      <i class="fa-solid fa-bug"></i> Mantis Tickets
+    </div>
+    <div class="mantis-lookup-btns">
+      {% set _cities = request.args.get('cities', 'all') %}
+      {% if src_ip %}
+      <button class="btn btn-sm"
+              hx-get="/api/mantis/search?query={{ src_ip }}&cities={{ _cities }}&idx={{ idx }}"
+              hx-target="#mantis-results-{{ idx }}"
+              hx-swap="innerHTML">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i> {{ src_ip }}
+      </button>
+      {% endif %}
+      {% if dest_ip %}
+      <button class="btn btn-sm"
+              hx-get="/api/mantis/search?query={{ dest_ip }}&cities={{ _cities }}&idx={{ idx }}"
+              hx-target="#mantis-results-{{ idx }}"
+              hx-swap="innerHTML">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> {{ dest_ip }}
+      </button>
+      {% endif %}
+      {% if signature %}
+      <button class="btn btn-sm"
+              hx-get="/api/mantis/search?query={{ signature | urlencode }}&cities={{ _cities }}&idx={{ idx }}"
+              hx-target="#mantis-results-{{ idx }}"
+              hx-swap="innerHTML">
+        <i class="fa-solid fa-signature"></i> Signature
+      </button>
+      {% endif %}
+    </div>
+    <div id="mantis-results-{{ idx }}"></div>
+  </div>
+  {% endif %}
+
+  <!-- Zone 2: src / dst enrichment -->
+  {% set src_ip  = record.get('src_ip') %}
+  {% set dest_ip = record.get('dest_ip') %}
+  {% if src_ip or dest_ip %}
+  <div class="enrich-cols">
+    <div class="enrich-col">
+      {% if src_ip %}
+      <div class="enrich-col-header">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        Source —
+        <a class="ip-link" href="/ip/{{ src_ip }}?{{ request.query_string.decode() }}">{{ src_ip }}</a>
+      </div>
+      {% if is_private(src_ip) %}
+      <span class="badge badge-gray">
+        <i class="fa-solid fa-house-lock"></i> Private IP
+      </span>
+      {% else %}
+      <button class="btn btn-sm"
+              hx-post="/api/enrich/{{ src_ip }}"
+              hx-target="#enrich-src-{{ idx }}" hx-swap="innerHTML">
+        <i class="fa-solid fa-shield-halved"></i> Enrich
+      </button>
+      {% endif %}
+      <div id="enrich-src-{{ idx }}"></div>
+      {% endif %}
+    </div>
+    <div class="enrich-col">
+      {% if dest_ip %}
+      <div class="enrich-col-header">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        Destination —
+        <a class="ip-link" href="/ip/{{ dest_ip }}?{{ request.query_string.decode() }}">{{ dest_ip }}</a>
+      </div>
+      {% if is_private(dest_ip) %}
+      <span class="badge badge-gray">
+        <i class="fa-solid fa-house-lock"></i> Private IP
+      </span>
+      {% else %}
+      <button class="btn btn-sm"
+              hx-post="/api/enrich/{{ dest_ip }}"
+              hx-target="#enrich-dst-{{ idx }}" hx-swap="innerHTML">
+        <i class="fa-solid fa-shield-halved"></i> Enrich
+      </button>
+      {% endif %}
+      <div id="enrich-dst-{{ idx }}"></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>

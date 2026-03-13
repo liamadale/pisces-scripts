@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}PISCES · Kibana — Overview{% endblock %}
+
+{% block main_class %}table-fill{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>IP × Severity Overview</h1>
+  <span class="count-note">{{ rows|length }} unique source IP(s)</span>
+</div>
+<p class="subtitle">
+  Each row is a source IP seen in Suricata alerts. Click a severity count to filter. Click an IP to pivot.
+</p>
+
+{% if rows %}
+<div class="table-wrap">
+  <table id="overview-table">
+    <thead>
+      <tr>
+        <th class="sortable">IP Address</th>
+        <th class="sortable">Org</th>
+        <th class="sortable num" style="color:var(--red)">Sev 1</th>
+        <th class="sortable num" style="color:var(--yellow)">Sev 2</th>
+        <th class="sortable num" style="color:var(--cyan)">Sev 3</th>
+        <th class="sortable num">TOTAL</th>
+        <th class="sortable">Top Signature</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>
+          <a class="ip-link" href="/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">
+            {{ row.src_ip }}
+          </a>
+        </td>
+        <td>
+          {%- set _oorg = lookup_org(row.src_ip) %}
+          {%- if _oorg %}<i class="{{ _oorg.icon }} org-icon org-{{ _oorg.category }}" title="{{ _oorg.name }}"></i> {{ _oorg.name }}{% else %}—{% endif %}
+        </td>
+        <td class="num {% if row.sev1 == 0 %}zero{% endif %}" data-val="{{ row.sev1 }}">
+          {% if row.sev1 > 0 %}
+          <a href="/alerts?src_ip={{ row.src_ip }}&severity=1&{{ request.query_string.decode() }}" style="color:var(--red)">{{ row.sev1 }}</a>
+          {% else %}0{% endif %}
+        </td>
+        <td class="num {% if row.sev2 == 0 %}zero{% endif %}" data-val="{{ row.sev2 }}">
+          {% if row.sev2 > 0 %}
+          <a href="/alerts?src_ip={{ row.src_ip }}&severity=2&{{ request.query_string.decode() }}" style="color:var(--yellow)">{{ row.sev2 }}</a>
+          {% else %}0{% endif %}
+        </td>
+        <td class="num {% if row.sev3 == 0 %}zero{% endif %}" data-val="{{ row.sev3 }}">
+          {% if row.sev3 > 0 %}
+          <a href="/alerts?src_ip={{ row.src_ip }}&severity=3&{{ request.query_string.decode() }}" style="color:var(--cyan)">{{ row.sev3 }}</a>
+          {% else %}0{% endif %}
+        </td>
+        <td class="num" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
+        <td title="{{ row.top_sig }}" style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          {% if row.top_sig %}
+          <a href="/signature/{{ row.top_sig | urlencode }}?{{ request.query_string.decode() }}">{{ row.top_sig }}</a>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-note">No results for the selected search parameters. Try expanding the time range or removing filters.</p>
+{% endif %}
+{% endblock %}
