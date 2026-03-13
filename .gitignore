@@ -260,4 +260,4 @@ filters/notices/*.yaml
 reports/
 AGENT.md
 
-threat_modeling
+apps/threat_modeling/
