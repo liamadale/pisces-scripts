@@ -55,6 +55,7 @@ def build_query(
     severity: int = 3,
     cities: list[str] | None = None,
     public_only: bool = False,
+    src_ip: str | None = None,
     signature: str | None = None,
     min_bytes: int | None = None,
     protocol: str | None = None,
@@ -79,6 +80,17 @@ def build_query(
         must_not = list(must_not)  # copy to avoid mutating caller's list
         for cidr in _PRIVATE_CIDRS:
             must_not.append({"term": {"src_ip": cidr}})
+
+    if src_ip:
+        must_clauses.append({
+            "bool": {
+                "should": [
+                    {"term": {"src_ip": src_ip}},
+                    {"term": {"dest_ip": src_ip}},
+                ],
+                "minimum_should_match": 1,
+            }
+        })
 
     if signature:
         must_clauses.append({"match_phrase": {"alert.signature": signature}})
@@ -173,8 +185,8 @@ def query_kibana(body: dict, params: dict) -> dict | None:
 # City listing (diagnostic)
 # ---------------------------------------------------------------------------
 
-def list_cities(time_range: str = "now-7d") -> None:
-    """Query a terms aggregation on clientID and print all known cities."""
+def get_cities_data(time_range: str = "now-7d") -> list[dict]:
+    """Return city buckets as a list of {key, doc_count} dicts."""
     body = {
         "size": 0,
         "query": {
@@ -196,13 +208,15 @@ def list_cities(time_range: str = "now-7d") -> None:
         },
     }
     params = {"path": f"{INDEX}/_search", "method": "POST"}
-
-    console.print(f"[dim]Querying clientID values ({time_range})...[/dim]")
     raw = query_kibana(body, params)
     if raw is None:
-        return
+        return []
+    return raw.get("aggregations", {}).get("cities", {}).get("buckets", [])
 
-    buckets = raw.get("aggregations", {}).get("cities", {}).get("buckets", [])
+
+def list_cities(time_range: str = "now-7d") -> None:
+    """Query a terms aggregation on clientID and print all known cities."""
+    buckets = get_cities_data(time_range)
     if not buckets:
         console.print("[yellow]No cities found in the given time range.[/yellow]")
         return
@@ -222,6 +236,117 @@ def list_cities(time_range: str = "now-7d") -> None:
         f"[dim]{len(buckets)} city/clientID value(s) found. "
         f"Pass one or more to --cities as a comma-separated list.[/dim]"
     )
+
+
+def get_ip_severity_overview(search_params: dict) -> list[dict]:
+    """Aggregation query: src_ip × severity counts + top signature.
+
+    Returns sorted list of {src_ip, sev1, sev2, sev3, total, top_sig}.
+    """
+    if search_params.get("no_filters"):
+        must_not: list = []
+    else:
+        filter_result = load_filters(FILTERS_DIR)
+        must_not = filter_result["must_not"]
+
+    time_range = search_params.get("time_range", "now-24h")
+    must_clauses: list[dict] = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"exists": {"field": "alert.severity"}},
+    ]
+
+    cities_val = search_params.get("cities", "all")
+    if cities_val and str(cities_val).lower() != "all":
+        cities = [c.strip() for c in str(cities_val).split(",")]
+        must_clauses.append({"terms": {"clientID": cities}})
+
+    if search_params.get("public_only"):
+        for cidr in _PRIVATE_CIDRS:
+            must_not = list(must_not)
+            must_not.append({"term": {"src_ip": cidr}})
+
+    sig = search_params.get("signature")
+    if sig:
+        must_clauses.append({"match_phrase": {"alert.signature": sig}})
+
+    body = {
+        "size": 0,
+        "query": {"bool": {"must": must_clauses, "must_not": must_not}},
+        "aggs": {
+            "by_src_ip": {
+                "terms": {"field": "src_ip", "size": 200, "order": {"_count": "desc"}},
+                "aggs": {
+                    "by_sev": {"terms": {"field": "alert.severity"}},
+                    "top_sig": {"terms": {"field": "alert.signature.keyword", "size": 1}},
+                },
+            }
+        },
+    }
+    params = {"path": f"{INDEX}/_search", "method": "POST"}
+    raw = query_kibana(body, params)
+    if not raw:
+        return []
+
+    rows = []
+    for bucket in raw.get("aggregations", {}).get("by_src_ip", {}).get("buckets", []):
+        sev_counts = {b["key"]: b["doc_count"] for b in bucket.get("by_sev", {}).get("buckets", [])}
+        top_sig_buckets = bucket.get("top_sig", {}).get("buckets", [])
+        top_sig = top_sig_buckets[0]["key"] if top_sig_buckets else ""
+        rows.append({
+            "src_ip":  bucket["key"],
+            "sev1":    sev_counts.get(1, 0),
+            "sev2":    sev_counts.get(2, 0),
+            "sev3":    sev_counts.get(3, 0),
+            "total":   bucket["doc_count"],
+            "top_sig": top_sig,
+        })
+
+    return sorted(rows, key=lambda r: -r["total"])
+
+
+def get_signature_frequency(search_params: dict) -> list[dict]:
+    """Terms aggregation on alert.signature.keyword, rarest first.
+
+    Returns [{key: sig_name, doc_count: int}, ...].
+    """
+    time_range = search_params.get("time_range", "now-24h")
+    must_clauses: list[dict] = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"exists": {"field": "alert.severity"}},
+    ]
+
+    cities_val = search_params.get("cities", "all")
+    if cities_val and str(cities_val).lower() != "all":
+        cities = [c.strip() for c in str(cities_val).split(",")]
+        must_clauses.append({"terms": {"clientID": cities}})
+
+    severity = search_params.get("severity", 3)
+    must_clauses.append({"range": {"alert.severity": {"lte": severity}}})
+
+    if search_params.get("no_filters"):
+        must_not: list = []
+    else:
+        filter_result = load_filters(FILTERS_DIR)
+        must_not = filter_result["must_not"]
+
+    body = {
+        "size": 0,
+        "query": {"bool": {"must": must_clauses, "must_not": must_not}},
+        "aggs": {
+            "signatures": {
+                "terms": {
+                    "field": "alert.signature.keyword",
+                    "size": 500,
+                    "order": {"_count": "asc"},
+                }
+            }
+        },
+    }
+    params = {"path": f"{INDEX}/_search", "method": "POST"}
+    raw = query_kibana(body, params)
+    if not raw:
+        return []
+    return raw.get("aggregations", {}).get("signatures", {}).get("buckets", [])
 
 
 # ---------------------------------------------------------------------------
@@ -452,6 +577,7 @@ def run_kibana_query(module: KibanaModule, search_params: dict) -> list:
         severity=search_params.get("severity", 3),
         cities=cities,
         public_only=search_params.get("public_only", False),
+        src_ip=search_params.get("src_ip"),
         signature=search_params.get("signature"),
         min_bytes=search_params.get("min_bytes"),
         protocol=search_params.get("protocol"),
