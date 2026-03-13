@@ -189,6 +189,15 @@ def _normalize_issue(issue: dict, api_url: str) -> dict:
 # Offline search
 # ---------------------------------------------------------------------------
 
+def _is_ip_query(query: str) -> bool:
+    """Return True if query is a valid IPv4 address."""
+    try:
+        ipaddress.ip_address(query)
+        return True
+    except ValueError:
+        return False
+
+
 def search_offline(query: str, city: str | None = None) -> list[dict]:
     """Search the local tickets_index.json for query string."""
     if not os.path.exists(TICKETS_INDEX):
@@ -200,10 +209,17 @@ def search_offline(query: str, city: str | None = None) -> list[dict]:
         return []
 
     query_lower = query.lower()
+    ip_query = _is_ip_query(query)
     results = []
     for ticket in tickets:
-        if query_lower not in json.dumps(ticket).lower():
-            continue
+        if ip_query:
+            # Exact IP match against the pre-extracted ips list — avoids substring
+            # false positives like 8.8.8.8 matching 108.8.8.8 or 8.8.8.80
+            if query not in ticket.get("ips", []):
+                continue
+        else:
+            if query_lower not in json.dumps(ticket).lower():
+                continue
         if city:
             # Check both 'project' (new schema) and 'city' (legacy field) as substring match
             project = ticket.get("project", ticket.get("city", "")).lower()
@@ -227,6 +243,8 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
 
     headers = {"Authorization": api_token}
     query_lower = query.lower()
+    ip_query = _is_ip_query(query)
+    ip_re = re.compile(r'\b' + re.escape(query) + r'\b') if ip_query else None
     results = []
 
     console.print(f"[dim]Querying Mantis REST API for '{query}'...[/dim]")
@@ -264,10 +282,15 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
                 (issue.get("steps_to_reproduce") or "") + " " +
                 (issue.get("additional_information") or "") + " " +
                 " ".join(n.get("text", "") for n in issue.get("notes", []))
-            ).lower()
+            )
 
-            if query_lower not in text:
-                continue
+            if ip_query:
+                # Word-boundary match to avoid 8.8.8.8 matching 108.8.8.8 or 8.8.8.80
+                if not ip_re.search(text):
+                    continue
+            else:
+                if query_lower not in text.lower():
+                    continue
 
             if city:
                 project_name = issue.get("project", {}).get("name", "").lower()
