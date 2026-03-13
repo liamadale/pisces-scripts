@@ -41,7 +41,7 @@
       <i class="fa-solid fa-bug"></i> Mantis Tickets
     </div>
     <div class="mantis-lookup-btns">
-      {% set _cities = request.args.get('cities', 'all') %}
+      {% set _cities = search_params.get('cities', 'all') %}
       {% if src_ip %}
       <button class="btn btn-sm"
               hx-get="/api/mantis/search?query={{ src_ip }}&cities={{ _cities }}&idx={{ idx }}"

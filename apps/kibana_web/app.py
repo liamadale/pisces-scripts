@@ -137,6 +137,7 @@ def create_app() -> Flask:
             record=record,
             detail_fields=_module.DETAIL_FIELDS,
             idx=i,
+            search_params=search_params,
         )
 
     # ------------------------------------------------------------------
