@@ -55,6 +55,18 @@ Three browser-based Flask + HTMX applications:
 
 The OpenSearch app's overview page shows how many times each source IP appears across all 10 Zeek log types simultaneously — a cross-protocol correlation not achievable in the CLI.
 
+**OpenSearch Web UI** — cross-protocol IP activity matrix showing hit counts across all 10 Zeek log types, with per-protocol drill-down and inline enrichment.
+
+<img src="docs/assets/pisces-scripts-opensearch-webapp.png" width="700" alt="OpenSearch Web UI">
+
+**Kibana Web UI** — Suricata alert overview filtered by city/sensor, with signature frequency analysis, IP pivoting, and Mantis ticket lookup.
+
+<img src="docs/assets/pisces-scripts-kibana-webapp.png" width="700" alt="Kibana Web UI">
+
+**Mantis Web UI** — ticket browser with threat modelling dashboard, disposition scoring, and known malicious IP tracking.
+
+<img src="docs/assets/pisces-scripts-mantis-webapp.png" width="700" alt="Mantis Web UI">
+
 ## Installation
 
 ```bash
