@@ -178,6 +178,13 @@ nav {
   overflow-x: auto;
 }
 
+nav .brand-logo {
+  height: 28px;
+  width: auto;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
 nav .brand {
   font-family: var(--sans);
   font-weight: 700;
