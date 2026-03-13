@@ -185,6 +185,14 @@ nav .brand-logo {
   margin-right: 8px;
 }
 
+nav .brand-sub {
+  font-weight: 400;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+  margin-left: 4px;
+}
+
 nav .brand {
   font-family: var(--sans);
   font-weight: 700;
