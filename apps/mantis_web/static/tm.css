@@ -261,6 +261,7 @@ main {
   padding: 0.6rem 1rem;
   background: var(--surface-container-high);
   border-bottom: 1px solid var(--outline);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
