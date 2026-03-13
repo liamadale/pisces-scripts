@@ -8,8 +8,11 @@ from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
 
-_CACHE_FILE = Path(__file__).parents[2] / "data" / "ip_ranges_cache.json"
-_CACHE_TTL  = 86_400  # 24 hours
+_CACHE_FILE            = Path(__file__).parents[2] / "data" / "ip_ranges_cache.json"
+_CACHE_TTL             = 86_400  # 24 hours
+_STRETCHOID_CACHE_FILE = Path(__file__).parents[2] / "data" / "stretchoid_cache.json"
+_STRETCHOID_TTL        = 21_600  # 6 hours — list evolves frequently
+_STRETCHOID_GIST_URL   = "https://gist.githubusercontent.com/openstrike/624ff3f4184b6715cabeca1fc101c26b/raw"
 
 # ── Bundled orgs (hardcoded, always available) ────────────────────────────────
 # (cidr_list, display_name, fa_icon_classes, category)
@@ -133,10 +136,59 @@ def _fetch_cloud_ranges() -> None:
     # Clear LRU cache so fresh org data applies to subsequent lookups
     lookup_org.cache_clear()
 
+# ── Stretchoid scanner list (fetched from community gist, refreshed every 6h) ─
+def _load_stretchoid_cache() -> bool:
+    """Load Stretchoid ranges from disk cache. Returns True if cache is fresh."""
+    if not _STRETCHOID_CACHE_FILE.exists():
+        return False
+    try:
+        cidrs = json.loads(_STRETCHOID_CACHE_FILE.read_text())
+        for cidr in cidrs:
+            _add_to_index(cidr, "Stretchoid", "fa-solid fa-satellite-dish", "scanner")
+        return True
+    except Exception:
+        return False
+
+def _fetch_stretchoid() -> None:
+    """Download Stretchoid IP list, collapse to CIDRs, cache to disk."""
+    try:
+        with urllib.request.urlopen(_STRETCHOID_GIST_URL, timeout=15) as r:
+            raw = r.read().decode()
+    except Exception:
+        return
+
+    networks = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            networks.append(ipaddress.ip_network(line, strict=False))
+        except ValueError:
+            pass
+
+    if not networks:
+        return
+
+    cidrs = [str(n) for n in ipaddress.collapse_addresses(networks)]
+    try:
+        _STRETCHOID_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _STRETCHOID_CACHE_FILE.write_text(json.dumps(cidrs))
+    except Exception:
+        pass
+
+    for cidr in cidrs:
+        _add_to_index(cidr, "Stretchoid", "fa-solid fa-satellite-dish", "scanner")
+    lookup_org.cache_clear()
+
 # On import: load cache if it exists; kick off background fetch if missing or stale
 _cache_loaded = _load_cache()
 if not _cache_loaded or time.time() - _CACHE_FILE.stat().st_mtime > _CACHE_TTL:
     threading.Thread(target=_fetch_cloud_ranges, daemon=True).start()
+
+_stretchoid_loaded = _load_stretchoid_cache()
+if not _stretchoid_loaded or time.time() - _STRETCHOID_CACHE_FILE.stat().st_mtime > _STRETCHOID_TTL:
+    threading.Thread(target=_fetch_stretchoid, daemon=True).start()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
