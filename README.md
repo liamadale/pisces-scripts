@@ -10,6 +10,7 @@ The toolkit surfaces actionable threats from high-volume log data by combining:
 
 - **Pre-query filtering** via YAML-defined Elasticsearch DSL `must_not` clauses, reloaded on every search
 - **Threat intelligence enrichment** through GreyNoise, AbuseIPDB, Shodan, and VirusTotal
+- **IP organisation identification** — CDN, cloud provider, and known scanner recognition (Shodan, Censys, Stretchoid, etc.) with automatic range updates
 - **Interactive false positive management** for rapid filter creation with comment support
 - **Mantis ticketing integration** for incident tracking and submission
 
@@ -43,8 +44,16 @@ Pipeline runs in order for each IP:
 ### 5. Mantis Integration (`src/mantis/`)
 Search existing tickets via offline index or live web scraping. Interactive ticket creation and submission pre-seeded from alert data.
 
-### 6. Web UI (`run_web.py`) — *in development*
-A browser-based triage layer built on Flask and HTMX. Provides a cross-protocol IP activity matrix — showing how many times each source IP appears across all 10 Zeek log types simultaneously — that is not achievable in the CLI. Single-protocol drill-down and inline enrichment are also available.
+### 6. Web UIs (`apps/`)
+Three browser-based Flask + HTMX applications:
+
+| App | Launcher | Port | Purpose |
+|---|---|---|---|
+| **OpenSearch** | `opensearch_web_run.py` | 5001 | Cross-protocol Zeek IP activity matrix, per-protocol drill-down, inline enrichment |
+| **Kibana** | `kibana_web_run.py` | 5002 | Suricata alert overview by IP × severity, signature frequency, city breakdown |
+| **Mantis** | `mantis_web_run.py` | 5003 | Ticket browser and threat modelling dashboard |
+
+The OpenSearch app's overview page shows how many times each source IP appears across all 10 Zeek log types simultaneously — a cross-protocol correlation not achievable in the CLI.
 
 ## Installation
 
@@ -67,12 +76,12 @@ cp .env.example .env
 ## Configuration
 
 ```bash
-# OpenSearch / Malcolm (opensearch_querier.py, web UI, MCP opensearch server)
+# OpenSearch / Malcolm (opensearch_querier.py, opensearch web UI, MCP opensearch server)
 PISCES_USERNAME=
 PISCES_PASSWORD=
 OPENSEARCH_URL=      # base URL only — /api/console/proxy is appended automatically
 
-# Kibana / Suricata (kibana_querier.py, MCP kibana server)
+# Kibana / Suricata (kibana_querier.py, kibana web UI, MCP kibana server)
 KIBANA_URL=          # base URL only — /api/console/proxy is appended automatically
 
 # Threat intelligence enrichment (all optional — missing keys skip that service)
@@ -117,11 +126,20 @@ MANTIS_API_TOKEN=
 .venv/bin/python src/querier/kibana_querier.py --signature "ET SCAN" --public-only
 ```
 
-### Web UI
+### Web UIs
 
 ```bash
-.venv/bin/python run_web.py
-# → http://0.0.0.0:5001
+# OpenSearch — Zeek cross-protocol matrix (http://0.0.0.0:5001)
+.venv/bin/python opensearch_web_run.py
+
+# Kibana — Suricata alert overview (http://0.0.0.0:5002)
+.venv/bin/python kibana_web_run.py
+
+# Mantis — ticket browser (http://0.0.0.0:5003)
+.venv/bin/python mantis_web_run.py
+
+# All launchers accept --host, --port, and --debug flags
+.venv/bin/python opensearch_web_run.py --debug --port 5001
 ```
 
 ### Standalone Enrichment
@@ -170,16 +188,24 @@ See [docs/project-structure.md](docs/project-structure.md) for the full annotate
 
 ```
 pisces-scripts/
-├── run_web.py          # Web UI server entrypoint (in development)
+├── opensearch_web_run.py   # OpenSearch web UI launcher → apps/opensearch_web/
+├── kibana_web_run.py       # Kibana web UI launcher → apps/kibana_web/
+├── mantis_web_run.py       # Mantis web UI launcher → apps/mantis_web/
+├── apps/
+│   ├── opensearch_web/     # Flask + HTMX Zeek/OpenSearch UI (port 5001)
+│   ├── kibana_web/         # Flask + HTMX Suricata/Kibana UI (port 5002)
+│   └── mantis_web/         # Flask ticket browser (port 5003)
 ├── src/
-│   ├── querier/        # OpenSearch and Kibana queriers, filter management
-│   ├── enricher/       # GreyNoise, AbuseIPDB, Shodan, VirusTotal
-│   ├── mantis/         # Ticket search and submission
-│   ├── web/            # Flask web UI (in development)
-│   └── utils/          # DNS helpers
-├── filters/            # Analyst-maintained YAML false positive filters
-├── docs/               # Extended documentation
-└── data/               # Cache and Mantis ticket index
+│   ├── querier/            # OpenSearch and Kibana queriers, filter management
+│   │   └── zeek_modules/   # Per-protocol Zeek log modules (conn, dns, http, …)
+│   ├── enricher/           # GreyNoise, AbuseIPDB, Shodan, VirusTotal
+│   ├── mantis/             # Ticket search and submission
+│   └── utils/              # DNS helpers, IP org identification, formatting
+├── filters/                # Analyst-maintained YAML false positive filters
+├── mcp/                    # MCP servers for AI assistant integration
+├── reports/                # Analyst incident reports (Markdown)
+├── docs/                   # Extended documentation
+└── data/                   # Runtime cache (cloud IP ranges, Stretchoid list, Mantis index)
 ```
 
 ## Filter Schema
