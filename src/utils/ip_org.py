@@ -13,6 +13,12 @@ _CACHE_TTL             = 86_400  # 24 hours
 _STRETCHOID_CACHE_FILE = Path(__file__).parents[2] / "data" / "stretchoid_cache.json"
 _STRETCHOID_TTL        = 21_600  # 6 hours — list evolves frequently
 _STRETCHOID_GIST_URL   = "https://gist.githubusercontent.com/openstrike/624ff3f4184b6715cabeca1fc101c26b/raw"
+_CISA_CACHE_FILE       = Path(__file__).parents[2] / "data" / "cisa_cache.json"
+_CISA_TTL              = 86_400  # 24 hours
+_CISA_URLS             = [
+    "https://rules.vm.cyber.dhs.gov/cyhy.txt",
+    "https://rules.vm.cyber.dhs.gov/was.txt",
+]
 
 # ── Bundled orgs (hardcoded, always available) ────────────────────────────────
 # (cidr_list, display_name, fa_icon_classes, category)
@@ -181,6 +187,51 @@ def _fetch_stretchoid() -> None:
         _add_to_index(cidr, "Stretchoid", "fa-solid fa-satellite-dish", "scanner")
     lookup_org.cache_clear()
 
+# ── CISA/DHS scanner list (fetched from rules.vm.cyber.dhs.gov, refreshed daily) ─
+def _load_cisa_cache() -> bool:
+    """Load CISA scanner ranges from disk cache. Returns True if cache exists."""
+    if not _CISA_CACHE_FILE.exists():
+        return False
+    try:
+        cidrs = json.loads(_CISA_CACHE_FILE.read_text())
+        for cidr in cidrs:
+            _add_to_index(cidr, "CISA", "fa-solid fa-landmark", "scanner")
+        return True
+    except Exception:
+        return False
+
+def _fetch_cisa() -> None:
+    """Download CISA CyHy + WAS scanner IPs, collapse to CIDRs, cache to disk."""
+    networks = []
+    for url in _CISA_URLS:
+        try:
+            with urllib.request.urlopen(url, timeout=15) as r:
+                raw = r.read().decode()
+        except Exception:
+            continue
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            try:
+                networks.append(ipaddress.ip_network(line, strict=False))
+            except ValueError:
+                pass
+
+    if not networks:
+        return
+
+    cidrs = [str(n) for n in ipaddress.collapse_addresses(networks)]
+    try:
+        _CISA_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _CISA_CACHE_FILE.write_text(json.dumps(cidrs))
+    except Exception:
+        pass
+
+    for cidr in cidrs:
+        _add_to_index(cidr, "CISA", "fa-solid fa-landmark", "scanner")
+    lookup_org.cache_clear()
+
 # On import: load cache if it exists; kick off background fetch if missing or stale
 _cache_loaded = _load_cache()
 if not _cache_loaded or time.time() - _CACHE_FILE.stat().st_mtime > _CACHE_TTL:
@@ -189,6 +240,10 @@ if not _cache_loaded or time.time() - _CACHE_FILE.stat().st_mtime > _CACHE_TTL:
 _stretchoid_loaded = _load_stretchoid_cache()
 if not _stretchoid_loaded or time.time() - _STRETCHOID_CACHE_FILE.stat().st_mtime > _STRETCHOID_TTL:
     threading.Thread(target=_fetch_stretchoid, daemon=True).start()
+
+_cisa_loaded = _load_cisa_cache()
+if not _cisa_loaded or time.time() - _CISA_CACHE_FILE.stat().st_mtime > _CISA_TTL:
+    threading.Thread(target=_fetch_cisa, daemon=True).start()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
