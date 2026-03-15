@@ -300,7 +300,7 @@
   window.openSensorModal = function() {
     // Only fetch sensor list on first open; preserve checkbox state on re-open
     if (!document.querySelector('#sensor-modal-body .ss-list')) {
-      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/sensor/summary' + window.location.search,
+      htmx.ajax('GET', '/api/sensor/summary' + window.location.search,
                 {target: '#sensor-modal-body', swap: 'innerHTML'});
     }
     document.getElementById('sensor-modal-backdrop').classList.add('open');

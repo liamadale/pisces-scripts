@@ -183,7 +183,7 @@ function applyNoticeFilter(noteType) {
   closeNoticeModal();
   var qs = new URLSearchParams(window.location.search);
   qs.set("notice_note", noteType);
-  htmx.ajax("POST", (window.SCRIPT_NAME || '') + "/api/search/{{ log_type }}?" + qs.toString(), {
+  htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
     target: "#log-tbody",
     swap: "innerHTML",
   });

@@ -154,7 +154,7 @@
     var params = collectTpParams();
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
-    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/tp/rows?' + new URLSearchParams(params).toString(),
+    htmx.ajax('GET', '/api/tp/rows?' + new URLSearchParams(params).toString(),
               {target: '#tp-tbody', swap: 'innerHTML'});
   }
   window.reloadTpRows = reloadTpRows;
@@ -188,7 +188,7 @@
     var params = collectFpParams();
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
-    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/fp/rows?' + new URLSearchParams(params).toString(),
+    htmx.ajax('GET', '/api/fp/rows?' + new URLSearchParams(params).toString(),
               {target: '#fp-tbody', swap: 'innerHTML'});
   }
   window.reloadFpRows = reloadFpRows;
@@ -248,7 +248,7 @@
     if (sumEl) sumEl.textContent = summary || '';
     panel.classList.add('open');
     backdrop.classList.add('open');
-    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ticket/' + tid,
+    htmx.ajax('GET', '/api/ticket/' + tid,
               {target: '#ticket-panel-content', swap: 'innerHTML'});
   };
 
@@ -288,7 +288,7 @@
       document.getElementById('search-result').innerHTML = '';
     } else {
       tr.classList.add('row-selected');
-      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
                 {target: '#search-result', swap: 'innerHTML'});
     }
   };
@@ -300,7 +300,7 @@
       document.getElementById('search-result').innerHTML = '';
     } else {
       tr.classList.add('row-selected');
-      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
                 {target: '#search-result', swap: 'innerHTML'});
     }
   };
@@ -312,7 +312,7 @@
     if (q) {
       var inp = document.getElementById('search-input');
       if (inp) inp.value = q;
-      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/search?q=' + encodeURIComponent(q),
+      htmx.ajax('GET', '/api/search?q=' + encodeURIComponent(q),
                 {target: '#search-result', swap: 'innerHTML'});
     }
   })();

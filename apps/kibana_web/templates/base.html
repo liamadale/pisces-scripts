@@ -284,7 +284,7 @@
   /* ── City browser modal ──────────────────────────────── */
   window.openCityModal = function() {
     if (!document.querySelector('#city-modal-body .ss-list')) {
-      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/city/summary' + window.location.search,
+      htmx.ajax('GET', '/api/city/summary' + window.location.search,
                 {target: '#city-modal-body', swap: 'innerHTML'});
     }
     document.getElementById('city-modal-backdrop').classList.add('open');
