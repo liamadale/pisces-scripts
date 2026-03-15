@@ -312,6 +312,13 @@ def deduplicate_zeek(records: list, key_fn) -> list:
         rep = sorted(group, key=lambda r: r["timestamp"], reverse=True)[0].copy()
         rep["freq"] = len(group)
         rep["sensors"] = sorted({r["sensor"] for r in group if r.get("sensor")})
+        # Carry the highest risk score seen across the group — the most-recent
+        # record may have no score even if earlier events in the group did.
+        scored = [r for r in group if r.get("risk_score_norm") is not None]
+        if scored:
+            best = max(scored, key=lambda r: r["risk_score_norm"])
+            rep["risk_score_norm"] = best["risk_score_norm"]
+            rep["risk_score"] = best.get("risk_score")
         deduped.append(rep)
 
     return deduped
