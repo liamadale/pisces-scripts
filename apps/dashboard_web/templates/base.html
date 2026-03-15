@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PISCES · Dashboard{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
+  <script>
+    /* Apply saved theme before CSS loads to prevent flash */
+    (function() {
+      var t = localStorage.getItem('pisces-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script>window.SCRIPT_NAME = {{ script_name | tojson }};</script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    /* ── Dashboard-specific layout ─────────────────────── */
+    .dash-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      background: var(--surface-container-low);
+      border-bottom: 1px solid var(--outline);
+      flex-wrap: wrap;
+    }
+    .tab-bar {
+      display: flex;
+      gap: 0.25rem;
+      flex: 1;
+    }
+    .tab-btn {
+      padding: 0.45rem 1rem;
+      border: 1px solid var(--outline);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--on-surface-dim);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover {
+      background: var(--state-hover);
+      color: var(--on-surface);
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .dash-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--on-surface-dim);
+      font-size: 0.85rem;
+    }
+    .dash-controls select {
+      background: var(--surface-container);
+      color: var(--on-surface);
+      border: 1px solid var(--outline);
+      border-radius: 4px;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.85rem;
+    }
+    .tab-panel {
+      padding: 1.25rem;
+    }
+    .sub-tab-bar {
+      display: flex;
+      gap: 0.25rem;
+    }
+    .sub-tab-btn {
+      padding: 0.35rem 0.85rem;
+      border: 1px solid var(--outline);
+      border-radius: 5px;
+      background: transparent;
+      color: var(--on-surface-dim);
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .sub-tab-btn:hover {
+      background: var(--state-hover);
+      color: var(--on-surface);
+    }
+    .sub-tab-btn.active {
+      background: var(--secondary);
+      border-color: var(--secondary);
+      color: #0d0f14;
+    }
+    .loading-msg {
+      color: var(--on-surface-dim);
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ── Stat row ──────────────────────────────────────── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-box {
+      background: var(--surface-container);
+      border: 1px solid var(--outline);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--on-surface-dim);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+    .stat-value.red   { color: var(--red); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.yellow{ color: var(--yellow); }
+    .stat-value.text  { font-size: 1rem; color: var(--on-surface); }
+
+    /* ── Chart grid ────────────────────────────────────── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 1rem;
+    }
+    .chart-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 1100px) {
+      .chart-grid-3 { grid-template-columns: 1fr; }
+    }
+    .chart-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .chart-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--on-surface-dim);
+      margin-bottom: 0.75rem;
+    }
+    .chart-empty {
+      color: var(--on-surface-dim);
+      font-size: 0.875rem;
+      padding: 2rem;
+      text-align: center;
+    }
+    .chart-error {
+      color: var(--red);
+      font-size: 0.875rem;
+      padding: 1rem;
+    }
+
+    /* ── Top-IP table ──────────────────────────────────── */
+    .ip-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .ip-table th {
+      text-align: left;
+      color: var(--on-surface-dim);
+      font-weight: 600;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid var(--outline);
+    }
+    .ip-table td {
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid var(--outline-dim);
+      color: var(--on-surface);
+    }
+    .ip-table tr:last-child td { border-bottom: none; }
+    .ip-table tr:hover td { background: var(--state-hover); }
+    .ip-mono { font-family: monospace; }
+  </style>
+</head>
+<body>
+<div id="htmx-bar"></div>
+
+<nav>
+  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Dashboard</span></a>
+  {% if script_name %}
+  <a href="/" class="btn-icon" title="Back to PISCES Hub">
+    <i class="fa-solid fa-house"></i>
+  </a>
+  {% endif %}
+  <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+</nav>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+<script>
+(function () {
+  /* ── Theme toggle ────────────────────────────────────── */
+  window.toggleTheme = function() {
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pisces-theme', next);
+    updateThemeIcon(next);
+  };
+
+  function updateThemeIcon(theme) {
+    var icon = document.getElementById('theme-icon');
+    if (!icon) return;
+    icon.classList.toggle('fa-moon', theme === 'dark');
+    icon.classList.toggle('fa-sun',  theme !== 'dark');
+  }
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── HTMX SCRIPT_NAME prefix (hub mode) ─────────────── */
+  document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (window.SCRIPT_NAME && evt.detail.path.startsWith('/')) {
+      evt.detail.path = window.SCRIPT_NAME + evt.detail.path;
+    }
+  });
+
+  /* ── Global HTMX progress bar ───────────────────────── */
+  (function() {
+    var bar = document.getElementById("htmx-bar");
+    var pending = 0;
+    document.addEventListener("htmx:beforeRequest", function() {
+      pending++;
+      bar.classList.remove("htmx-bar-done");
+      bar.classList.add("htmx-bar-active");
+    });
+    document.addEventListener("htmx:afterRequest", function() {
+      pending = Math.max(0, pending - 1);
+      if (pending === 0) {
+        bar.classList.remove("htmx-bar-active");
+        bar.classList.add("htmx-bar-done");
+        setTimeout(function() { bar.classList.remove("htmx-bar-done"); }, 400);
+      }
+    });
+  })();
+})();
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

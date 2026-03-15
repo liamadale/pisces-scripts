@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dash-toolbar">
+  <div class="tab-bar">
+    <button id="tab-btn-overview" class="tab-btn active" onclick="switchTab('overview')">
+      <i class="fa-solid fa-gauge"></i> Overview
+    </button>
+    <button id="tab-btn-opensearch" class="tab-btn" onclick="switchTab('opensearch')">
+      <i class="fa-solid fa-network-wired"></i> OpenSearch
+    </button>
+    <button id="tab-btn-kibana" class="tab-btn" onclick="switchTab('kibana')">
+      <i class="fa-solid fa-shield-halved"></i> Kibana
+    </button>
+    <button id="tab-btn-mantis" class="tab-btn" onclick="switchTab('mantis')">
+      <i class="fa-solid fa-bug"></i> Threat Intel
+    </button>
+  </div>
+  <div class="dash-controls">
+    <label for="time-range-select">Time</label>
+    <select id="time-range-select" onchange="reloadActive()">
+      <option value="now-1h">1h</option>
+      <option value="now-6h">6h</option>
+      <option value="now-12h">12h</option>
+      <option value="now-24h" selected>24h</option>
+      <option value="now-2d">2d</option>
+      <option value="now-7d">7d</option>
+      <option value="now-14d">14d</option>
+      <option value="now-30d">30d</option>
+    </select>
+    <button class="btn-icon" onclick="reloadActive()" title="Refresh data">
+      <i class="fa-solid fa-arrows-rotate"></i>
+    </button>
+  </div>
+</div>
+
+<div id="panel-overview" class="tab-panel">
+  <div id="panel-overview-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading overview…</p>
+  </div>
+</div>
+
+<div id="panel-opensearch" class="tab-panel" style="display:none">
+  <div id="panel-opensearch-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading OpenSearch data…</p>
+  </div>
+</div>
+
+<div id="panel-kibana" class="tab-panel" style="display:none">
+  <div id="panel-kibana-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Kibana data…</p>
+  </div>
+</div>
+
+<div id="panel-mantis" class="tab-panel" style="display:none">
+  <div id="panel-mantis-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Threat Intel data…</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+var _activeTab = 'overview';
+var _loaded = {};
+
+function getTimeRange() {
+  return document.getElementById('time-range-select').value;
+}
+
+function loadSection(name) {
+  var contentEl = document.getElementById('panel-' + name + '-content');
+  if (!contentEl) return;
+  contentEl.innerHTML = '<p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading\u2026</p>';
+  htmx.ajax(
+    'GET',
+    '/api/dashboard/' + name + '?time_range=' + getTimeRange(),
+    {target: '#panel-' + name + '-content', swap: 'innerHTML'}
+  );
+}
+
+function switchTab(name) {
+  ['overview', 'opensearch', 'kibana', 'mantis'].forEach(function(t) {
+    var panel = document.getElementById('panel-' + t);
+    var btn   = document.getElementById('tab-btn-' + t);
+    if (panel) panel.style.display = (t === name) ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t === name);
+  });
+  _activeTab = name;
+  if (!_loaded[name]) {
+    _loaded[name] = true;
+    loadSection(name);
+  }
+}
+
+function reloadActive() {
+  _loaded = {};
+  loadSection(_activeTab);
+}
+
+/* Load overview on first page render */
+window.addEventListener('DOMContentLoaded', function() {
+  _loaded['overview'] = true;
+  loadSection('overview');
+});
+</script>
+{% endblock %}

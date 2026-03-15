@@ -1,0 +1,120 @@
+{% if data.error is defined %}
+<div class="chart-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ data.error }}</div>
+{% else %}
+
+<!-- OpenSearch sub-tab nav -->
+<div class="sub-tab-bar" style="margin-bottom:1rem;">
+  <button id="os-sub-btn-stats" class="sub-tab-btn active" onclick="switchOsSub('stats')">
+    <i class="fa-solid fa-chart-bar"></i> Stats
+  </button>
+  <button id="os-sub-btn-malcolm" class="sub-tab-btn" onclick="switchOsSub('malcolm')">
+    <i class="fa-solid fa-table-cells-large"></i> Malcolm Dashboards
+  </button>
+</div>
+
+<div id="os-sub-stats">
+  <div class="chart-grid">
+
+    <div class="chart-card">
+      <div class="chart-title">Protocol Breakdown (top 10)</div>
+      {% if not data.protocols.labels %}
+      <div class="chart-empty">No data — OpenSearch may be unreachable</div>
+      {% else %}
+      <div id="chart-protocols" style="height:{{ [data.protocols.labels|length * 36 + 40, 200]|max }}px;"></div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Sensor Activity</div>
+      {% if not data.sensors.labels %}
+      <div class="chart-empty">No data — OpenSearch may be unreachable</div>
+      {% else %}
+      <div id="chart-sensors" style="height:{{ [data.sensors.labels|length * 36 + 40, 200]|max }}px;"></div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card" style="grid-column: 1 / -1;">
+      <div class="chart-title">Top Source IPs (cross-protocol)</div>
+      {% if not data.top_ips.ips %}
+      <div class="chart-empty">No data — OpenSearch may be unreachable</div>
+      {% else %}
+      <div id="chart-top-ips" style="height:{{ [data.top_ips.ips|length * 36 + 40, 200]|max }}px;"></div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <script>
+  (function() {
+    var PROTOCOLS = {{ data.protocols | tojson }};
+    var SENSORS   = {{ data.sensors   | tojson }};
+    var TOP_IPS   = {{ data.top_ips   | tojson }};
+
+    var AXIS_LABEL = { color: '#c8ccd8', fontSize: 12 };
+    var AXIS_DIM   = { color: '#5a6278', fontSize: 11 };
+    var GRID_LINE  = { lineStyle: { color: '#2a3045' } };
+    var TOOLTIP_STYLE = {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      backgroundColor: '#1a1f2e', borderColor: '#2a3045',
+      textStyle: { color: '#c8ccd8' }
+    };
+
+    function hBarOption(labels, counts, color) {
+      return {
+        backgroundColor: 'transparent',
+        tooltip: TOOLTIP_STYLE,
+        grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
+        xAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
+        yAxis: { type: 'category', data: labels.slice().reverse(), axisLabel: AXIS_LABEL },
+        series: [{ type: 'bar', data: counts.slice().reverse(), itemStyle: { color: color }, barMaxWidth: 28 }]
+      };
+    }
+
+    if (PROTOCOLS.labels.length) {
+      var c1 = echarts.init(document.getElementById('chart-protocols'));
+      c1.setOption(hBarOption(PROTOCOLS.labels, PROTOCOLS.counts, '#4f8ef7'));
+      window.addEventListener('resize', function() { c1.resize(); });
+    }
+
+    if (SENSORS.labels.length) {
+      var c2 = echarts.init(document.getElementById('chart-sensors'));
+      c2.setOption(hBarOption(SENSORS.labels, SENSORS.counts, '#7ec8e3'));
+      window.addEventListener('resize', function() { c2.resize(); });
+    }
+
+    if (TOP_IPS.ips.length) {
+      var c3 = echarts.init(document.getElementById('chart-top-ips'));
+      c3.setOption(hBarOption(TOP_IPS.ips, TOP_IPS.counts, '#bc8cff'));
+      window.addEventListener('resize', function() { c3.resize(); });
+    }
+  })();
+  </script>
+</div>
+
+<div id="os-sub-malcolm" style="display:none;">
+  <div id="malcolm-grid-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Malcolm dashboards…</p>
+  </div>
+</div>
+
+<script>
+var _malcolmLoaded = false;
+
+function switchOsSub(name) {
+  ['stats', 'malcolm'].forEach(function(t) {
+    var el  = document.getElementById('os-sub-' + t);
+    var btn = document.getElementById('os-sub-btn-' + t);
+    if (el)  el.style.display  = (t === name) ? '' : 'none';
+    if (btn) btn.classList.toggle('active', t === name);
+  });
+  if (name === 'malcolm' && !_malcolmLoaded) {
+    _malcolmLoaded = true;
+    htmx.ajax(
+      'GET',
+      '/api/dashboard/opensearch/malcolm?time_range=' + (document.getElementById('time-range-select') ? document.getElementById('time-range-select').value : 'now-24h'),
+      { target: '#malcolm-grid-content', swap: 'innerHTML' }
+    );
+  }
+}
+</script>
+{% endif %}
