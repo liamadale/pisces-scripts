@@ -45,14 +45,15 @@ Pipeline runs in order for each IP:
 Search existing tickets via offline index or live web scraping. Interactive ticket creation and submission pre-seeded from alert data.
 
 ### 6. Web UIs (`apps/`)
-Three browser-based Flask + HTMX applications served together through a central hub portal. Start everything at once with `run_all.py` (recommended), or run each app standalone on its own port.
+Five browser-based Flask + HTMX applications served together through a central hub portal. Start everything at once with `run_all.py` (recommended), or run each app standalone on its own port.
 
 | App | Path (combined) | Standalone launcher | Standalone port | Purpose |
 |---|---|---|---|---|
-| **Hub** | `/` | — | 5000 | Landing page with links to all three apps |
+| **Hub** | `/` | — | 5000 | Landing page with links to all apps |
 | **OpenSearch** | `/opensearch` | `opensearch_web_run.py` | 5001 | Cross-protocol Zeek IP activity matrix, per-protocol drill-down, inline enrichment |
 | **Kibana** | `/kibana` | `kibana_web_run.py` | 5002 | Suricata alert overview by IP × severity, signature frequency, city breakdown |
 | **Mantis** | `/mantis` | `mantis_web_run.py` | 5003 | Ticket browser and threat modelling dashboard |
+| **Dashboard** | `/dashboard` | `dashboard_web_run.py` | 5004 | Aggregated analytics dashboard across all three data sources |
 
 The OpenSearch app's overview page shows how many times each source IP appears across all 10 Zeek log types simultaneously — a cross-protocol correlation not achievable in the CLI.
 
@@ -67,6 +68,14 @@ The OpenSearch app's overview page shows how many times each source IP appears a
 **Mantis Web UI** — ticket browser with threat modelling dashboard, disposition scoring, and known malicious IP tracking.
 
 <img src="docs/assets/pisces-scripts-mantis-webapp.png" width="700" alt="Mantis Web UI">
+
+**Dashboard Web UI** — aggregated analytics across all three data sources in one view. Four tabbed sections:
+- **Overview** — stat row (tickets, malicious/FP IPs, active sensors, Kibana alerts) and IP verdict distribution donut
+- **OpenSearch** — protocol breakdown, sensor activity, top source IPs; plus a "Malcolm Dashboards" sub-tab with protocol-specific Zeek charts (DNS query types/domains/rcodes, HTTP methods/status codes/hosts/user agents, SSL/TLS versions/ciphers/SNI/validation, connection states/ports/bytes)
+- **Kibana** — alert severity donut, city distribution, top Suricata signatures
+- **Threat Intel** — attack type distribution, blocklist sources, monthly ticket timeline, top threat IPs table
+
+All sections are lazy-loaded via HTMX on first tab activation and cached server-side (configurable TTL via `PISCES_DASHBOARD_CACHE_TTL`).
 
 ## Installation
 
@@ -141,10 +150,10 @@ MANTIS_API_TOKEN=
 
 ### Web UIs
 
-The recommended way to run all three apps is through `run_all.py`, which mounts them together under a single port via a hub portal:
+The recommended way to run all apps is through `run_all.py`, which mounts them together under a single port via a hub portal:
 
 ```bash
-# Combined — hub at http://0.0.0.0:5000 with all three apps mounted beneath it
+# Combined — hub at http://0.0.0.0:5000 with all apps mounted beneath it
 .venv/bin/python run_all.py
 
 # Debug mode
@@ -165,6 +174,9 @@ Each app can also run standalone on its own port (useful for development or if y
 
 # Mantis — ticket browser (http://0.0.0.0:5003)
 .venv/bin/python mantis_web_run.py
+
+# Dashboard — aggregated analytics (http://0.0.0.0:5004)
+.venv/bin/python dashboard_web_run.py
 
 # All standalone launchers accept --host, --port, and --debug flags
 .venv/bin/python opensearch_web_run.py --debug --port 5001
@@ -216,15 +228,21 @@ See [docs/project-structure.md](docs/project-structure.md) for the full annotate
 
 ```
 pisces-scripts/
-├── run_all.py              # Combined launcher — all three apps on one port (recommended)
-├── opensearch_web_run.py   # Standalone OpenSearch web UI launcher → apps/opensearch_web/
-├── kibana_web_run.py       # Standalone Kibana web UI launcher → apps/kibana_web/
-├── mantis_web_run.py       # Standalone Mantis web UI launcher → apps/mantis_web/
+├── run_all.py                # Combined launcher — all apps on one port (recommended)
+├── opensearch_web_run.py     # Standalone OpenSearch web UI launcher → apps/opensearch_web/
+├── kibana_web_run.py         # Standalone Kibana web UI launcher → apps/kibana_web/
+├── mantis_web_run.py         # Standalone Mantis web UI launcher → apps/mantis_web/
+├── dashboard_web_run.py      # Standalone Dashboard launcher → apps/dashboard_web/
 ├── apps/
-│   ├── hub/                # Hub portal (landing page, links to all three apps)
-│   ├── opensearch_web/     # Flask + HTMX Zeek/OpenSearch UI (port 5001 standalone)
-│   ├── kibana_web/         # Flask + HTMX Suricata/Kibana UI (port 5002 standalone)
-│   └── mantis_web/         # Flask ticket browser (port 5003 standalone)
+│   ├── hub/                  # Hub portal (landing page, links to all apps)
+│   ├── opensearch_web/       # Flask + HTMX Zeek/OpenSearch UI (port 5001 standalone)
+│   ├── kibana_web/           # Flask + HTMX Suricata/Kibana UI (port 5002 standalone)
+│   ├── mantis_web/           # Flask ticket browser (port 5003 standalone)
+│   └── dashboard_web/        # Flask + HTMX aggregated analytics dashboard (port 5004 standalone)
+│       ├── overview/         # Cross-source stat row + verdict donut
+│       ├── opensearch/       # Protocol/sensor/IP charts + per-protocol Zeek panels
+│       ├── kibana/           # Severity, signatures, city charts
+│       └── mantis/           # Attack types, blocklists, timeline, top IPs
 ├── src/
 │   ├── querier/            # OpenSearch and Kibana queriers, filter management
 │   │   └── zeek_modules/   # Per-protocol Zeek log modules (conn, dns, http, …)
