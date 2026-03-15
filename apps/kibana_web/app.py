@@ -36,7 +36,10 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        return {"TIME_RANGES": TIME_RANGES}
+        return {
+            "TIME_RANGES": TIME_RANGES,
+            "script_name": request.environ.get("SCRIPT_NAME", ""),
+        }
 
     # ------------------------------------------------------------------
     # GET /  — IP × Severity overview matrix

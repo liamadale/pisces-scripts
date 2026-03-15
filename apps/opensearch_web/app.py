@@ -42,6 +42,7 @@ def create_app() -> Flask:
         return {
             "TIME_RANGES": TIME_RANGES,
             "MODULES": list(MODULES.keys()),
+            "script_name": request.environ.get("SCRIPT_NAME", ""),
         }
 
     # ------------------------------------------------------------------

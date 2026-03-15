@@ -116,6 +116,14 @@ def create_app() -> Flask:
     app.jinja_env.globals["fmt_attack"] = fmt_attack
     app.jinja_env.globals["classify_ip"] = classify_ip
 
+    @app.context_processor
+    def inject_globals():
+        return {
+            "script_name": request.environ.get("SCRIPT_NAME", ""),
+            "tp_total": len(MALICIOUS_ROWS),
+            "fp_total": len(FP_ROWS),
+        }
+
     # ------------------------------------------------------------------
     # GET /  — main page
     # ------------------------------------------------------------------
