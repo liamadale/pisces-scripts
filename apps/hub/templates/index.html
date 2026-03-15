@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PISCES Hub</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
+  <script>
+    (function() {
+      var t = localStorage.getItem('pisces-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <style>
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .hub-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .hub-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-dim);
+      text-decoration: none;
+      color: var(--text);
+    }
+    .hub-card-icon {
+      font-size: 2.5rem;
+      color: var(--primary);
+    }
+    .hub-card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .hub-card-desc {
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      text-align: center;
+    }
+    .hub-header {
+      text-align: center;
+      padding: 2.5rem 1rem 1rem;
+    }
+    .hub-header img {
+      height: 48px;
+      margin-bottom: 0.75rem;
+    }
+    .hub-header h1 {
+      font-size: 1.75rem;
+      margin: 0;
+    }
+    .hub-header p {
+      color: var(--text-dim);
+      margin: 0.5rem 0 0;
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Hub</span></a>
+  <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+</nav>
+
+<div class="hub-header">
+  <h1>PISCES Security Dashboard</h1>
+  <p>Select an application to get started</p>
+</div>
+
+<div class="hub-grid">
+  <a class="hub-card" href="/opensearch">
+    <div class="hub-card-icon"><i class="fa-solid fa-network-wired"></i></div>
+    <div class="hub-card-title">OpenSearch</div>
+    <div class="hub-card-desc">Malcolm/Zeek log analysis across 10 protocols. Cross-protocol IP activity matrix, drill-downs, and enrichment.</div>
+  </a>
+  <a class="hub-card" href="/kibana">
+    <div class="hub-card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <div class="hub-card-title">Kibana</div>
+    <div class="hub-card-desc">Suricata IDS alert analysis. IP × severity overview, signature browsing, and alert filtering by city/sensor.</div>
+  </a>
+  <a class="hub-card" href="/mantis">
+    <div class="hub-card-icon"><i class="fa-solid fa-bug"></i></div>
+    <div class="hub-card-title">Threat Intel</div>
+    <div class="hub-card-desc">Threat modeling and Mantis ticket integration. True positive and false positive IP classification with verdicts.</div>
+  </a>
+</div>
+
+<script>
+window.toggleTheme = function() {
+  var html = document.documentElement;
+  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('pisces-theme', next);
+  var icon = document.getElementById('theme-icon');
+  if (icon) icon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+};
+(function() {
+  var t = document.documentElement.getAttribute('data-theme') || 'dark';
+  var icon = document.getElementById('theme-icon');
+  if (icon) icon.className = t === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+})();
+</script>
+</body>
+</html>
