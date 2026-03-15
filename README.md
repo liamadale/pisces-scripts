@@ -45,13 +45,14 @@ Pipeline runs in order for each IP:
 Search existing tickets via offline index or live web scraping. Interactive ticket creation and submission pre-seeded from alert data.
 
 ### 6. Web UIs (`apps/`)
-Three browser-based Flask + HTMX applications:
+Three browser-based Flask + HTMX applications served together through a central hub portal. Start everything at once with `run_all.py` (recommended), or run each app standalone on its own port.
 
-| App | Launcher | Port | Purpose |
-|---|---|---|---|
-| **OpenSearch** | `opensearch_web_run.py` | 5001 | Cross-protocol Zeek IP activity matrix, per-protocol drill-down, inline enrichment |
-| **Kibana** | `kibana_web_run.py` | 5002 | Suricata alert overview by IP × severity, signature frequency, city breakdown |
-| **Mantis** | `mantis_web_run.py` | 5003 | Ticket browser and threat modelling dashboard |
+| App | Path (combined) | Standalone launcher | Standalone port | Purpose |
+|---|---|---|---|---|
+| **Hub** | `/` | — | 5000 | Landing page with links to all three apps |
+| **OpenSearch** | `/opensearch` | `opensearch_web_run.py` | 5001 | Cross-protocol Zeek IP activity matrix, per-protocol drill-down, inline enrichment |
+| **Kibana** | `/kibana` | `kibana_web_run.py` | 5002 | Suricata alert overview by IP × severity, signature frequency, city breakdown |
+| **Mantis** | `/mantis` | `mantis_web_run.py` | 5003 | Ticket browser and threat modelling dashboard |
 
 The OpenSearch app's overview page shows how many times each source IP appears across all 10 Zeek log types simultaneously — a cross-protocol correlation not achievable in the CLI.
 
@@ -140,6 +141,21 @@ MANTIS_API_TOKEN=
 
 ### Web UIs
 
+The recommended way to run all three apps is through `run_all.py`, which mounts them together under a single port via a hub portal:
+
+```bash
+# Combined — hub at http://0.0.0.0:5000 with all three apps mounted beneath it
+.venv/bin/python run_all.py
+
+# Debug mode
+.venv/bin/python run_all.py --debug
+
+# Custom host/port
+.venv/bin/python run_all.py --host 127.0.0.1 --port 8080
+```
+
+Each app can also run standalone on its own port (useful for development or if you only need one):
+
 ```bash
 # OpenSearch — Zeek cross-protocol matrix (http://0.0.0.0:5001)
 .venv/bin/python opensearch_web_run.py
@@ -150,7 +166,7 @@ MANTIS_API_TOKEN=
 # Mantis — ticket browser (http://0.0.0.0:5003)
 .venv/bin/python mantis_web_run.py
 
-# All launchers accept --host, --port, and --debug flags
+# All standalone launchers accept --host, --port, and --debug flags
 .venv/bin/python opensearch_web_run.py --debug --port 5001
 ```
 
@@ -200,13 +216,15 @@ See [docs/project-structure.md](docs/project-structure.md) for the full annotate
 
 ```
 pisces-scripts/
-├── opensearch_web_run.py   # OpenSearch web UI launcher → apps/opensearch_web/
-├── kibana_web_run.py       # Kibana web UI launcher → apps/kibana_web/
-├── mantis_web_run.py       # Mantis web UI launcher → apps/mantis_web/
+├── run_all.py              # Combined launcher — all three apps on one port (recommended)
+├── opensearch_web_run.py   # Standalone OpenSearch web UI launcher → apps/opensearch_web/
+├── kibana_web_run.py       # Standalone Kibana web UI launcher → apps/kibana_web/
+├── mantis_web_run.py       # Standalone Mantis web UI launcher → apps/mantis_web/
 ├── apps/
-│   ├── opensearch_web/     # Flask + HTMX Zeek/OpenSearch UI (port 5001)
-│   ├── kibana_web/         # Flask + HTMX Suricata/Kibana UI (port 5002)
-│   └── mantis_web/         # Flask ticket browser (port 5003)
+│   ├── hub/                # Hub portal (landing page, links to all three apps)
+│   ├── opensearch_web/     # Flask + HTMX Zeek/OpenSearch UI (port 5001 standalone)
+│   ├── kibana_web/         # Flask + HTMX Suricata/Kibana UI (port 5002 standalone)
+│   └── mantis_web/         # Flask ticket browser (port 5003 standalone)
 ├── src/
 │   ├── querier/            # OpenSearch and Kibana queriers, filter management
 │   │   └── zeek_modules/   # Per-protocol Zeek log modules (conn, dns, http, …)
