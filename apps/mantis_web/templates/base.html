@@ -7,7 +7,7 @@
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
   <script>
     (function() {
-      var t = localStorage.getItem('tm-theme') || 'dark';
+      var t = localStorage.getItem('pisces-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
@@ -15,13 +15,19 @@
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script>window.SCRIPT_NAME = {{ script_name | tojson }};</script>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 <body>
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Threat Intel</span></a>
+  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Threat Intel</span></a>
+  {% if script_name %}
+  <a href="/" class="btn-icon" title="Back to PISCES Hub">
+    <i class="fa-solid fa-house"></i>
+  </a>
+  {% endif %}
   <span class="nav-badge danger">{{ tp_total|default(0) }} malicious</span>
   <span class="nav-badge success">{{ fp_total|default(0) }} FP</span>
   <div class="spacer"></div>
@@ -61,7 +67,7 @@
     var html = document.documentElement;
     var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
-    localStorage.setItem('tm-theme', next);
+    localStorage.setItem('pisces-theme', next);
     updateThemeIcon(next);
   };
 
@@ -72,6 +78,13 @@
   }
 
   updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── HTMX SCRIPT_NAME prefix (hub mode) ────────── */
+  document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (window.SCRIPT_NAME && evt.detail.path.startsWith('/')) {
+      evt.detail.path = window.SCRIPT_NAME + evt.detail.path;
+    }
+  });
 
   /* ── HTMX progress bar ─────────────────────────── */
   var bar = document.getElementById('htmx-bar');
@@ -141,7 +154,7 @@
     var params = collectTpParams();
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
-    htmx.ajax('GET', '/api/tp/rows?' + new URLSearchParams(params).toString(),
+    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/tp/rows?' + new URLSearchParams(params).toString(),
               {target: '#tp-tbody', swap: 'innerHTML'});
   }
   window.reloadTpRows = reloadTpRows;
@@ -175,7 +188,7 @@
     var params = collectFpParams();
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
-    htmx.ajax('GET', '/api/fp/rows?' + new URLSearchParams(params).toString(),
+    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/fp/rows?' + new URLSearchParams(params).toString(),
               {target: '#fp-tbody', swap: 'innerHTML'});
   }
   window.reloadFpRows = reloadFpRows;
@@ -235,7 +248,7 @@
     if (sumEl) sumEl.textContent = summary || '';
     panel.classList.add('open');
     backdrop.classList.add('open');
-    htmx.ajax('GET', '/api/ticket/' + tid,
+    htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ticket/' + tid,
               {target: '#ticket-panel-content', swap: 'innerHTML'});
   };
 
@@ -275,7 +288,7 @@
       document.getElementById('search-result').innerHTML = '';
     } else {
       tr.classList.add('row-selected');
-      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
+      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
                 {target: '#search-result', swap: 'innerHTML'});
     }
   };
@@ -287,7 +300,7 @@
       document.getElementById('search-result').innerHTML = '';
     } else {
       tr.classList.add('row-selected');
-      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
+      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
                 {target: '#search-result', swap: 'innerHTML'});
     }
   };
@@ -299,7 +312,7 @@
     if (q) {
       var inp = document.getElementById('search-input');
       if (inp) inp.value = q;
-      htmx.ajax('GET', '/api/search?q=' + encodeURIComponent(q),
+      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/search?q=' + encodeURIComponent(q),
                 {target: '#search-result', swap: 'innerHTML'});
     }
   })();

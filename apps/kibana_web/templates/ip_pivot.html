@@ -24,7 +24,7 @@
   <div class="pivot-section-header">
     <span class="proto-tag">suricata</span>
     <span class="count-note">{{ records|length }} record(s)</span>
-    <a class="btn btn-sm" href="/alerts?src_ip={{ ip }}&{{ request.query_string.decode() }}">
+    <a class="btn btn-sm" href="{{ script_name }}/alerts?src_ip={{ ip }}&{{ request.query_string.decode() }}">
       <i class="fa-solid fa-arrow-up-right-from-square"></i> Full view
     </a>
   </div>
@@ -68,12 +68,12 @@
           <td title="{{ rec.get('dest_ip','') }}">
             {%- set _dip = rec.get('dest_ip', '') %}
             {% if _dip %}
-            <a class="ip-link" href="/ip/{{ _dip }}?{{ request.query_string.decode() }}">{{ _dip }}</a>
+            <a class="ip-link" href="{{ script_name }}/ip/{{ _dip }}?{{ request.query_string.decode() }}">{{ _dip }}</a>
             {% else %}—{% endif %}
           </td>
           <td class="num">{{ rec.get('dest_port', '—') }}</td>
           <td title="{{ rec.get('signature','') }}" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-            <a href="/signature/{{ rec.get('signature','') | urlencode }}?{{ request.query_string.decode() }}">
+            <a href="{{ script_name }}/signature/{{ rec.get('signature','') | urlencode }}?{{ request.query_string.decode() }}">
               {{ rec.get('signature', '—') }}
             </a>
           </td>

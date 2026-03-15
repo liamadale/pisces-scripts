@@ -6,7 +6,7 @@
 <div class="page-header">
   <h1 style="font-size:1rem; word-break:break-all;">{{ sig }}</h1>
   <span class="count-note">{{ records|length }} record(s)</span>
-  <a class="btn btn-sm" href="/alerts?{{ request.query_string.decode() }}">
+  <a class="btn btn-sm" href="{{ script_name }}/alerts?{{ request.query_string.decode() }}">
     <i class="fa-solid fa-arrow-left"></i> Back to Alerts
   </a>
 </div>
@@ -50,7 +50,7 @@
           {{ sev }}
         </td>
         <td title="{{ rec.get('src_ip','') }}">
-          <a class="ip-link" href="/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
+          <a class="ip-link" href="{{ script_name }}/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
             {%- set _sorg = lookup_org(rec.get('src_ip','')) %}
             {%- if _sorg %}<i class="{{ _sorg.icon }} org-icon org-{{ _sorg.category }}" title="{{ _sorg.name }}"></i> {% endif -%}
             {{ rec.get('src_ip', '—') }}
@@ -60,7 +60,7 @@
         <td title="{{ rec.get('dest_ip','') }}">
           {%- set _dip = rec.get('dest_ip', '') %}
           {% if _dip %}
-          <a class="ip-link" href="/ip/{{ _dip }}?{{ request.query_string.decode() }}">{{ _dip }}</a>
+          <a class="ip-link" href="{{ script_name }}/ip/{{ _dip }}?{{ request.query_string.decode() }}">{{ _dip }}</a>
           {% else %}—{% endif %}
         </td>
         <td class="num">{{ rec.get('dest_port', '—') }}</td>

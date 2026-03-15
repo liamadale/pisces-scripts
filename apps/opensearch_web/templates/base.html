@@ -16,6 +16,7 @@
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script>window.SCRIPT_NAME = {{ script_name | tojson }};</script>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 </head>
 <body>
@@ -35,9 +36,14 @@
 } %}
 
 <nav>
-  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">OpenSearch</span></a>
+  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">OpenSearch</span></a>
+  {% if script_name %}
+  <a href="/" class="btn-icon" title="Back to PISCES Hub">
+    <i class="fa-solid fa-house"></i>
+  </a>
+  {% endif %}
   {% for lt in MODULES %}
-  <a href="/log/{{ lt }}"
+  <a href="{{ script_name }}/log/{{ lt }}"
      class="{% if request.path == '/log/' ~ lt %}active{% endif %}">
     <i class="fa-solid {{ proto_icons.get(lt, 'fa-file-lines') }}"></i>{{ lt }}
   </a>
@@ -294,7 +300,7 @@
   window.openSensorModal = function() {
     // Only fetch sensor list on first open; preserve checkbox state on re-open
     if (!document.querySelector('#sensor-modal-body .ss-list')) {
-      htmx.ajax('GET', '/api/sensor/summary' + window.location.search,
+      htmx.ajax('GET', (window.SCRIPT_NAME || '') + '/api/sensor/summary' + window.location.search,
                 {target: '#sensor-modal-body', swap: 'innerHTML'});
     }
     document.getElementById('sensor-modal-backdrop').classList.add('open');
@@ -349,6 +355,13 @@
   document.addEventListener("htmx:afterSwap", function(e) {
     if (e.detail.target && e.detail.target.id === "detail-panel-content") {
       openDetailPanel();
+    }
+  });
+
+  /* ── HTMX SCRIPT_NAME prefix (hub mode) ─────────────── */
+  document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (window.SCRIPT_NAME && evt.detail.path.startsWith('/')) {
+      evt.detail.path = window.SCRIPT_NAME + evt.detail.path;
     }
   });
 

@@ -169,7 +169,7 @@ function applySigFilter(sigName) {
   closeSigModal();
   var qs = new URLSearchParams(window.location.search);
   qs.set("signature", sigName);
-  htmx.ajax("POST", "/api/search?" + qs.toString(), {
+  htmx.ajax("POST", (window.SCRIPT_NAME || '') + "/api/search?" + qs.toString(), {
     target: "#alert-tbody",
     swap: "innerHTML",
   });

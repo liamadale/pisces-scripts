@@ -27,7 +27,7 @@
   <div class="pivot-section-header">
     <span class="proto-tag">{{ lt }}</span>
     <span class="count-note">{{ records|length }} record(s)</span>
-    <a class="btn btn-sm" href="/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
+    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
       <i class="fa-solid fa-arrow-up-right-from-square"></i> Full view
     </a>
   </div>

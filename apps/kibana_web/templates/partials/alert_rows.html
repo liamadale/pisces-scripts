@@ -14,7 +14,7 @@
     {{ sev }}
   </td>
   <td title="{{ rec.get('src_ip','') }}">
-    <a class="ip-link" href="/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
+    <a class="ip-link" href="{{ script_name }}/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
       {%- set _sorg = lookup_org(rec.get('src_ip','')) %}
       {%- if _sorg %}<i class="{{ _sorg.icon }} org-icon org-{{ _sorg.category }}" title="{{ _sorg.name }}"></i> {% endif -%}
       {{ rec.get('src_ip', '—') }}
@@ -24,7 +24,7 @@
   <td title="{{ rec.get('dest_ip','') }}">
     {%- set _dip = rec.get('dest_ip', '') %}
     {% if _dip %}
-    <a class="ip-link" href="/ip/{{ _dip }}?{{ request.query_string.decode() }}">
+    <a class="ip-link" href="{{ script_name }}/ip/{{ _dip }}?{{ request.query_string.decode() }}">
       {%- set _dorg = lookup_org(_dip) %}
       {%- if _dorg %}<i class="{{ _dorg.icon }} org-icon org-{{ _dorg.category }}" title="{{ _dorg.name }}"></i> {% endif -%}
       {{ _dip }}
@@ -33,7 +33,7 @@
   </td>
   <td class="num">{{ rec.get('dest_port', '—') }}</td>
   <td title="{{ rec.get('signature','') }}" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-    <a href="/signature/{{ rec.get('signature','') | urlencode }}?{{ request.query_string.decode() }}">
+    <a href="{{ script_name }}/signature/{{ rec.get('signature','') | urlencode }}?{{ request.query_string.decode() }}">
       {{ rec.get('signature', '—') }}
     </a>
   </td>

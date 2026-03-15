@@ -29,7 +29,7 @@
       {% for row in rows %}
       <tr>
         <td>
-          <a class="ip-link" href="/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">
+          <a class="ip-link" href="{{ script_name }}/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">
             {{ row.src_ip }}
           </a>
         </td>
@@ -39,23 +39,23 @@
         </td>
         <td class="num {% if row.sev1 == 0 %}zero{% endif %}" data-val="{{ row.sev1 }}">
           {% if row.sev1 > 0 %}
-          <a href="/alerts?src_ip={{ row.src_ip }}&severity=1&{{ request.query_string.decode() }}" style="color:var(--red)">{{ row.sev1 }}</a>
+          <a href="{{ script_name }}/alerts?src_ip={{ row.src_ip }}&severity=1&{{ request.query_string.decode() }}" style="color:var(--red)">{{ row.sev1 }}</a>
           {% else %}0{% endif %}
         </td>
         <td class="num {% if row.sev2 == 0 %}zero{% endif %}" data-val="{{ row.sev2 }}">
           {% if row.sev2 > 0 %}
-          <a href="/alerts?src_ip={{ row.src_ip }}&severity=2&{{ request.query_string.decode() }}" style="color:var(--yellow)">{{ row.sev2 }}</a>
+          <a href="{{ script_name }}/alerts?src_ip={{ row.src_ip }}&severity=2&{{ request.query_string.decode() }}" style="color:var(--yellow)">{{ row.sev2 }}</a>
           {% else %}0{% endif %}
         </td>
         <td class="num {% if row.sev3 == 0 %}zero{% endif %}" data-val="{{ row.sev3 }}">
           {% if row.sev3 > 0 %}
-          <a href="/alerts?src_ip={{ row.src_ip }}&severity=3&{{ request.query_string.decode() }}" style="color:var(--cyan)">{{ row.sev3 }}</a>
+          <a href="{{ script_name }}/alerts?src_ip={{ row.src_ip }}&severity=3&{{ request.query_string.decode() }}" style="color:var(--cyan)">{{ row.sev3 }}</a>
           {% else %}0{% endif %}
         </td>
         <td class="num" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
         <td title="{{ row.top_sig }}" style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
           {% if row.top_sig %}
-          <a href="/signature/{{ row.top_sig | urlencode }}?{{ request.query_string.decode() }}">{{ row.top_sig }}</a>
+          <a href="{{ script_name }}/signature/{{ row.top_sig | urlencode }}?{{ request.query_string.decode() }}">{{ row.top_sig }}</a>
           {% else %}—{% endif %}
         </td>
       </tr>

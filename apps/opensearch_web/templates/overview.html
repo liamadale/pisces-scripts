@@ -29,7 +29,7 @@
       {% for row in rows %}
       <tr>
         <td>
-          <a class="ip-link" href="/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">{{ row.src_ip }}</a>
+          <a class="ip-link" href="{{ script_name }}/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">{{ row.src_ip }}</a>
         </td>
         <td>
           {%- set _oorg = lookup_org(row.src_ip) %}
@@ -39,7 +39,7 @@
         {% set count = row.per_protocol[lt] %}
         <td class="num {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
           {% if count > 0 %}
-          <a href="/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
+          <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
             {{ count }}
           </a>
           {% else %}
