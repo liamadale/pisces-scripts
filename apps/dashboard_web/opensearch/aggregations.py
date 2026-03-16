@@ -79,6 +79,32 @@ def agg_opensearch_sensors(time_range: str) -> dict:
     }
 
 
+def agg_opensearch_notice_count(time_range: str) -> int:
+    """Total Zeek notice events in the given time range."""
+    from src.querier.zeek_modules import MODULES
+    mod = MODULES["notice"]
+    body, params = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=0,
+        time_range=time_range,
+        sensors=None,
+        datasets=mod.DATASETS,
+        public_only=False,
+        src_ip_filter=None,
+        direction=None,
+        min_risk_score=None,
+    )
+    body["size"] = 0
+    body.pop("sort", None)
+    body.pop("_source", None)
+    raw = query_opensearch(body, params)
+    if not raw:
+        return 0
+    return raw.get("hits", {}).get("total", {}).get("value", 0)
+
+
 def agg_opensearch_top_ips(time_range: str, limit: int = 15) -> dict:
     """Top source IPs by total cross-protocol frequency."""
     from apps.opensearch_web.queries import run_cross_protocol_query

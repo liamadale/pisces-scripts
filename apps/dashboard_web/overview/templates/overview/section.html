@@ -5,23 +5,27 @@
 <div class="stat-row">
   <div class="stat-box">
     <div class="stat-label">Total Tickets</div>
-    <div class="stat-value">{{ data.total_tickets }}</div>
+    <div class="stat-value">{{ data.total_tickets | intcomma }}</div>
   </div>
   <div class="stat-box">
     <div class="stat-label">Malicious IPs</div>
-    <div class="stat-value red">{{ data.malicious_count }}</div>
+    <div class="stat-value red">{{ data.malicious_count | intcomma }}</div>
   </div>
   <div class="stat-box">
     <div class="stat-label">False Positive IPs</div>
-    <div class="stat-value green">{{ data.fp_count }}</div>
+    <div class="stat-value green">{{ data.fp_count | intcomma }}</div>
   </div>
   <div class="stat-box">
     <div class="stat-label">Active Sensors</div>
-    <div class="stat-value">{{ data.active_sensors }}</div>
+    <div class="stat-value">{{ data.active_sensors | intcomma }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">OS Notices ({{ time_range.replace('now-', '') }})</div>
+    <div class="stat-value">{{ data.opensearch_notice_count | intcomma }}</div>
   </div>
   <div class="stat-box">
     <div class="stat-label">Kibana Alerts ({{ time_range.replace('now-', '') }})</div>
-    <div class="stat-value yellow">{{ data.kibana_alert_count }}</div>
+    <div class="stat-value yellow">{{ data.kibana_alert_count | intcomma }}</div>
   </div>
   <div class="stat-box">
     <div class="stat-label">Top Attack Type</div>
@@ -69,6 +73,122 @@
       </tbody>
     </table>
   </div>
+</div>
+
+{% set cross = data.cross_source_ips %}
+
+<!-- OpenSearch top IPs -->
+<div class="chart-card" style="margin-top:1.25rem;">
+  <div class="chart-title">
+    <i class="fa-solid fa-database" style="color:var(--primary); margin-right:.5rem;"></i>
+    Top IPs &mdash; OpenSearch / Zeek
+    <span style="font-weight:400; color:var(--on-surface-dim); margin-left:.5rem;">({{ time_range.replace('now-','') }}, top {{ cross.opensearch|length }}, by hit count)</span>
+  </div>
+  {% if not cross.opensearch %}
+  <div class="chart-empty">No OpenSearch data available</div>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="ip-table" style="font-size:0.82rem;">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>IP Address</th>
+        <th>Org</th>
+        <th>Verdict</th>
+        <th title="Zeek log hits across all protocols">Zeek Hits</th>
+        <th>Tickets</th>
+        <th>Attack Types</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in cross.opensearch %}
+      {% set vc = {'malicious': 'var(--red)', 'fp': 'var(--green)', 'observed': 'var(--yellow)'}.get(row.verdict, 'var(--on-surface-dim)') %}
+      <tr>
+        <td style="color:var(--on-surface-dim);">{{ loop.index }}</td>
+        <td class="ip-mono">{{ row.ip }}</td>
+        <td style="white-space:nowrap;">
+          {% if row.org_icon %}<i class="{{ row.org_icon }}" style="color:var(--on-surface-dim); margin-right:.3rem;"></i>{% endif %}
+          {{ row.org_name or '—' }}
+        </td>
+        <td style="color:{{ vc }}; font-weight:600; white-space:nowrap;">
+          {% if row.verdict == 'malicious' %}<i class="fa-solid fa-skull-crossbones"></i>
+          {% elif row.verdict == 'fp' %}<i class="fa-solid fa-circle-check"></i>
+          {% elif row.verdict == 'observed' %}<i class="fa-solid fa-eye"></i>
+          {% else %}<i class="fa-solid fa-circle-question"></i>{% endif %}
+          {{ row.verdict | title }}
+        </td>
+        <td style="text-align:right; font-weight:700; color:var(--primary);">{{ row.os_count | intcomma }}</td>
+        <td style="text-align:right;">{{ row.tickets if row.tickets else '—' }}</td>
+        <td style="color:var(--on-surface-dim); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+            title="{{ row.attack_str or '' }}">
+          {{ row.attack_str or '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Kibana top IPs -->
+<div class="chart-card" style="margin-top:1.25rem;">
+  <div class="chart-title">
+    <i class="fa-solid fa-bell" style="color:var(--yellow); margin-right:.5rem;"></i>
+    Top IPs &mdash; Kibana / Suricata
+    <span style="font-weight:400; color:var(--on-surface-dim); margin-left:.5rem;">({{ time_range.replace('now-','') }}, top {{ cross.kibana|length }}, by Sev&nbsp;1&rarr;2&rarr;total)</span>
+  </div>
+  {% if not cross.kibana %}
+  <div class="chart-empty">No Kibana data available</div>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="ip-table" style="font-size:0.82rem;">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>IP Address</th>
+        <th>Org</th>
+        <th>Verdict</th>
+        <th title="Suricata severity-1 alerts" style="color:var(--red);">Sev 1</th>
+        <th title="Suricata severity-2 alerts" style="color:var(--yellow);">Sev 2</th>
+        <th title="Suricata severity-3 alerts" style="color:var(--on-surface-dim);">Sev 3</th>
+        <th>Total</th>
+        <th>Tickets</th>
+        <th>Top Signature</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in cross.kibana %}
+      {% set vc = {'malicious': 'var(--red)', 'fp': 'var(--green)', 'observed': 'var(--yellow)'}.get(row.verdict, 'var(--on-surface-dim)') %}
+      <tr>
+        <td style="color:var(--on-surface-dim);">{{ loop.index }}</td>
+        <td class="ip-mono">{{ row.ip }}</td>
+        <td style="white-space:nowrap;">
+          {% if row.org_icon %}<i class="{{ row.org_icon }}" style="color:var(--on-surface-dim); margin-right:.3rem;"></i>{% endif %}
+          {{ row.org_name or '—' }}
+        </td>
+        <td style="color:{{ vc }}; font-weight:600; white-space:nowrap;">
+          {% if row.verdict == 'malicious' %}<i class="fa-solid fa-skull-crossbones"></i>
+          {% elif row.verdict == 'fp' %}<i class="fa-solid fa-circle-check"></i>
+          {% elif row.verdict == 'observed' %}<i class="fa-solid fa-eye"></i>
+          {% else %}<i class="fa-solid fa-circle-question"></i>{% endif %}
+          {{ row.verdict | title }}
+        </td>
+        <td style="text-align:right; color:var(--red); font-weight:700;">{{ row.kb_sev1 | intcomma if row.kb_sev1 else '—' }}</td>
+        <td style="text-align:right; color:var(--yellow);">{{ row.kb_sev2 | intcomma if row.kb_sev2 else '—' }}</td>
+        <td style="text-align:right; color:var(--on-surface-dim);">{{ row.kb_sev3 | intcomma if row.kb_sev3 else '—' }}</td>
+        <td style="text-align:right; font-weight:600;">{{ row.kb_total | intcomma }}</td>
+        <td style="text-align:right;">{{ row.tickets if row.tickets else '—' }}</td>
+        <td style="color:var(--on-surface-dim); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+            title="{{ row.top_sig or '' }}">
+          {{ row.top_sig or '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
 </div>
 
 {% if data.verdict.malicious + data.verdict.fp + data.verdict.observed > 0 %}

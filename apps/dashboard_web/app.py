@@ -10,6 +10,13 @@ from apps.dashboard_web import cache as dcache
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
+    @app.template_filter("intcomma")
+    def intcomma(value):
+        try:
+            return "{:,}".format(int(value))
+        except (TypeError, ValueError):
+            return value
+
     @app.context_processor
     def inject_globals():
         return {
