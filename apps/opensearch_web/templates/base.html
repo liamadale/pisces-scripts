@@ -55,7 +55,7 @@
 </nav>
 
 {# Global search controls — persisted across pages via form GET #}
-<form class="search-bar" method="GET" action="{{ request.path }}" id="global-search">
+<form class="search-bar" method="GET" action="{{ script_name }}{{ request.path }}" id="global-search">
   <label>Time</label>
   <select name="time_range" onchange="localStorage.setItem('pisces-time-range', this.value); this.form.submit()">
     {% for tr in TIME_RANGES %}
