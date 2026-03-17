@@ -42,7 +42,7 @@ Pipeline runs in order for each IP:
 5. **Reference URLs** — links to all four services always printed at the end
 
 ### 5. Mantis Integration (`src/mantis/`)
-Search existing tickets via offline index or live web scraping. Interactive ticket creation and submission pre-seeded from alert data.
+Search existing tickets via offline index or live web scraping.
 
 ### 6. Web UIs (`apps/`)
 Five browser-based Flask + HTMX applications served together through a central hub portal. Start everything at once with `run_all.py` (recommended), or run each app standalone on its own port.
@@ -183,7 +183,7 @@ Three MCP servers expose the same backends to AI coding assistants (Claude Code,
 |---|---|---|
 | `opensearch` | `mcp/opensearch/` | 16 — Zeek logs, Suricata alerts, pivot tools, utilities |
 | `kibana` | `mcp/kibana/` | 4 — Suricata alerts with full filter surface + aggregations |
-| `mantis` | `mcp/mantis/` | 4 — MantisBT ticket search and creation |
+| `mantis` | `mcp/mantis/` | 2 — MantisBT ticket search |
 | `enrichment` | `mcp/enrichment/` | 2 — IP threat intelligence and org lookup, no backend required |
 
 See [docs/mcp-servers.md](docs/mcp-servers.md) for setup instructions, client configuration, and full tool reference.

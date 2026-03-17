@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Mantis MCP Server — thin adapter over the existing Mantis backend.
 
-4 tools: search_tickets, get_ticket, create_ticket, create_ticket_from_alert.
+2 tools: search_tickets, get_ticket.
 
 Run locally (MCP Inspector):
     source .venv/bin/activate && pip install mcp[cli]
@@ -36,7 +36,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from mcp.server.fastmcp import FastMCP
 
 from src.mantis.mantis_search import search
-from src.mantis.mantis_submit import submit_ticket, _build_ticket_from_alert, SEVERITIES, PRIORITIES
 
 mcp = FastMCP("mantis")
 
@@ -59,11 +58,6 @@ def _mantis_session() -> requests.Session:
     if token:
         session.headers["Authorization"] = token
     return session
-
-
-# Reverse mappings: severity/priority name → numeric string key used by submit_ticket
-_SEVERITY_NAME_TO_KEY = {name: key for key, (name, _id) in SEVERITIES.items()}
-_PRIORITY_NAME_TO_KEY = {name: key for key, (name, _id) in PRIORITIES.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -126,113 +120,6 @@ def get_ticket(ticket_id: int) -> str:
 
         issue = resp.json().get("issues", [{}])[0]
         return _ok(issue)
-    except Exception as exc:
-        return _err(str(exc))
-
-
-@mcp.tool()
-def create_ticket(
-    summary: str,
-    description: str,
-    severity: str = "major",
-    priority: str = "normal",
-    category: str = "General",
-) -> str:
-    """Create a new MantisBT ticket via the REST API.
-
-    Args:
-        summary: Short one-line ticket title.
-        description: Full ticket body / description text.
-        severity: Severity level — one of: feature, minor, major, crash, block.
-        priority: Priority level — one of: none, low, normal, high, urgent.
-        category: MantisBT category name (default "General").
-
-    Returns {ticket_id, url} on success.
-    """
-    try:
-        sev_key = _SEVERITY_NAME_TO_KEY.get(severity)
-        if sev_key is None:
-            valid = ", ".join(_SEVERITY_NAME_TO_KEY)
-            return _err(f"Invalid severity '{severity}'. Valid values: {valid}")
-
-        pri_key = _PRIORITY_NAME_TO_KEY.get(priority)
-        if pri_key is None:
-            valid = ", ".join(_PRIORITY_NAME_TO_KEY)
-            return _err(f"Invalid priority '{priority}'. Valid values: {valid}")
-
-        ticket = {
-            "summary": summary,
-            "description": description,
-            "severity": sev_key,
-            "priority": pri_key,
-            "category": category,
-        }
-        issue = submit_ticket(ticket)
-        if issue is None:
-            return _err("Ticket submission failed — check MANTIS_API_URL and MANTIS_API_TOKEN")
-
-        api_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
-        issue_id = issue.get("id", "?")
-        return _ok({
-            "ticket_id": issue_id,
-            "url": f"{api_url}/view.php?id={issue_id}",
-        })
-    except Exception as exc:
-        return _err(str(exc))
-
-
-@mcp.tool()
-def create_ticket_from_alert(
-    alert_json: str,
-    severity: Optional[str] = None,
-    priority: Optional[str] = None,
-) -> str:
-    """Create a MantisBT ticket pre-filled from a Suricata alert dict.
-
-    The alert JSON should match the structure used by the PISCES alert pipeline.
-    Required keys: src_ip, dest_ip, alert.signature, alert.severity, clientID.
-
-    Args:
-        alert_json: JSON string of the alert dict.
-        severity: Override severity — one of: feature, minor, major, crash, block.
-                  If omitted, derived from alert.severity field.
-        priority: Override priority — one of: none, low, normal, high, urgent.
-                  If omitted, defaults to normal.
-
-    Returns {ticket_id, url} on success.
-    """
-    try:
-        try:
-            alert = json.loads(alert_json)
-        except json.JSONDecodeError as exc:
-            return _err(f"Invalid JSON in alert_json: {exc}")
-
-        ticket = _build_ticket_from_alert(alert)
-
-        if severity is not None:
-            sev_key = _SEVERITY_NAME_TO_KEY.get(severity)
-            if sev_key is None:
-                valid = ", ".join(_SEVERITY_NAME_TO_KEY)
-                return _err(f"Invalid severity '{severity}'. Valid values: {valid}")
-            ticket["severity"] = sev_key
-
-        if priority is not None:
-            pri_key = _PRIORITY_NAME_TO_KEY.get(priority)
-            if pri_key is None:
-                valid = ", ".join(_PRIORITY_NAME_TO_KEY)
-                return _err(f"Invalid priority '{priority}'. Valid values: {valid}")
-            ticket["priority"] = pri_key
-
-        issue = submit_ticket(ticket)
-        if issue is None:
-            return _err("Ticket submission failed — check MANTIS_API_URL and MANTIS_API_TOKEN")
-
-        api_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
-        issue_id = issue.get("id", "?")
-        return _ok({
-            "ticket_id": issue_id,
-            "url": f"{api_url}/view.php?id={issue_id}",
-        })
     except Exception as exc:
         return _err(str(exc))
 

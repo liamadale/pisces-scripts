@@ -23,7 +23,7 @@ Common flags:
 | `--src-ip` | — | Filter to a specific source IP |
 | `--limit` | `100` | Max raw hits before deduplication |
 
-The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table. The interactive loop actions (`[e]nrich`, `[f]alse positive`, `[m]antis search`, `[t]icket`) are identical to the Kibana workflow below.
+The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table. The interactive loop actions (`[e]nrich`, `[f]alse positive`, `[m]antis search`) are identical to the Kibana workflow below.
 
 ---
 
@@ -74,7 +74,7 @@ Then choose an action:
 
 ```
 Alert #2: ET TROJAN Meterpreter | 103.14.8.22
-  [e]nrich  [f]alse positive  [m]antis search  [t]icket  [s]kip
+  [e]nrich  [f]alse positive  [m]antis search  [s]kip
   Action:
 ```
 
@@ -134,10 +134,6 @@ The filter is written to the appropriate YAML file immediately. The next `[r]`e-
 
 Searches MantisBT for existing tickets matching the alert's public IPs. Private/RFC 1918 addresses are skipped automatically. Results show ticket ID, summary, status, and last-updated date.
 
-### `[t]` Ticket
-
-Opens the interactive ticket submission flow, pre-seeded with the alert's raw event data.
-
 ### `[s]` Skip
 
 No action taken. Returns to the prompt. The last-alert hint will not update.
@@ -166,15 +162,6 @@ Action — enter alert # / [r]e-search / [p]rint (CTRL+C to exit):
 
 ## 5. Typical session patterns
 
-### Triage a batch, create tickets for the high-severity hits
-
-```
-> 1  →  [e]  →  malicious/high score  →  [t]  →  submit ticket
-> 2  →  [e]  →  malicious             →  [t]  →  submit ticket
-> 3  →  [e]  →  benign (GreyNoise)    →  add to FP filter
-> r  →  re-search to confirm filter took effect
-```
-
 ### Mid-session filter a recurring noisy scanner
 
 ```
@@ -184,7 +171,7 @@ Action — enter alert # / [r]e-search / [p]rint (CTRL+C to exit):
 > r  →  re-search — alert #7 is gone
 ```
 
-### Quickly check if a ticket already exists before creating a new one
+### Check for an existing ticket
 
 ```
 > 4  →  [m]  →  Mantis results show open ticket #1842

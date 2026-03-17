@@ -8,7 +8,7 @@ duplicated from the source modules.
 |---|---|---|---|
 | `opensearch` | `mcp/opensearch/` | 16 | Zeek/OpenSearch protocol logs, Suricata alerts, pivot tools, utilities |
 | `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
-| `mantis` | `mcp/mantis/` | 4 | MantisBT ticket search and creation |
+| `mantis` | `mcp/mantis/` | 2 | MantisBT ticket search |
 | `enrichment` | `mcp/enrichment/` | 2 | IP threat intelligence and org lookup — no OpenSearch or Kibana required |
 
 ---
@@ -57,7 +57,7 @@ PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/opens
 # Kibana server (4 tools)
 PISCES_USERNAME=x PISCES_PASSWORD=y KIBANA_URL=https://... mcp dev mcp/kibana/server.py
 
-# Mantis server (4 tools)
+# Mantis server (2 tools)
 MANTIS_API_URL=https://mantis.local MANTIS_API_TOKEN=tok mcp dev mcp/mantis/server.py
 
 # Enrichment server (2 tools — API keys all optional)
@@ -193,14 +193,12 @@ Key parameters for `search_alerts`:
 
 ---
 
-### mantis (4 tools)
+### mantis (2 tools)
 
 | Tool | Description |
 |---|---|
 | `search_tickets` | Search MantisBT by IP, keyword, or phrase |
 | `get_ticket` | Fetch a single issue by numeric ID |
-| `create_ticket` | Create a ticket with summary, description, severity, priority |
-| `create_ticket_from_alert` | Create a ticket pre-filled from a Suricata alert JSON dict |
 
 ---
 

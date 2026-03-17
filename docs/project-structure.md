@@ -31,8 +31,7 @@ pisces-scripts/
 │   │   └── virustotal.py               # VirusTotal API (detection stats, ASN, country)
 │   │
 │   ├── mantis/                         # MantisBT ticketing integration
-│   │   ├── mantis_search.py            # Search tickets via API index or live scraping
-│   │   └── mantis_submit.py            # Interactive ticket creation and submission
+│   │   └── mantis_search.py            # Search tickets via API index or live scraping
 │   │
 │   ├── web/                            # Flask web UI — in development
 │   │   ├── app.py                      # Flask factory + all routes
@@ -78,7 +77,7 @@ pisces-scripts/
 │   ├── kibana/                         # 4-tool server: Suricata alerts + aggregations
 │   │   ├── server.py
 │   │   └── requirements.txt
-│   ├── mantis/                         # 4-tool server: ticket search and creation
+│   ├── mantis/                         # 2-tool server: ticket search
 │   │   ├── server.py
 │   │   └── requirements.txt
 │   └── enrichment/                     # 2-tool server: IP threat intel + org lookup (no backend required)

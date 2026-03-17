@@ -407,7 +407,6 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
 
     from src.enricher.threat_intel import enrich_ip
     from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis, sensor_to_project
-    from src.mantis.mantis_submit import submit_interactive
 
     last_record: dict | None = None
 
@@ -455,7 +454,7 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
 
         src_ip = record.get("src_ip", "")
         module.display_detail(record, idx + 1)
-        console.print("  \\[e]nrich  \\[f]alse positive  \\[m]antis search  \\[t]icket  \\[s]kip")
+        console.print("  \\[e]nrich  \\[f]alse positive  \\[m]antis search  \\[s]kip")
 
         try:
             action = prompt("  Action: ").strip().lower()
@@ -486,16 +485,6 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
                         combined.append(r)
                         seen_ids.add(r["id"])
             display_mantis(combined)
-        elif key == "t":
-            submit_record = record.get("_raw", {})
-            submit_record.setdefault("src_ip", src_ip)
-            submit_record.setdefault("dest_ip", record.get("dest_ip", ""))
-            submit_record.setdefault(
-                "clientID",
-                (record.get("sensors") or [record.get("sensor", "")])[0],
-            )
-            submit_interactive(submit_record)
-
         last_record = {"idx": idx + 1, "record": record}
 
 

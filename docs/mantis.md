@@ -1,6 +1,6 @@
 # Mantis Integration
 
-PISCES integrates with MantisBT for ticket lookup, creation, and index-driven false positive (FP) candidate generation. This document covers the three Mantis scripts, how they interact, and how to get the most out of them.
+PISCES integrates with MantisBT for ticket lookup and index-driven false positive (FP) candidate generation. This document covers the three Mantis scripts, how they interact, and how to get the most out of them.
 
 ---
 
@@ -10,7 +10,6 @@ PISCES integrates with MantisBT for ticket lookup, creation, and index-driven fa
 |---|---|
 | `src/mantis/mantis_search.py` | Search for tickets by IP, keyword, or phrase |
 | `src/mantis/mantis_index.py` | Bulk-fetch all tickets into a local JSON index |
-| `src/mantis/mantis_submit.py` | Interactive ticket creation from a record |
 
 ---
 
@@ -553,7 +552,7 @@ python src/mantis/mantis_search.py --query 198.51.100.22
 Look for:
 - **Resolved/closed** tickets → this IP has been investigated; check the admin notes for the verdict
 - **Open/acknowledged** tickets → a ticket exists; check who the handler is before creating a duplicate
-- **No results** → no prior history; consider enriching and creating a new ticket with `[t]`
+- **No results** → no prior history; consider enriching the IP and opening a ticket manually in MantisBT
 
 ### Review FP candidates after indexing
 
