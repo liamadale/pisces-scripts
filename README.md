@@ -79,21 +79,51 @@ All sections are lazy-loaded via HTMX on first tab activation and cached server-
 
 ## Installation
 
+This project uses [uv](https://github.com/astral-sh/uv) for dependency management. Install it first if you haven't:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then:
+
 ```bash
 git clone <repository-url>
 cd pisces-scripts
+uv sync
+cp .env.example .env  # edit with your credentials
+```
 
-python3 -m venv .venv
-source .venv/bin/activate
+Run scripts with `uv run <script>` — no manual venv activation needed.
 
+### Optional features
+
+The core install covers the CLI queriers, web UIs, and enrichment pipeline. Additional features are opt-in:
+
+| Extra | What it enables | Install |
+|---|---|---|
+| `mcp` | MCP servers for AI assistant integration (Claude Code, Claude Desktop) | `uv sync --extra mcp` |
+| `ml` | ML-based ticket classifier in `mantis_index.py --use-ml` | `uv sync --extra ml` |
+| `all` | Everything above | `uv sync --extra all` |
+
+For example, to enable MCP servers and the ML classifier:
+
+```bash
+uv sync --extra mcp --extra ml
+```
+
+<details>
+<summary>Alternative: plain venv + pip</summary>
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Optional: MCP server support (AI assistant integration)
-pip install -r mcp/requirements.txt
-
-cp .env.example .env
-# Edit .env with your credentials
+# Optional features — install any combination:
+pip install -r mcp/requirements.txt                          # MCP servers
+pip install -r src/mantis/ticket_enrichment/requirements.txt # ML classifier
 ```
+</details>
 
 ## Configuration
 
