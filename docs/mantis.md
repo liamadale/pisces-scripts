@@ -302,46 +302,114 @@ The indexer classifies every ticket using a hybrid pipeline in `src/mantis/ticke
 
 ### Three-Dimension Data Model
 
-Each ticket is classified independently along three orthogonal dimensions — following Microsoft Sentinel's incident classification model:
+Each ticket is classified along three dimensions:
 
-| Dimension | Type | Values |
+| Dimension | Question answered | Values |
 |---|---|---|
 | **Disposition** | Was the alert real? | `true_positive`, `benign_true_positive`, `false_positive`, `undetermined` |
 | **Threat Type** | What kind of activity? | `port_scan`, `exploit`, `malware`, `web_attack`, `ddos`, `botnet`, `brute_force`, `dns_anomaly`, `data_exfil`, `spam_phishing`, `blocklist_hit`, `policy_violation`, `recon`, `vulnerability_scan`, `unknown` |
-| **Actor** | Who did it? | `cisa_cyhy`, `shadowserver`, `censys`, `rapid7`, `qualys`, `binaryedge`, `stretchoid`, `nessus`, `netspi`, `onyphe`, `leakix`, `other` |
+| **Actor** | Who was responsible? | `cisa_cyhy`, `shadowserver`, `censys`, `rapid7`, `qualys`, `binaryedge`, `stretchoid`, `nessus`, `netspi`, `onyphe`, `leakix`, `other` |
 
 **Disposition meanings:**
 - `true_positive` — Confirmed threat; IPs go into the threat database
 - `benign_true_positive` — Real activity, but authorized/expected (gov scanner, pen test); IPs go into FP candidates
-- `false_positive` — Alert fired incorrectly (not_a_bug, normal traffic); IPs go into FP candidates
-- `undetermined` — Insufficient evidence to classify; excluded from both outputs
+- `false_positive` — Alert fired incorrectly (wrong traffic, known-safe host); IPs go into FP candidates
+- `undetermined` — Not enough evidence to decide; excluded from both outputs
 
-### Architecture: Layered Pipeline
+---
 
-**Layer 1: Enhanced Rule-Based** (always runs, no dependencies)
+### How Classification Works
 
-Three signal sources:
+Each ticket goes through a two-layer pipeline. Layer 1 runs first and covers the vast majority of tickets with no external dependencies. Layer 2 is an optional add-on for tickets that Layer 1 couldn't resolve.
 
-1. **ET Category Parser** — Extracts Suricata/ET rule categories from ticket summaries (e.g., `ET SCAN` → `disposition=true_positive, threat_type=port_scan`). Covers ~33% of tickets.
+---
 
-2. **Expanded Keyword Sets** — Broader matching against admin notes and summaries. Includes benign signals (`whitelisted`, `expected traffic`, `pen test`, `scheduled scan`), malicious signals (`compromised`, `backdoor`, `lateral movement`), and infrastructure mentions.
+### Layer 1: Rule-Based Classification
 
-3. **Description Field Parsing** — Extracts structured enrichment data: AbuseIPDB confidence scores, GreyNoise classifications, and report counts from copy-pasted enrichment output in notes.
+Layer 1 always runs. It works entirely from the text in the ticket — no internet calls, no models. It processes each ticket through four checks in priority order.
 
-**Layer 2: TF-IDF + LinearSVC** (optional, requires `scikit-learn`)
+#### Step 1: Government / Authorized Scanner Detection (highest priority)
 
-For tickets Layer 1 can't classify:
-- Trains on high-confidence Layer 1 disposition labels (score ≥ 2)
-- 4-class problem: one class per Disposition value — simpler than subcategory labels, more training data per class
-- TF-IDF on concatenated summary + description + notes
-- LinearSVC with balanced class weights
-- Only accepts predictions above a confidence threshold
-- Model persisted at `data/tickets/classifier_model.joblib`
-- Stale models (trained before this refactor) are automatically rejected
+If the ticket text mentions a known authorized scanner — CISA/DHS CyHy, Shadowserver, Censys, Rapid7, Qualys, BinaryEdge, Stretchoid, Nessus/Tenable, NetSPI, Onyphe, or LeakIX — the ticket is immediately classified as `benign_true_positive` with `threat_type=vulnerability_scan` and the matching actor identified. This check runs before everything else, so even if an ET alert fired on scanner traffic, the ticket will be classified as benign.
 
-Install ML dependencies: `pip install -r src/mantis/ticket_enrichment/requirements.txt`
+#### Step 2: Hard Malicious Disqualifiers
 
-If scikit-learn is not installed, Layer 2 is silently skipped.
+If the **admin note** contains confirmed-threat language, the ticket is immediately classified as `true_positive` with a score of -5. Examples: `recommend block`, `malicious`, `botnet`, `ransomware`, `lateral movement`, `C2 beacon`, `backdoor`, `rootkit`, `cobalt strike`.
+
+If the **ticket summary** contains confirmed-threat keywords (`ET CINS`, `known malicious`, `botnet`, `exploit`, `CVE-`, `malware`, `C2`), the ticket is classified as `true_positive` with a score of -3 if an admin note is present, or -1 if not. Tickets with only a summary keyword and no admin corroboration (-1 score) fall below the -2 threshold needed for the threat database.
+
+> Note: Short words like `rat`, `shell`, and `worm` are matched using word boundaries (e.g., `\brat\b`) to avoid false matches on words like "corroboration" or "nutshell".
+
+#### Step 3: ET Category Parsing
+
+If the summary contains a Suricata/ET rule prefix (`ET SCAN`, `ET EXPLOIT`, `ET TROJAN`, etc.), the ticket is classified as `true_positive` with the matching threat type — unless an admin note says otherwise.
+
+**ET confidence tiers** — not all ET categories are equally reliable as threat signals:
+
+| Tier | Categories | Base score | Rationale |
+|---|---|---|---|
+| **High** | `ET DROP`, `ET CINS`, `ET COMPROMISED`, `ET TROJAN`, `ET MALWARE`, `ET MOBILE_MALWARE`, `ET PHISHING`, `ET SPAM` | -3 | Explicit blocklist membership or confirmed malware families — reliable even without admin corroboration |
+| **Medium** | `ET SCAN`, `ET EXPLOIT`, `ET ATTACK_RESPONSE`, `ET WEB_SERVER`, `ET WEB_CLIENT`, `ET DDOS`, `ET DOS`, `ET CURRENT_EVENTS` | -2 | Active attack/scan patterns — reliable, but admin note adds confidence |
+| **Low** | `ET INFO`, `ET POLICY`, `ET HUNTING`, `ET TOR`, `ET P2P`, `ET DNS` | -1 | Informational/policy categories that fire on routine traffic frequently — require admin note to enter the threat database |
+
+If an admin note is present and does not contain benign language, the score is boosted one further point (e.g., a medium-confidence ET ticket with an admin note scores -3 instead of -2).
+
+**Benign override:** If an ET category is matched but the admin note contains a benign keyword (`false positive`, `benign`, `whitelisted`, `expected traffic`, etc.), the ticket is overridden to `false_positive`. This catches tickets where Suricata fired correctly but the analyst determined the traffic was authorized.
+
+#### Step 4: Score Accumulation (for tickets that reach this point)
+
+Tickets that didn't match any of the above checks are scored by accumulating signals from multiple sources. Each signal adds or subtracts from the score:
+
+**Signals from admin notes:**
+
+| Signal | Score | Examples |
+|---|---|---|
+| FP/benign keyword | +3 | `false positive`, `benign`, `legitimate`, `no indicators of compromise`, `not successful`, `no threat`, `pen test`, `scheduled scan`, `authorized` |
+| Known-good infrastructure mention | +1 | `CDN`, `Cloudflare`, `Google DNS`, `known scanner`, `AWS`, `Azure`, `monitoring` |
+| GreyNoise classification = benign | +2 | Parsed from copy-pasted enrichment output in the note |
+| GreyNoise classification = malicious | −2 | Parsed from copy-pasted enrichment output |
+| AbuseIPDB confidence ≥ 80% | −2 | Parsed from `Confidence of Abuse: 87%` style lines in notes |
+| AbuseIPDB confidence ≤ 10% | +1 | Low abuse score is a mild benign signal |
+
+**Signals from the ticket fields:**
+
+| Signal | Score | Effect on disposition |
+|---|---|---|
+| Resolution = `not a bug` | +3 | → `false_positive` |
+| Resolution = `unable to duplicate` | +2 | Stays `undetermined` (traffic didn't recur; inconclusive) |
+| Summary contains FP keyword (`FP Traffic:`, `All Attempts Blocked`, `Possible False Positive`) | +2 | → `false_positive` |
+| AbuseIPDB confidence ≥ 90% in description or notes | −3 | → `true_positive` (`blocklist_hit`) |
+| GreyNoise classification = benign in description | +2 | → `false_positive` |
+
+A ticket reaching a **score > 0** with no disqualifying malicious signal contributes its IPs to the FP candidate list.
+
+---
+
+### Layer 2: Pattern-Based Auto-Classification (optional)
+
+Layer 2 only activates for tickets that Layer 1 left as `undetermined` — meaning no clear signal was found in the rules.
+
+**What it does in plain terms:** It reads the patterns in all the tickets that Layer 1 *did* classify confidently, and learns what language tends to appear in FP tickets versus confirmed threat tickets. When it sees a new unclassified ticket, it compares its text against those learned patterns and makes a prediction.
+
+**Technical details:** The model converts ticket text (summary, description, notes) into a numerical representation (TF-IDF — essentially a weighted word frequency count), then uses a linear classifier (LinearSVC) to predict the disposition. Unigrams and bigrams are used (single words and two-word phrases), with common English stop words removed.
+
+**Training data:** The model trains on all tickets where Layer 1 produced a high-confidence result (|score| ≥ 2). Labels with fewer than 5 examples are excluded. At least 50 total training examples are required; training is skipped silently if the index is too small.
+
+**Why it only predicts FP and benign — not threats:** The training data is heavily skewed toward `true_positive` (~92% of tickets are confirmed threats). If the model were allowed to predict all four classes, it would default to `true_positive` for almost any ambiguous ticket — not useful. Rules already handle threat detection well. The ML layer adds value specifically by catching FP and benign patterns that weren't covered by the keyword lists. A threat prediction from Layer 2 is therefore never accepted; the ticket stays `undetermined` if ML would predict it as a threat.
+
+**Confidence threshold:** The model must be at least 30% confident in its prediction (based on the classifier's internal decision margin). Below that, the prediction is discarded and the ticket stays `undetermined`.
+
+**Persistence:** The trained model is saved to `data/tickets/classifier_model.joblib`. It is loaded lazily on first use and cached in memory for subsequent calls. Models trained from an older version of the code (with different label names) are automatically rejected to prevent stale predictions.
+
+**Installing the ML dependency:**
+
+```bash
+uv add -r src/mantis/ticket_enrichment/requirements.txt
+```
+
+If `scikit-learn` is not installed, Layer 2 is silently skipped and everything else works as normal.
+
+---
 
 ### CLI Flags
 
@@ -379,8 +447,8 @@ if result.disposition == Disposition.TRUE_POSITIVE:
 elif result.disposition == Disposition.BENIGN_TRUE_POSITIVE:
     print("authorized scanner, actor:", result.actor)
 
-# Train ML model (4 disposition classes)
-train_model(tickets)  # saves to data/tickets/classifier_model.joblib
+# Train ML model (saves to data/tickets/classifier_model.joblib)
+train_model(tickets)
 ```
 
 ---
