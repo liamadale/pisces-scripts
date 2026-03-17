@@ -149,91 +149,31 @@ MANTIS_API_TOKEN=
 
 ## Usage
 
-### Query Malcolm/Zeek Logs (OpenSearch)
-
-```bash
-# List available log types present in the index
-.venv/bin/python src/querier/opensearch_querier.py --list-log-types
-
-# Query conn logs (last 24 hours, public IPs only)
-.venv/bin/python src/querier/opensearch_querier.py --log-type conn --public-only
-
-# Query DNS with a specific query string filter
-.venv/bin/python src/querier/opensearch_querier.py --log-type dns --dns-query malware.example.com
-
-# Narrow to a specific sensor and time window
-.venv/bin/python src/querier/opensearch_querier.py --log-type http --sensor hedgehog-1 --time-range now-6h
-```
-
-### Query Kibana Alerts (Suricata)
-
-```bash
-# Basic query (last 24 hours, all severities)
-.venv/bin/python src/querier/kibana_querier.py
-
-# Custom time range and severity
-.venv/bin/python src/querier/kibana_querier.py --time-range now-7d --severity 2
-
-# Filter to a specific signature pattern
-.venv/bin/python src/querier/kibana_querier.py --signature "ET SCAN" --public-only
-```
-
 ### Web UIs
 
-The recommended way to run all apps is through `run_all.py`, which mounts them together under a single port via a hub portal:
-
 ```bash
-# Combined — hub at http://0.0.0.0:5000 with all apps mounted beneath it
-.venv/bin/python run_all.py
-
-# Debug mode
-.venv/bin/python run_all.py --debug
-
-# Custom host/port
-.venv/bin/python run_all.py --host 127.0.0.1 --port 8080
+uv run run_all.py   # hub at http://0.0.0.0:5000
 ```
 
-Each app can also run standalone on its own port (useful for development or if you only need one):
+### CLI Queriers
 
 ```bash
-# OpenSearch — Zeek cross-protocol matrix (http://0.0.0.0:5001)
-.venv/bin/python opensearch_web_run.py
+# Zeek/OpenSearch logs
+uv run src/querier/opensearch_querier.py --log-type conn --public-only
+uv run src/querier/opensearch_querier.py --list-log-types
 
-# Kibana — Suricata alert overview (http://0.0.0.0:5002)
-.venv/bin/python kibana_web_run.py
-
-# Mantis — ticket browser (http://0.0.0.0:5003)
-.venv/bin/python mantis_web_run.py
-
-# Dashboard — aggregated analytics (http://0.0.0.0:5004)
-.venv/bin/python dashboard_web_run.py
-
-# All standalone launchers accept --host, --port, and --debug flags
-.venv/bin/python opensearch_web_run.py --debug --port 5001
+# Suricata/Kibana alerts
+uv run src/querier/kibana_querier.py --time-range now-24h --public-only
 ```
 
-### Standalone Enrichment
+### Enrichment & Filters
 
 ```bash
-# Full pipeline
-.venv/bin/python src/enricher/threat_intel.py --ip 185.220.101.45
-
-# Print reference URLs only (no API calls)
-.venv/bin/python src/enricher/threat_intel.py --ip 185.220.101.45 --urls-only
+uv run src/enricher/threat_intel.py --ip 185.220.101.45
+uv run src/querier/fp_manager.py --list
 ```
 
-### Manage False Positive Filters
-
-```bash
-# Interactive filter creator
-.venv/bin/python src/querier/fp_manager.py
-
-# List all filters
-.venv/bin/python src/querier/fp_manager.py --list
-
-# Validate all filter files
-.venv/bin/python src/querier/fp_manager.py --validate
-```
+See [docs/advanced-usage.md](docs/advanced-usage.md) for the full command reference.
 
 ## MCP Servers (AI Assistant Integration)
 
