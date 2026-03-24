@@ -16,7 +16,7 @@
     {% if malicious %}
       <span class="badge badge-red">{{ malicious.ticket_count }} tickets</span>
       {% if malicious.country %}
-        <span>{{ malicious.country }}</span>
+        <span>{{ malicious.country_flag }} {{ malicious.country }}</span>
       {% endif %}
       <span style="color:var(--on-surface-dim);font-size:0.78rem">
         {{ malicious.first_seen }} → {{ malicious.last_seen }}
@@ -43,11 +43,7 @@
         <span class="k">Attack Types</span>
         <span class="v">{{ malicious.attack_str or '—' }}</span>
       </div>
-      <div class="threat-kv">
-        <span class="k">CVEs</span>
-        <span class="v cve">{{ malicious.cve_str }}</span>
-      </div>
-      <div class="threat-kv">
+<div class="threat-kv">
         <span class="k">Blocklists</span>
         <span class="v">{{ malicious.blocklist_str }}</span>
       </div>

@@ -3,16 +3,15 @@
     onclick="handleTpRowClick(this)"
     style="cursor:pointer">
   <td><span style="font-weight:600">{{ r.ip }}</span></td>
+  <td style="font-size:0.82rem">{% if r.org_icon %}<i class="{{ r.org_icon }} org-icon org-{{ r.org_category }}" title="{{ r.org_name }}"></i>{% endif %}{{ r.org_name }}</td>
   <td>{% if r.country_flag %}<span class="country-flag">{{ r.country_flag }}</span>{% endif %}{{ r.country or '—' }}</td>
-  <td class="num">{% if r.tickets %}{{ r.tickets }}{% else %}<span class="zero">0</span>{% endif %}</td>
-  <td class="num">{{ r.days_active }}</td>
   <td>{{ r.attack_str or '—' }}</td>
-  <td class="cve-text">{{ r.cve_str }}</td>
+  <td class="num">{% if r.ticket_count %}{{ r.ticket_count }}{% else %}<span class="zero">0</span>{% endif %}</td>
   <td>{{ r.first_seen or '—' }}</td>
   <td>{{ r.last_seen or '—' }}</td>
 </tr>
 {% else %}
-<tr class="loading-row"><td colspan="8">No results.</td></tr>
+<tr class="loading-row"><td colspan="7">No results.</td></tr>
 {% endfor %}
 {# Hidden pagination meta row — read by JS afterSwap listener #}
 <tr id="tp-pager-meta"

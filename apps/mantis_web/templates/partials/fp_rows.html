@@ -3,6 +3,7 @@
     onclick="handleFpRowClick(this)"
     style="cursor:pointer">
   <td><span style="font-weight:600">{{ r.ip }}</span></td>
+  <td style="font-size:0.82rem">{% if r.org_icon %}<i class="{{ r.org_icon }} org-icon org-{{ r.org_category }}" title="{{ r.org_name }}"></i>{% endif %}{{ r.org_name }}</td>
   <td>
     {% set cat = r.category_raw|lower %}
     {% if cat == 'benign' or 'benign' in cat %}
@@ -20,9 +21,11 @@
   </td>
   <td class="num">{{ r.score }}</td>
   <td class="num">{% if r.ticket_count %}{{ r.ticket_count }}{% else %}<span class="zero">0</span>{% endif %}</td>
+  <td>{{ r.first_seen or '—' }}</td>
+  <td>{{ r.last_seen or '—' }}</td>
 </tr>
 {% else %}
-<tr class="loading-row"><td colspan="5">No results.</td></tr>
+<tr class="loading-row"><td colspan="8">No results.</td></tr>
 {% endfor %}
 {# Hidden pagination meta row #}
 <tr id="fp-pager-meta"

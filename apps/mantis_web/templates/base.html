@@ -44,6 +44,7 @@
 <div id="ticket-panel-backdrop" class="ticket-panel-backdrop"
      onclick="closeTicketPanel()"></div>
 <aside id="ticket-panel" class="ticket-panel" aria-label="Ticket detail">
+  <div class="ticket-panel-resize-handle" id="ticket-panel-resize" title="Drag to resize"></div>
   <div class="ticket-panel-header">
     <div class="ticket-panel-title">
       <span class="ticket-panel-id" id="ticket-panel-id">
@@ -60,8 +61,51 @@
   </div>
 </aside>
 
+{# ── Threat card modal ─────────────────────────────── #}
+<div id="threat-card-backdrop" class="threat-card-backdrop" onclick="clearThreatCard()"></div>
+<div id="threat-card-modal" class="threat-card-modal">
+  <div id="search-result"></div>
+</div>
+
+{# ── Development Notice Modal ──────────────────────── #}
+<div id="notice-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <div class="modal-header">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>Notice — App In Development</span>
+    </div>
+    <div class="modal-body">
+      <p>This threat model is currently in <strong>active development</strong> and may not provide reliable intelligence. Exercise caution when evaluating these outputs to assist in SOC analysis.</p>
+      <p style="margin-top: 1rem; margin-bottom: 0.25rem; color: var(--on-surface-dim); font-size: 0.8rem; font-family: var(--sans);">
+        <i class="fa-solid fa-terminal" style="font-size: 0.7rem;"></i> First time opening? Make sure to run:
+      </p>
+      <div class="modal-code-box">
+        <code>
+          uv run src/mantis/mantis_index.py
+          <br>
+          uv run src/mantis/mantis_threat_model.py --retrain --classify-stats --use-ml
+        </code> 
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="dismissNotice()">
+        <i class="fa-solid fa-check"></i> Acknowledge
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
+  /* ── Notice Modal ─────────────────────────────── */
+  window.dismissNotice = function() {
+    document.getElementById('notice-modal').classList.remove('show');
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('notice-modal').classList.add('show');
+  });
+
   /* ── Theme toggle ──────────────────────────────── */
   window.toggleTheme = function() {
     var html = document.documentElement;
@@ -134,8 +178,12 @@
     var target = e.detail.target;
     if (!target) return;
     var id = target.id;
-    if (id === 'tp-tbody') updatePaginationBar('tp');
-    if (id === 'fp-tbody') updatePaginationBar('fp');
+    if (id === 'search-result' && target.innerHTML.trim()) openThreatCardModal();
+    if (id === 'tp-tbody')           updatePaginationBar('tp');
+    if (id === 'fp-tbody')           updatePaginationBar('fp');
+    if (id === 'infra-tbody')        updatePaginationBar('infra');
+    if (id === 'dns-resolver-tbody') updatePaginationBar('dns-resolver');
+    if (id === 'undetermined-tbody') updatePaginationBar('undetermined');
   });
 
   /* ── TP table navigation ───────────────────────── */
@@ -155,13 +203,14 @@
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
     htmx.ajax('GET', '/api/tp/rows?' + new URLSearchParams(params).toString(),
-              {target: '#tp-tbody', swap: 'innerHTML'});
+              {target: '#tp-tbody', swap: 'innerHTML'})
+      .then(function() { updatePaginationBar('tp'); });
   }
   window.reloadTpRows = reloadTpRows;
 
   function collectTpParams() {
     return {
-      sort:        document.getElementById('tp-sort')        ? document.getElementById('tp-sort').value        : 'tickets',
+      sort:        document.getElementById('tp-sort')        ? document.getElementById('tp-sort').value        : 'ticket_count',
       order:       document.getElementById('tp-order')       ? document.getElementById('tp-order').value       : 'desc',
       attack:      document.getElementById('tp-filter-attack')    ? document.getElementById('tp-filter-attack').value    : '',
       blocklist:   document.getElementById('tp-filter-blocklist') ? document.getElementById('tp-filter-blocklist').value : '',
@@ -189,7 +238,8 @@
     params.page = page || 1;
     if (perPage) params.per_page = perPage;
     htmx.ajax('GET', '/api/fp/rows?' + new URLSearchParams(params).toString(),
-              {target: '#fp-tbody', swap: 'innerHTML'});
+              {target: '#fp-tbody', swap: 'innerHTML'})
+      .then(function() { updatePaginationBar('fp'); });
   }
   window.reloadFpRows = reloadFpRows;
 
@@ -209,7 +259,7 @@
   window.tpSort = function(field) {
     var sortEl  = document.getElementById('tp-sort');
     var orderEl = document.getElementById('tp-order');
-    var cur = sortEl ? sortEl.value : 'tickets';
+    var cur = sortEl ? sortEl.value : 'ticket_count';
     var ord = orderEl ? orderEl.value : 'desc';
     if (cur === field) {
       ord = ord === 'desc' ? 'asc' : 'desc';
@@ -234,6 +284,161 @@
     if (sortEl)  sortEl.value  = field;
     if (orderEl) orderEl.value = ord;
     reloadFpRows(1);
+  };
+
+  /* ── Infrastructure table navigation ───────────── */
+  window.infraNav = function(delta) {
+    var meta = readPagerMeta('infra');
+    if (!meta) return;
+    var newPage = Math.max(1, Math.min(meta.totalPages, meta.page + delta));
+    if (newPage === meta.page) return;
+    reloadInfraRows(newPage);
+  };
+  window.infraPerPageChanged = function(sel) {
+    reloadInfraRows(1, sel.value);
+  };
+
+  function reloadInfraRows(page, perPage) {
+    var params = collectInfraParams();
+    params.page = page || 1;
+    if (perPage) params.per_page = perPage;
+    htmx.ajax('GET', '/api/infra/rows?' + new URLSearchParams(params).toString(),
+              {target: '#infra-tbody', swap: 'innerHTML'})
+      .then(function() { updatePaginationBar('infra'); });
+  }
+  window.reloadInfraRows = reloadInfraRows;
+
+  function collectInfraParams() {
+    return {
+      sort:     document.getElementById('infra-sort')            ? document.getElementById('infra-sort').value            : 'ticket_count',
+      order:    document.getElementById('infra-order')           ? document.getElementById('infra-order').value           : 'desc',
+      category: document.getElementById('infra-filter-category') ? document.getElementById('infra-filter-category').value : '',
+      q:        document.getElementById('infra-filter-q')        ? document.getElementById('infra-filter-q').value        : '',
+      per_page: document.getElementById('infra-per-page')        ? document.getElementById('infra-per-page').value        : '50',
+      page:     1,
+    };
+  }
+
+  window.infraSort = function(field) {
+    var sortEl  = document.getElementById('infra-sort');
+    var orderEl = document.getElementById('infra-order');
+    var cur = sortEl ? sortEl.value : 'ticket_count';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    reloadInfraRows(1);
+  };
+
+  /* ── Public DNS resolver table navigation ───────── */
+  window.dnsResolverNav = function(delta) {
+    var meta = readPagerMeta('dns-resolver');
+    if (!meta) return;
+    var newPage = Math.max(1, Math.min(meta.totalPages, meta.page + delta));
+    if (newPage === meta.page) return;
+    reloadDnsResolverRows(newPage);
+  };
+  window.dnsResolverPerPageChanged = function(sel) {
+    reloadDnsResolverRows(1, sel.value);
+  };
+
+  function reloadDnsResolverRows(page, perPage) {
+    var params = collectDnsResolverParams();
+    params.page = page || 1;
+    if (perPage) params.per_page = perPage;
+    htmx.ajax('GET', '/api/dns-resolver/rows?' + new URLSearchParams(params).toString(),
+              {target: '#dns-resolver-tbody', swap: 'innerHTML'})
+      .then(function() { updatePaginationBar('dns-resolver'); });
+  }
+  window.reloadDnsResolverRows = reloadDnsResolverRows;
+
+  function collectDnsResolverParams() {
+    return {
+      sort:     document.getElementById('dns-resolver-sort')     ? document.getElementById('dns-resolver-sort').value     : 'ticket_count',
+      order:    document.getElementById('dns-resolver-order')    ? document.getElementById('dns-resolver-order').value    : 'desc',
+      q:        document.getElementById('dns-resolver-filter-q') ? document.getElementById('dns-resolver-filter-q').value : '',
+      per_page: document.getElementById('dns-resolver-per-page') ? document.getElementById('dns-resolver-per-page').value : '25',
+      page:     1,
+    };
+  }
+
+  window.dnsResolverSort = function(field) {
+    var sortEl  = document.getElementById('dns-resolver-sort');
+    var orderEl = document.getElementById('dns-resolver-order');
+    var cur = sortEl ? sortEl.value : 'ticket_count';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    reloadDnsResolverRows(1);
+  };
+
+  /* ── Undetermined table navigation ─────────────── */
+  window.undeterminedNav = function(delta) {
+    var meta = readPagerMeta('undetermined');
+    if (!meta) return;
+    var newPage = Math.max(1, Math.min(meta.totalPages, meta.page + delta));
+    if (newPage === meta.page) return;
+    reloadUndeterminedRows(newPage);
+  };
+  window.undeterminedPerPageChanged = function(sel) {
+    reloadUndeterminedRows(1, sel.value);
+  };
+
+  function reloadUndeterminedRows(page, perPage) {
+    var params = collectUndeterminedParams();
+    params.page = page || 1;
+    if (perPage) params.per_page = perPage;
+    htmx.ajax('GET', '/api/undetermined/rows?' + new URLSearchParams(params).toString(),
+              {target: '#undetermined-tbody', swap: 'innerHTML'})
+      .then(function() { updatePaginationBar('undetermined'); });
+  }
+  window.reloadUndeterminedRows = reloadUndeterminedRows;
+
+  function collectUndeterminedParams() {
+    return {
+      sort:      document.getElementById('undetermined-sort')          ? document.getElementById('undetermined-sort').value          : 'score',
+      order:     document.getElementById('undetermined-order')         ? document.getElementById('undetermined-order').value         : 'desc',
+      q:         document.getElementById('undetermined-filter-q')      ? document.getElementById('undetermined-filter-q').value      : '',
+      min_score: document.getElementById('undetermined-filter-min-score') ? document.getElementById('undetermined-filter-min-score').value : '',
+      per_page:  document.getElementById('undetermined-per-page')      ? document.getElementById('undetermined-per-page').value      : '50',
+      page:      1,
+    };
+  }
+
+  window.undeterminedSort = function(field) {
+    var sortEl  = document.getElementById('undetermined-sort');
+    var orderEl = document.getElementById('undetermined-order');
+    var cur = sortEl ? sortEl.value : 'score';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    reloadUndeterminedRows(1);
+  };
+
+  /* ── Table tab switching ───────────────────────── */
+  var TABLE_TABS = ['tp', 'fp', 'infra', 'dns-resolver', 'undetermined'];
+
+  window.switchTableTab = function(name) {
+    TABLE_TABS.forEach(function(t) {
+      var panel = document.getElementById('panel-' + t);
+      var btn   = document.getElementById('tab-btn-' + t);
+      if (panel) panel.style.display = (t === name) ? '' : 'none';
+      if (btn)   btn.classList.toggle('active', t === name);
+    });
   };
 
   /* ── Ticket detail panel ───────────────────────── */
@@ -261,18 +466,75 @@
   };
 
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeTicketPanel();
+    if (e.key === 'Escape') { closeTicketPanel(); clearThreatCard(); }
   });
+
+  /* ── Ticket panel resize ───────────────────────── */
+  (function() {
+    var STORAGE_KEY = 'ticketPanelWidth';
+    var MIN_WIDTH   = 280;
+    var MAX_FRAC    = 0.92;  // max 92vw
+    var panel       = document.getElementById('ticket-panel');
+    var handle      = document.getElementById('ticket-panel-resize');
+
+    function applyWidth(px) {
+      var max = Math.floor(window.innerWidth * MAX_FRAC);
+      px = Math.max(MIN_WIDTH, Math.min(px, max));
+      panel.style.width = px + 'px';
+      return px;
+    }
+
+    // Restore saved width on load
+    var saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+    if (!isNaN(saved)) applyWidth(saved);
+
+    handle.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      handle.classList.add('dragging');
+      // Suppress slide transition while dragging
+      panel.style.transition = 'none';
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+
+      function onMove(ev) {
+        var newWidth = window.innerWidth - ev.clientX;
+        applyWidth(newWidth);
+      }
+
+      function onUp() {
+        handle.classList.remove('dragging');
+        panel.style.transition = '';
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        var w = parseInt(panel.style.width, 10);
+        if (!isNaN(w)) localStorage.setItem(STORAGE_KEY, w);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+      }
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  })();
 
   /* ── Row click card toggle ─────────────────────── */
   function clearAllRowSelections() {
-    document.querySelectorAll('#tp-tbody tr.row-selected, #fp-tbody tr.row-selected').forEach(function(r) {
-      r.classList.remove('row-selected');
-    });
+    document.querySelectorAll(
+      '#tp-tbody tr.row-selected, #fp-tbody tr.row-selected, ' +
+      '#infra-tbody tr.row-selected, #dns-resolver-tbody tr.row-selected, ' +
+      '#undetermined-tbody tr.row-selected'
+    ).forEach(function(r) { r.classList.remove('row-selected'); });
+  }
+
+  function openThreatCardModal() {
+    document.getElementById('threat-card-backdrop').classList.add('open');
+    document.getElementById('threat-card-modal').classList.add('open');
   }
 
   window.clearThreatCard = function() {
     document.getElementById('search-result').innerHTML = '';
+    document.getElementById('threat-card-backdrop').classList.remove('open');
+    document.getElementById('threat-card-modal').classList.remove('open');
     clearAllRowSelections();
   };
 
@@ -285,7 +547,7 @@
     var isSelected = tr.classList.contains('row-selected');
     clearAllRowSelections();
     if (isSelected) {
-      document.getElementById('search-result').innerHTML = '';
+      clearThreatCard();
     } else {
       tr.classList.add('row-selected');
       htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=tp',
@@ -297,10 +559,46 @@
     var isSelected = tr.classList.contains('row-selected');
     clearAllRowSelections();
     if (isSelected) {
-      document.getElementById('search-result').innerHTML = '';
+      clearThreatCard();
     } else {
       tr.classList.add('row-selected');
       htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=fp',
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  };
+
+  window.handleInfraRowClick = function(tr) {
+    var isSelected = tr.classList.contains('row-selected');
+    clearAllRowSelections();
+    if (isSelected) {
+      clearThreatCard();
+    } else {
+      tr.classList.add('row-selected');
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=infra',
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  };
+
+  window.handleDnsResolverRowClick = function(tr) {
+    var isSelected = tr.classList.contains('row-selected');
+    clearAllRowSelections();
+    if (isSelected) {
+      clearThreatCard();
+    } else {
+      tr.classList.add('row-selected');
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=dns_resolver',
+                {target: '#search-result', swap: 'innerHTML'});
+    }
+  };
+
+  window.handleUndeterminedRowClick = function(tr) {
+    var isSelected = tr.classList.contains('row-selected');
+    clearAllRowSelections();
+    if (isSelected) {
+      clearThreatCard();
+    } else {
+      tr.classList.add('row-selected');
+      htmx.ajax('GET', '/api/ip/' + tr.dataset.ip + '/card?from_table=undetermined',
                 {target: '#search-result', swap: 'innerHTML'});
     }
   };

@@ -88,7 +88,8 @@ body {
   background: var(--surface);
   color: var(--on-surface);
   font-family: var(--font);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   line-height: 1.5;
@@ -210,10 +211,12 @@ nav .spacer { flex: 1; }
 
 main {
   flex: 1;
-  padding: 1.25rem 1.5rem;
+  min-height: 0;
+  overflow: hidden;
+  padding: 1rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 
@@ -246,10 +249,6 @@ main {
 .tm-search-bar input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--focus-ring);
-}
-
-.tm-search-result-area {
-  min-height: 0;
 }
 
 
@@ -286,7 +285,100 @@ main {
 .btn-sm { padding: 0 10px; font-size: 0.78rem; height: 26px; }
 
 
-/* ── 7. Sections ──────────────────────────────────────── */
+/* ── 7. Tab bar ───────────────────────────────────────── */
+
+.tm-tabs-section {
+  flex: 1;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tm-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1.25rem;
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tm-toolbar .tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--outline);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--on-surface-dim);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  background: var(--state-hover);
+  color: var(--on-surface);
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0 0.35rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--surface-container-high);
+  color: var(--on-surface-dim);
+  line-height: 1;
+}
+
+.tab-btn.active .tab-count {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.tab-count.danger  { background: var(--badge-red-bg);   color: var(--red); }
+.tab-count.success { background: var(--badge-green-bg); color: var(--green); }
+.tab-btn.active .tab-count.danger,
+.tab-btn.active .tab-count.success {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.tm-tab-panel {
+  flex: 1;
+  min-height: 280px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ── 8. Sections (legacy, kept for compatibility) ─────── */
 
 .tm-section {
   background: var(--surface-container-low);
@@ -376,7 +468,8 @@ main {
 
 /* Table wrapper inside section */
 .section-table-wrap {
-  max-height: 420px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -463,15 +556,62 @@ td.zero { color: var(--on-surface-dim); }
 .badge-fp-unknown         { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
 .badge-fp-suspicious      { background: var(--badge-yellow-bg); color: var(--yellow); }
 
+.badge-cat {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--badge-blue-bg);
+  color: var(--primary);
+}
+
 
 /* ── 10. Threat Card ──────────────────────────────────── */
+
+.threat-card-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 500;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  backdrop-filter: blur(3px);
+}
+.threat-card-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.threat-card-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -48%) scale(0.97);
+  z-index: 501;
+  width: min(96vw, 1100px);
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.85);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+.threat-card-modal.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
 
 .threat-card {
   border: 2px solid var(--outline);
   border-radius: var(--radius-md);
   background: var(--surface-container-low);
   overflow: hidden;
-  margin: 0.75rem 1rem;
+  margin: 0;
 }
 
 .threat-card.verdict-malicious { border-color: var(--red); }
@@ -650,23 +790,27 @@ td.zero { color: var(--on-surface-dim); }
   gap: 8px;
   padding: 6px 1rem;
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--on-surface-dim);
   border-top: 1px solid var(--outline);
   flex-shrink: 0;
+  height: 40px;
 }
 
 .pagination-bar select {
-  background: var(--surface-container);
+  background: var(--surface-container-low);
   color: var(--on-surface);
   border: 1px solid var(--outline);
   border-radius: 4px;
   padding: 2px 8px;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   cursor: pointer;
 }
 
-#pager-info-tp, #pager-info-fp {
+#pager-info-tp,
+#pager-info-fp,
+#pager-info-infra,
+#pager-info-dns-resolver {
   min-width: 14ch;
   text-align: center;
 }
@@ -684,11 +828,27 @@ td.zero { color: var(--on-surface-dim); }
   border-left: 1px solid var(--outline);
   transform: translateX(100%);
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 250;
+  z-index: 600;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow: none;
+}
+
+.ticket-panel-resize-handle {
+  position: absolute;
+  top: 0; left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+.ticket-panel-resize-handle:hover,
+.ticket-panel-resize-handle.dragging {
+  background: var(--primary);
+  opacity: 0.35;
 }
 
 .ticket-panel.open {
@@ -902,7 +1062,7 @@ tr.ticket-row-active {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.35);
-  z-index: 249;
+  z-index: 599;
 }
 .ticket-panel-backdrop.open { display: block; }
 
@@ -945,6 +1105,81 @@ tr.ticket-row-active {
 
 /* ── 15. Utilities ────────────────────────────────────── */
 
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  backdrop-filter: blur(4px);
+}
+
+.modal-backdrop.show {
+  visibility: visible;
+  opacity: 1;
+}
+
+.modal-content {
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline);
+  border-top: 3px solid var(--orange);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  max-width: 550px;
+  width: 90%;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+}
+
+.modal-header {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--orange);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-body {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--on-surface);
+}
+
+.modal-body p { margin-bottom: 0.75rem; }
+
+.modal-code-box {
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  border: 1px solid var(--outline);
+  margin: 0.5rem 0;
+  color: var(--secondary);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.modal-code-box code { color: inherit; display: inline; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
 .empty-note {
   color: var(--on-surface-dim);
   font-style: italic;
@@ -954,3 +1189,16 @@ tr.ticket-row-active {
 .cve-text { color: var(--red); }
 
 .country-flag { margin-right: 4px; }
+
+/* Org identity icons */
+.org-icon {
+  font-size: 0.72rem;
+  margin-right: 3px;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+.org-icon.org-cdn      { color: var(--primary); }
+.org-icon.org-cloud    { color: var(--secondary); }
+.org-icon.org-scanner  { color: var(--yellow); }
+.org-icon.org-research { color: var(--purple); }
+.org-icon.org-private  { color: var(--on-surface-dim); }
