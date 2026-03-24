@@ -7,11 +7,23 @@ Public API:
 """
 
 from .categories import Disposition, ThreatType, Actor
-from .classifier import classify, classify_rules, ClassificationResult, invalidate_model_cache
+from .classifier import (
+    classify,
+    classify_rules,
+    ClassificationResult,
+    invalidate_model_cache,
+    is_known_dns_resolver,
+)
 from .trainer import train_model
 
 __all__ = [
-    "Disposition", "ThreatType", "Actor",
-    "classify", "classify_rules", "ClassificationResult",
-    "train_model", "invalidate_model_cache",
+    "Disposition",
+    "ThreatType",
+    "Actor",
+    "classify",
+    "classify_rules",
+    "ClassificationResult",
+    "train_model",
+    "invalidate_model_cache",
+    "is_known_dns_resolver",
 ]

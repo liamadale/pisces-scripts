@@ -12,8 +12,12 @@ import os
 
 from .categories import Disposition
 
-_BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-DEFAULT_MODEL_PATH = os.path.join(_BASE, "data", "tickets", "classifier_model.joblib")
+_BASE = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+DEFAULT_MODEL_PATH = os.path.join(
+    _BASE, "data", "tickets", "models", "classifier_model.joblib"
+)
 
 
 def build_feature_text(ticket: dict) -> str:
@@ -40,10 +44,14 @@ def train_model(
     more training data per class, better generalization. Threat type is well-handled
     by ET parser rules and doesn't need ML.
 
+    Only tickets with reputation outside the undetermined zone (<=30 or >=70) are
+    used as training data, ensuring the model learns from clear signals only.
+
     Args:
         tickets: All tickets from the index
         model_path: Where to save the trained model
-        min_confidence_score: Minimum absolute score from Layer 1 to include as training data
+        min_confidence_score: Unused — kept for backward-compatible signature.
+            The undetermined zone filter (30-70) replaces the old abs-score gate.
 
     Returns:
         Dict of {label: count} for training data distribution, or None if sklearn unavailable.
@@ -55,9 +63,15 @@ def train_model(
     except ImportError:
         return None
 
-    from .classifier import classify_rules
+    from .classifier import (
+        classify_rules,
+        REPUTATION_FP_THRESHOLD,
+        REPUTATION_TP_THRESHOLD,
+    )
 
-    # Build training data from high-confidence Layer 1 classifications
+    # Build training data from high-confidence Layer 1 classifications.
+    # Skip tickets in the undetermined reputation zone (REPUTATION_TP_THRESHOLD < score
+    # < REPUTATION_FP_THRESHOLD) — these are ambiguous and would pollute training data.
     texts: list[str] = []
     labels: list[str] = []
 
@@ -65,7 +79,7 @@ def train_model(
         result = classify_rules(ticket)
         if result.disposition == Disposition.UNDETERMINED:
             continue
-        if abs(result.score) < min_confidence_score:
+        if REPUTATION_TP_THRESHOLD < result.score < REPUTATION_FP_THRESHOLD:
             continue
 
         label = result.disposition.value
@@ -77,11 +91,12 @@ def train_model(
 
     # Count label distribution
     from collections import Counter
+
     label_dist = dict(Counter(labels).most_common())
 
     # Filter out labels with too few examples (need at least 5 for meaningful training)
     label_counts = Counter(labels)
-    filtered = [(t, l) for t, l in zip(texts, labels) if label_counts[l] >= 5]
+    filtered = [(t, lb) for t, lb in zip(texts, labels) if label_counts[lb] >= 5]
     if len(filtered) < 50:
         return None
     texts, labels = zip(*filtered)
@@ -89,8 +104,8 @@ def train_model(
 
     # Build label name mapping
     unique_labels = sorted(set(labels))
-    label_to_idx = {l: i for i, l in enumerate(unique_labels)}
-    y = [label_to_idx[l] for l in labels]
+    label_to_idx = {lb: i for i, lb in enumerate(unique_labels)}
+    y = [label_to_idx[lb] for lb in labels]
 
     # TF-IDF vectorization
     vectorizer = TfidfVectorizer(
@@ -113,7 +128,9 @@ def train_model(
 
     # Save model
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    joblib.dump({"vectorizer": vectorizer, "clf": clf, "label_names": unique_labels}, model_path)
+    joblib.dump(
+        {"vectorizer": vectorizer, "clf": clf, "label_names": unique_labels}, model_path
+    )
 
     return label_dist
 
