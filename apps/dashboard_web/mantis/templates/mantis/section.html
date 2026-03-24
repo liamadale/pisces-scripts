@@ -2,6 +2,13 @@
 <div class="chart-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ data.error }}</div>
 {% else %}
 
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-label">Infrastructure IPs</div>
+    <div class="stat-value">{{ data.infra_count }}</div>
+  </div>
+</div>
+
 <div class="chart-grid">
 
   <div class="chart-card">

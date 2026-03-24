@@ -3,8 +3,9 @@ from flask import Blueprint, render_template, request
 from apps.dashboard_web import cache as dcache
 from apps.dashboard_web.mantis.aggregations import (
     agg_mantis_attack_types,
-    agg_mantis_timeline,
     agg_mantis_blocklists,
+    agg_mantis_infra_count,
+    agg_mantis_timeline,
     agg_mantis_top_ips,
 )
 
@@ -20,9 +21,10 @@ def section():
     try:
         data = {
             "attack_types": agg_mantis_attack_types(),
-            "timeline":     agg_mantis_timeline(),
-            "blocklists":   agg_mantis_blocklists(),
-            "top_ips":      agg_mantis_top_ips(),
+            "timeline": agg_mantis_timeline(),
+            "blocklists": agg_mantis_blocklists(),
+            "top_ips": agg_mantis_top_ips(),
+            "infra_count": agg_mantis_infra_count(),
         }
     except Exception as exc:
         data = {"error": str(exc)}

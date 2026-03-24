@@ -2,7 +2,7 @@
 
 import collections
 
-from apps.mantis_web.data import MALICIOUS_ROWS, _raw_tickets
+from apps.mantis_web.data import INFRA_ROWS, MALICIOUS_ROWS, _raw_tickets
 
 
 def agg_mantis_attack_types() -> list:
@@ -11,7 +11,10 @@ def agg_mantis_attack_types() -> list:
     for row in MALICIOUS_ROWS:
         for at in row.get("attack_types", []):
             counter[at] += 1
-    return [{"name": k.replace("_", " ").title(), "value": v} for k, v in counter.most_common()]
+    return [
+        {"name": k.replace("_", " ").title(), "value": v}
+        for k, v in counter.most_common()
+    ]
 
 
 def agg_mantis_timeline() -> dict:
@@ -41,3 +44,8 @@ def agg_mantis_blocklists() -> dict:
 def agg_mantis_top_ips(n: int = 10) -> list:
     """Top N malicious IPs by ticket count."""
     return sorted(MALICIOUS_ROWS, key=lambda r: -r.get("tickets", 0))[:n]
+
+
+def agg_mantis_infra_count() -> int:
+    """Total number of known infrastructure IPs."""
+    return len(INFRA_ROWS)
