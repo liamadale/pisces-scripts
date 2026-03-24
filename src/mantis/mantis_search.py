@@ -3,7 +3,7 @@
 Mantis ticket search — offline index + REST API + web scraping fallback.
 
 Search priority:
-  1. Offline: data/tickets/tickets_index.json  (fast, no network)
+  1. Offline: data/tickets/indexed/tickets_index.json  (fast, no network)
   2. REST API: GET /api/rest/issues — requires MANTIS_API_TOKEN
   3. Web scraping: login + view_all_bug_page.php — requires PISCES_USERNAME/PASSWORD
 
@@ -26,7 +26,9 @@ from rich.table import Table
 from rich import box
 from rich.text import Text
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.utils.dns import setup_dns
 
@@ -52,12 +54,13 @@ def sensor_to_project(sensor_val: str) -> str | None:
         return None
     return sensors[0].removeprefix("hedgehog-")
 
+
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TICKETS_INDEX = os.path.join(_BASE, "data", "tickets", "tickets_index.json")
+TICKETS_INDEX = os.path.join(_BASE, "data", "tickets", "indexed", "tickets_index.json")
 
 # Regex patterns
 _IP_RE = re.compile(
-    r'\b(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})\b'
+    r"\b(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})\b"
 )
 _URL_RE = re.compile(r'https?://[^\s\'"<>]+')
 
@@ -68,6 +71,7 @@ _TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
 # ---------------------------------------------------------------------------
 # Helper: IP extraction
 # ---------------------------------------------------------------------------
+
 
 def _extract_ips(texts: list[str]) -> list[str]:
     """Extract unique public IPs (including defanged like 1.2.3[.]4) from text list."""
@@ -81,7 +85,30 @@ def _extract_ips(texts: list[str]) -> list[str]:
             seen.add(ip_str)
             try:
                 addr = ipaddress.ip_address(ip_str)
-                if not addr.is_private and not addr.is_loopback and not addr.is_reserved:
+                if (
+                    not addr.is_private
+                    and not addr.is_loopback
+                    and not addr.is_reserved
+                ):
+                    result.append(ip_str)
+            except ValueError:
+                pass
+    return result
+
+
+def _extract_private_ips(texts: list[str]) -> list[str]:
+    """Extract unique private/RFC1918 IPs from text list (excludes loopback/reserved)."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for text in texts:
+        for m in _IP_RE.finditer(text):
+            ip_str = f"{m.group(1)}.{m.group(2)}.{m.group(3)}.{m.group(4)}"
+            if ip_str in seen:
+                continue
+            seen.add(ip_str)
+            try:
+                addr = ipaddress.ip_address(ip_str)
+                if addr.is_private and not addr.is_loopback and not addr.is_reserved:
                     result.append(ip_str)
             except ValueError:
                 pass
@@ -91,6 +118,7 @@ def _extract_ips(texts: list[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 # Helper: link extraction
 # ---------------------------------------------------------------------------
+
 
 def _extract_links(text: str) -> tuple[list[str], list[str]]:
     """Extract URLs from text, classify into (kibana_links, ti_links)."""
@@ -109,8 +137,23 @@ def _extract_links(text: str) -> tuple[list[str], list[str]]:
 # Helper: normalize a raw Mantis API issue dict → standard ticket schema
 # ---------------------------------------------------------------------------
 
-def _normalize_issue(issue: dict, api_url: str) -> dict:
-    """Convert a raw MantisBT API issue dict to the normalized ticket schema."""
+
+def _normalize_issue(
+    issue: dict,
+    api_url: str,
+    handler_registry: set[int] | None = None,
+) -> dict:
+    """Convert a raw MantisBT API issue dict to the normalized ticket schema.
+
+    Args:
+        issue: Raw API issue dict.
+        api_url: Base URL for building ticket view links.
+        handler_registry: Optional set of all handler user IDs seen across the
+            full ticket corpus. When provided, notes written by *any* handler
+            (not just this ticket's own handler) are flagged is_admin_note=True.
+            This is critical for CISA/scanner tickets where the admin note may
+            be written by a different handler than the one assigned to the ticket.
+    """
     issue_id = str(issue.get("id", ""))
 
     handler_raw = issue.get("handler")
@@ -132,25 +175,44 @@ def _normalize_issue(issue: dict, api_url: str) -> dict:
             "id": note_reporter_raw.get("id", 0),
             "name": note_reporter_raw.get("name", ""),
         }
-        notes.append({
-            "id": n.get("id", 0),
-            "reporter": note_reporter,
-            "text": n.get("text", ""),
-            "created_at": n.get("created_at", ""),
-            "is_admin_note": handler_id is not None and note_reporter["id"] == handler_id,
-        })
+        note_reporter_id = note_reporter["id"]
+        is_admin = (handler_id is not None and note_reporter_id == handler_id) or (
+            handler_registry is not None and note_reporter_id in handler_registry
+        )
+        notes.append(
+            {
+                "id": n.get("id", 0),
+                "reporter": note_reporter,
+                "text": n.get("text", ""),
+                "created_at": n.get("created_at", ""),
+                "is_admin_note": is_admin,
+            }
+        )
 
     description = issue.get("description", "") or ""
     steps = issue.get("steps_to_reproduce", "") or ""
     additional = issue.get("additional_information", "") or ""
 
-    ips = _extract_ips([
-        issue.get("summary", "") or "",
-        description,
-        steps,
-        additional,
-        " ".join(n["text"] for n in notes),
-    ])
+    admin_note_texts = " ".join(n["text"] for n in notes if n["is_admin_note"])
+
+    ips = _extract_ips(
+        [
+            issue.get("summary", "") or "",
+            description,
+            steps,
+            additional,
+            admin_note_texts,
+        ]
+    )
+    private_ips = _extract_private_ips(
+        [
+            issue.get("summary", "") or "",
+            description,
+            steps,
+            additional,
+            admin_note_texts,
+        ]
+    )
 
     kibana_links, _ = _extract_links(steps)
     _, ti_links = _extract_links(additional)
@@ -178,6 +240,7 @@ def _normalize_issue(issue: dict, api_url: str) -> dict:
         "additional_information": additional,
         "notes": notes,
         "ips": ips,
+        "private_ips": private_ips,
         "kibana_links": kibana_links,
         "ti_links": ti_links,
         "note_count": len(notes),
@@ -188,6 +251,7 @@ def _normalize_issue(issue: dict, api_url: str) -> dict:
 # ---------------------------------------------------------------------------
 # Offline search
 # ---------------------------------------------------------------------------
+
 
 def _is_ip_query(query: str) -> bool:
     """Return True if query is a valid IPv4 address."""
@@ -233,7 +297,10 @@ def search_offline(query: str, city: str | None = None) -> list[dict]:
 # REST API search (primary live method)
 # ---------------------------------------------------------------------------
 
-def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> list[dict]:
+
+def search_via_api(
+    query: str, city: str | None = None, max_pages: int = 10
+) -> list[dict]:
     """Fetch issues from MantisBT REST API and filter client-side for query string."""
     api_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
     api_token = os.environ.get("MANTIS_API_TOKEN", "")
@@ -244,7 +311,7 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
     headers = {"Authorization": api_token}
     query_lower = query.lower()
     ip_query = _is_ip_query(query)
-    ip_re = re.compile(r'\b' + re.escape(query) + r'\b') if ip_query else None
+    ip_re = re.compile(r"\b" + re.escape(query) + r"\b") if ip_query else None
     results = []
 
     console.print(f"[dim]Querying Mantis REST API for '{query}'...[/dim]")
@@ -277,11 +344,15 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
 
         for issue in issues:
             text = (
-                issue.get("summary", "") + " " +
-                issue.get("description", "") + " " +
-                (issue.get("steps_to_reproduce") or "") + " " +
-                (issue.get("additional_information") or "") + " " +
-                " ".join(n.get("text", "") for n in issue.get("notes", []))
+                issue.get("summary", "")
+                + " "
+                + issue.get("description", "")
+                + " "
+                + (issue.get("steps_to_reproduce") or "")
+                + " "
+                + (issue.get("additional_information") or "")
+                + " "
+                + " ".join(n.get("text", "") for n in issue.get("notes", []))
             )
 
             if ip_query:
@@ -312,10 +383,9 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
 # Web scraping fallback
 # ---------------------------------------------------------------------------
 
+
 def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
     """Log in to MantisBT and scrape view_all_bug_page.php search results."""
-    from bs4 import BeautifulSoup
-
     mantis_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
     username = os.environ.get("PISCES_USERNAME", "")
     password = os.environ.get("PISCES_PASSWORD", "")
@@ -361,6 +431,7 @@ def search_via_scraping(query: str, city: str | None = None) -> list[dict]:
 
 def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dict]:
     from bs4 import BeautifulSoup
+
     soup = BeautifulSoup(html, "html.parser")
     results = []
 
@@ -381,7 +452,11 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
                 href = a["href"]
                 if a.text.strip().isdigit() and not issue_id:
                     issue_id = a.text.strip()
-                    ticket_url = href if href.startswith("http") else base_url + "/" + href.lstrip("/")
+                    ticket_url = (
+                        href
+                        if href.startswith("http")
+                        else base_url + "/" + href.lstrip("/")
+                    )
                 elif len(a.text.strip()) > 6:
                     summary = a.text.strip()
 
@@ -392,40 +467,52 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
             continue
 
         text_cells = [c.get_text(strip=True) for c in cells if not c.find("input")]
-        status_candidates = [t for t in text_cells if t.lower() in (
-            "new", "feedback", "acknowledged", "confirmed", "assigned",
-            "resolved", "closed"
-        )]
+        status_candidates = [
+            t
+            for t in text_cells
+            if t.lower()
+            in (
+                "new",
+                "feedback",
+                "acknowledged",
+                "confirmed",
+                "assigned",
+                "resolved",
+                "closed",
+            )
+        ]
         status = status_candidates[0] if status_candidates else ""
         date_candidates = [t for t in text_cells if re.search(r"\d{4}-\d{2}-\d{2}", t)]
         last_updated = date_candidates[-1][:10] if date_candidates else ""
 
-        results.append({
-            "id": issue_id,
-            "summary": summary,
-            "status": status,
-            "last_updated": last_updated,
-            "url": ticket_url,
-            # Minimal fields for scraping-only results
-            "resolution": "",
-            "severity": "",
-            "priority": "",
-            "created_at": "",
-            "updated_at": last_updated,
-            "project": "",
-            "category": "",
-            "reporter": {"id": 0, "name": ""},
-            "handler": None,
-            "description": "",
-            "steps_to_reproduce": "",
-            "additional_information": "",
-            "notes": [],
-            "ips": [],
-            "kibana_links": [],
-            "ti_links": [],
-            "note_count": 0,
-            "admin_note_count": 0,
-        })
+        results.append(
+            {
+                "id": issue_id,
+                "summary": summary,
+                "status": status,
+                "last_updated": last_updated,
+                "url": ticket_url,
+                # Minimal fields for scraping-only results
+                "resolution": "",
+                "severity": "",
+                "priority": "",
+                "created_at": "",
+                "updated_at": last_updated,
+                "project": "",
+                "category": "",
+                "reporter": {"id": 0, "name": ""},
+                "handler": None,
+                "description": "",
+                "steps_to_reproduce": "",
+                "additional_information": "",
+                "notes": [],
+                "ips": [],
+                "kibana_links": [],
+                "ti_links": [],
+                "note_count": 0,
+                "admin_note_count": 0,
+            }
+        )
 
     return results
 
@@ -433,6 +520,7 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def search(query: str, city: str | None = None) -> list[dict]:
     """Search for tickets matching query.
@@ -478,7 +566,9 @@ def display_results(results: list[dict]) -> None:
 
     for t in results:
         handler_name = t.get("handler", {}) or {}
-        handler_str = handler_name.get("name", "—") if isinstance(handler_name, dict) else "—"
+        handler_str = (
+            handler_name.get("name", "—") if isinstance(handler_name, dict) else "—"
+        )
         note_count = t.get("note_count", 0)
         admin_count = t.get("admin_note_count", 0)
         notes_str = f"{note_count}" + (f" ({admin_count}★)" if admin_count else "")
@@ -500,7 +590,11 @@ def display_results(results: list[dict]) -> None:
                 table.add_row(
                     "",
                     Text(f"★ {preview}", style="dim"),
-                    "", "", "", "", "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                 )
 
     console.print(table)
@@ -508,7 +602,9 @@ def display_results(results: list[dict]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES Mantis Ticket Search")
-    parser.add_argument("--query", required=True, help="Search term (IP, keyword, etc.)")
+    parser.add_argument(
+        "--query", required=True, help="Search term (IP, keyword, etc.)"
+    )
     parser.add_argument("--city", help="Municipality filter")
     args = parser.parse_args()
 
