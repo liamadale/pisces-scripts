@@ -1,0 +1,21 @@
+{% for r in rows %}
+<tr data-ip="{{ r.ip }}" onclick="handleInfraRowClick(this)" style="cursor:pointer">
+  <td><span style="font-weight:600">{{ r.ip }}</span></td>
+  <td style="font-size:0.82rem">{% if r.org_icon %}<i class="{{ r.org_icon }} org-icon org-{{ r.org_category }}" title="{{ r.org_name }}"></i>{% endif %}{{ r.org_name }}</td>
+  <td><span class="badge-cat">{{ r.org_category|replace('_',' ')|title }}</span></td>
+  <td>{{ r.actor|replace('_',' ')|title if r.actor else '—' }}</td>
+  <td>{{ r.protocols_str or '—' }}</td>
+  <td class="num">{{ r.ticket_count }}</td>
+  <td>{{ r.first_seen or '—' }}</td>
+  <td>{{ r.last_seen or '—' }}</td>
+</tr>
+{% else %}
+<tr class="loading-row"><td colspan="8">No results.</td></tr>
+{% endfor %}
+{# Hidden pagination meta row — read by JS afterSwap listener #}
+<tr id="infra-pager-meta"
+    data-total="{{ total }}"
+    data-page="{{ page }}"
+    data-per-page="{{ per_page }}"
+    data-total-pages="{{ total_pages }}"
+    style="display:none" aria-hidden="true"></tr>
