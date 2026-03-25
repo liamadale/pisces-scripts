@@ -563,6 +563,21 @@ tr.detail-row td {
   transform: translateX(0);
   box-shadow: -6px 0 32px var(--panel-shadow);
 }
+.detail-panel-resize {
+  position: absolute;
+  top: 0; left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 1;
+}
+.detail-panel-resize:hover,
+.detail-panel-resize.dragging {
+  background: var(--primary);
+  opacity: 0.35;
+}
 
 .detail-panel-header {
   display: flex;
@@ -614,7 +629,7 @@ tr.detail-row td {
   border: 1px solid var(--outline);
   border-radius: var(--radius-md);
   padding: 12px 16px;
-  margin-bottom: 12px;
+  /* margin-bottom omitted — parent .detail-panel-body gap: 12px handles spacing */
 }
 
 /* Stack enrich-cols vertically inside the narrow panel */
@@ -630,6 +645,12 @@ tr.detail-row td {
 }
 .detail-panel-slide .enrich-card {
   width: 100%;
+  margin-top: 8px;
+}
+/* Space between Enrich/Mantis btn-sm and the result that loads below */
+.detail-panel-body .enrich-col .btn-sm,
+.detail-panel-body .mantis-lookup-btns .btn-sm {
+  margin-bottom: 0;  /* gap/margin-top on card handles the space */
 }
 
 
@@ -672,6 +693,11 @@ tr.detail-row td {
 .enrich-card.benign    { border-color: var(--green); }
 .enrich-card.malicious { border-color: var(--red); }
 .enrich-card.unknown   { border-color: var(--yellow); }
+.enrich-card.not_found {
+  border-color: var(--outline);
+  border-style: dashed;
+  opacity: 0.75;
+}
 
 .enrich-card h3 {
   font-family: var(--sans);
@@ -841,6 +867,7 @@ tr.detail-row td {
 .filter-form label { font-family: var(--sans); font-size: 0.75rem; color: var(--on-surface-dim); }
 
 .filter-form input[type="text"],
+.filter-form input[type="number"],
 .filter-form select {
   background: var(--surface-container-high);
   border: 1px solid var(--outline);
