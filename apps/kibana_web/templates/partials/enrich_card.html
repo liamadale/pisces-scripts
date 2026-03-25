@@ -3,8 +3,9 @@
 {% set sd = result.get('shodan') %}
 {% set vt = result.get('virustotal') %}
 {% set cls = gn.get('classification', 'unknown') %}
+{% set all_empty = not gn and not ab and not sd and not vt %}
 
-<div class="enrich-card {{ cls }}">
+<div class="enrich-card {{ cls }}{% if all_empty %} not_found{% endif %}">
   <h3><i class="fa-solid fa-shield-halved"></i> Enrichment — {{ ip }}</h3>
 
   {# GreyNoise #}
@@ -27,7 +28,7 @@
       {% if gn.get('last_seen') %}<span class="k">Last seen</span><span class="v">{{ gn.last_seen }}</span>{% endif %}
     </div>
     {% else %}
-    <p style="color:var(--text-dim); font-size:0.82rem;">No GreyNoise data.</p>
+    <p style="color:var(--on-surface-dim); font-size:0.82rem;">No GreyNoise data.</p>
     {% endif %}
   </div>
 
