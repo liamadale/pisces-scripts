@@ -142,6 +142,7 @@
 </div>
 
 <aside id="detail-panel" class="detail-panel-slide" aria-label="Record detail">
+  <div class="detail-panel-resize" id="detail-panel-resize" title="Drag to resize"></div>
   <div id="detail-panel-content"></div>
 </aside>
 
@@ -217,6 +218,49 @@
       row.classList.add("row-selected");
     }
   };
+
+  /* ── Detail panel resize ────────────────────────────── */
+  (function() {
+    var STORAGE_KEY = 'detailPanelWidth';
+    var MIN_WIDTH   = 280;
+    var MAX_FRAC    = 0.92;
+    var panel       = document.getElementById('detail-panel');
+    var handle      = document.getElementById('detail-panel-resize');
+
+    function applyWidth(px) {
+      var max = Math.floor(window.innerWidth * MAX_FRAC);
+      px = Math.max(MIN_WIDTH, Math.min(px, max));
+      panel.style.width = px + 'px';
+      return px;
+    }
+
+    var saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+    if (!isNaN(saved)) applyWidth(saved);
+
+    handle.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      handle.classList.add('dragging');
+      panel.style.transition = 'none';
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+
+      function onMove(ev) {
+        applyWidth(window.innerWidth - ev.clientX);
+      }
+      function onUp() {
+        handle.classList.remove('dragging');
+        panel.style.transition = '';
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        var w = parseInt(panel.style.width, 10);
+        if (!isNaN(w)) localStorage.setItem(STORAGE_KEY, w);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+      }
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  })();
 
   /* ── Resizable columns ──────────────────────────────── */
   function initResizableColumns(table) {
@@ -370,20 +414,25 @@
     var bar = document.getElementById("htmx-bar");
     var pending = 0;
 
-    document.addEventListener("htmx:beforeRequest", function() {
+    function barStart() {
       pending++;
       bar.classList.remove("htmx-bar-done");
       bar.classList.add("htmx-bar-active");
-    });
-
-    document.addEventListener("htmx:afterRequest", function() {
+    }
+    function barDone() {
       pending = Math.max(0, pending - 1);
       if (pending === 0) {
         bar.classList.remove("htmx-bar-active");
         bar.classList.add("htmx-bar-done");
         setTimeout(function() { bar.classList.remove("htmx-bar-done"); }, 400);
       }
-    });
+    }
+
+    document.addEventListener("htmx:beforeRequest", barStart);
+    document.addEventListener("htmx:afterRequest", barDone);
+
+    /* Fire on any full-page navigation (link clicks, form submits, etc.) */
+    window.addEventListener("beforeunload", barStart);
   })();
 })();
 </script>

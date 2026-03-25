@@ -246,19 +246,26 @@
   (function() {
     var bar = document.getElementById("htmx-bar");
     var pending = 0;
-    document.addEventListener("htmx:beforeRequest", function() {
+
+    function barStart() {
       pending++;
       bar.classList.remove("htmx-bar-done");
       bar.classList.add("htmx-bar-active");
-    });
-    document.addEventListener("htmx:afterRequest", function() {
+    }
+    function barDone() {
       pending = Math.max(0, pending - 1);
       if (pending === 0) {
         bar.classList.remove("htmx-bar-active");
         bar.classList.add("htmx-bar-done");
         setTimeout(function() { bar.classList.remove("htmx-bar-done"); }, 400);
       }
-    });
+    }
+
+    document.addEventListener("htmx:beforeRequest", barStart);
+    document.addEventListener("htmx:afterRequest", barDone);
+
+    /* Fire on any full-page navigation (link clicks, form submits, etc.) */
+    window.addEventListener("beforeunload", barStart);
   })();
 })();
 </script>
