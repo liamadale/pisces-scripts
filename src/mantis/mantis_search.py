@@ -64,6 +64,23 @@ _IP_RE = re.compile(
 )
 _URL_RE = re.compile(r'https?://[^\s\'"<>]+')
 
+# Source/destination IP label patterns — used at index time to classify IP roles.
+# Covers both verbose and abbreviated template formats:
+#   "Source IP: x"  / "source.ip: x"  / "src_ip: x"  / "src IP: x"
+#   "Destination IP: x" / "dest ip: x" / "dest_ip: x"
+_SOURCE_IP_RE = re.compile(
+    r"(?:source[\s.]*(?:ip|address)|src[\s_]ip)\s*[:\s]+"
+    r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+    re.I,
+)
+_DEST_IP_RE = re.compile(
+    r"(?:dest(?:ination)?[\s.]*(?:ip|address)|dest[\s_]ip)\s*[:\s]+"
+    r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})",
+    re.I,
+)
+# Fields that carry structured source/dest labels (not free-form notes)
+_LABEL_FIELDS = ("description", "steps_to_reproduce", "additional_information")
+
 _KIBANA_DOMAINS = {"kibana", "opensearch", "elastic"}
 _TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
 
@@ -74,7 +91,14 @@ _TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
 
 
 def _extract_ips(texts: list[str]) -> list[str]:
-    """Extract unique public IPs (including defanged like 1.2.3[.]4) from text list."""
+    """Extract all unique routable IPs (public + RFC1918) from text list.
+
+    Handles defanged notation (e.g. ``1.2.3[.]4``).  Excludes loopback,
+    link-local, multicast, and reserved addresses — these carry no useful
+    threat-intelligence signal and would only create noise.  Private/RFC1918
+    addresses are intentionally included: an internal host calling out to a
+    known C2 server is as interesting as the C2 server itself.
+    """
     seen: set[str] = set()
     result: list[str] = []
     for text in texts:
@@ -85,10 +109,11 @@ def _extract_ips(texts: list[str]) -> list[str]:
             seen.add(ip_str)
             try:
                 addr = ipaddress.ip_address(ip_str)
-                if (
-                    not addr.is_private
-                    and not addr.is_loopback
-                    and not addr.is_reserved
+                if not (
+                    addr.is_loopback
+                    or addr.is_link_local
+                    or addr.is_multicast
+                    or addr.is_reserved
                 ):
                     result.append(ip_str)
             except ValueError:
@@ -97,22 +122,31 @@ def _extract_ips(texts: list[str]) -> list[str]:
 
 
 def _extract_private_ips(texts: list[str]) -> list[str]:
-    """Extract unique private/RFC1918 IPs from text list (excludes loopback/reserved)."""
-    seen: set[str] = set()
-    result: list[str] = []
-    for text in texts:
-        for m in _IP_RE.finditer(text):
-            ip_str = f"{m.group(1)}.{m.group(2)}.{m.group(3)}.{m.group(4)}"
-            if ip_str in seen:
-                continue
-            seen.add(ip_str)
-            try:
-                addr = ipaddress.ip_address(ip_str)
-                if addr.is_private and not addr.is_loopback and not addr.is_reserved:
-                    result.append(ip_str)
-            except ValueError:
-                pass
-    return result
+    """Return only the RFC1918 addresses from *texts* (derived subset of _extract_ips)."""
+    return [ip for ip in _extract_ips(texts) if ipaddress.ip_address(ip).is_private]
+
+
+def _classify_ip_roles(
+    label_texts: list[str],
+    all_ips: list[str],
+) -> tuple[list[str], list[str], list[str]]:
+    """Partition *all_ips* into (ip_src, ip_dest, ip_unknown) using label regexes.
+
+    Only *label_texts* (description / steps_to_reproduce / additional_information)
+    are searched — free-form admin notes are excluded to avoid false role
+    assignments from phrases like "attacker 1.2.3.4 targeting our sensor 5.6.7.8".
+
+    An IP that appears as both source and destination (rare but possible in
+    multi-event tickets) is classified as source, which is the more conservative
+    choice for the threat DB.
+    """
+    combined = "\n".join(filter(None, label_texts))
+    src = frozenset(m.group(1) for m in _SOURCE_IP_RE.finditer(combined))
+    dest = frozenset(m.group(1) for m in _DEST_IP_RE.finditer(combined))
+    ip_src = [ip for ip in all_ips if ip in src]
+    ip_dest = [ip for ip in all_ips if ip in dest and ip not in src]
+    ip_unknown = [ip for ip in all_ips if ip not in src and ip not in dest]
+    return ip_src, ip_dest, ip_unknown
 
 
 # ---------------------------------------------------------------------------
@@ -204,14 +238,11 @@ def _normalize_issue(
             admin_note_texts,
         ]
     )
-    private_ips = _extract_private_ips(
-        [
-            issue.get("summary", "") or "",
-            description,
-            steps,
-            additional,
-            admin_note_texts,
-        ]
+    private_ips = [ip for ip in ips if ipaddress.ip_address(ip).is_private]
+
+    ip_src, ip_dest, ip_unknown = _classify_ip_roles(
+        [description, steps, additional],
+        ips,
     )
 
     kibana_links, _ = _extract_links(steps)
@@ -241,6 +272,9 @@ def _normalize_issue(
         "notes": notes,
         "ips": ips,
         "private_ips": private_ips,
+        "ip_src": ip_src,
+        "ip_dest": ip_dest,
+        "ip_unknown": ip_unknown,
         "kibana_links": kibana_links,
         "ti_links": ti_links,
         "note_count": len(notes),
