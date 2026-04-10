@@ -1,17 +1,20 @@
 {% for r in rows %}
 <tr data-ip="{{ r.ip }}"
     onclick="handleFpRowClick(this)"
+    class="{% if r.category_raw == 'benign_true_positive' %}row-benign-tp{% endif %}"
     style="cursor:pointer">
   <td><span style="font-weight:600">{{ r.ip }}</span></td>
   <td style="font-size:0.82rem">{% if r.org_icon %}<i class="{{ r.org_icon }} org-icon org-{{ r.org_category }}" title="{{ r.org_name }}"></i>{% endif %}{{ r.org_name }}</td>
   <td>
-    {% set cat = r.category_raw|lower %}
-    {% if cat == 'benign' or 'benign' in cat %}
-      <span class="badge badge-fp-benign">{{ r.category }}</span>
-    {% elif 'malicious' in cat %}
-      <span class="badge badge-fp-malicious_blocked">{{ r.category }}</span>
-    {% elif cat == 'suspicious' %}
-      <span class="badge badge-fp-suspicious">{{ r.category }}</span>
+    {% set cat = r.category_raw %}
+    {% if cat == 'benign_true_positive' %}
+      <span class="badge badge-fp-benign-tp" title="Alert fired correctly — activity was authorized">{{ r.category }}</span>
+    {% elif cat == 'gov_scan' %}
+      <span class="badge badge-fp-gov-scan" title="Government authorized scan (CISA/DHS)">{{ r.category }}</span>
+    {% elif cat == 'auth_scanner' %}
+      <span class="badge badge-fp-auth-scanner" title="Commercial internet scanner">{{ r.category }}</span>
+    {% elif cat == 'false_positive' %}
+      <span class="badge badge-fp-analyst" title="Analyst-declared false positive">{{ r.category }}</span>
     {% else %}
       <span class="badge badge-gray">{{ r.category or '—' }}</span>
     {% endif %}

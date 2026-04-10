@@ -28,18 +28,18 @@ def _load_optional(name: str) -> list:
 # Well-known public DNS resolver metadata — name/provider for display
 # ---------------------------------------------------------------------------
 _KNOWN_DNS_RESOLVERS: dict[str, dict] = {
-    "8.8.8.8":         {"name": "Google Public DNS",    "provider": "Google"},
-    "8.8.4.4":         {"name": "Google Public DNS",    "provider": "Google"},
-    "1.1.1.1":         {"name": "Cloudflare DNS",       "provider": "Cloudflare"},
-    "1.0.0.1":         {"name": "Cloudflare DNS",       "provider": "Cloudflare"},
-    "9.9.9.9":         {"name": "Quad9 DNS",            "provider": "Quad9"},
-    "149.112.112.112": {"name": "Quad9 DNS",            "provider": "Quad9"},
-    "208.67.222.222":  {"name": "OpenDNS",              "provider": "Cisco Umbrella"},
-    "208.67.220.220":  {"name": "OpenDNS",              "provider": "Cisco Umbrella"},
-    "208.67.222.123":  {"name": "OpenDNS FamilyShield", "provider": "Cisco Umbrella"},
-    "208.67.220.123":  {"name": "OpenDNS FamilyShield", "provider": "Cisco Umbrella"},
-    "94.140.14.14":    {"name": "AdGuard DNS",          "provider": "AdGuard"},
-    "94.140.15.15":    {"name": "AdGuard DNS",          "provider": "AdGuard"},
+    "8.8.8.8": {"name": "Google Public DNS", "provider": "Google"},
+    "8.8.4.4": {"name": "Google Public DNS", "provider": "Google"},
+    "1.1.1.1": {"name": "Cloudflare DNS", "provider": "Cloudflare"},
+    "1.0.0.1": {"name": "Cloudflare DNS", "provider": "Cloudflare"},
+    "9.9.9.9": {"name": "Quad9 DNS", "provider": "Quad9"},
+    "149.112.112.112": {"name": "Quad9 DNS", "provider": "Quad9"},
+    "208.67.222.222": {"name": "OpenDNS", "provider": "Cisco Umbrella"},
+    "208.67.220.220": {"name": "OpenDNS", "provider": "Cisco Umbrella"},
+    "208.67.222.123": {"name": "OpenDNS FamilyShield", "provider": "Cisco Umbrella"},
+    "208.67.220.123": {"name": "OpenDNS FamilyShield", "provider": "Cisco Umbrella"},
+    "94.140.14.14": {"name": "AdGuard DNS", "provider": "AdGuard"},
+    "94.140.15.15": {"name": "AdGuard DNS", "provider": "AdGuard"},
 }
 _DNS_RESOLVER_IPS: frozenset[str] = frozenset(_KNOWN_DNS_RESOLVERS)
 
@@ -142,13 +142,51 @@ def _malicious_row(r: dict) -> dict:
     }
 
 
+_FP_GOV_ACTORS: frozenset[str] = frozenset({"cisa_cyhy"})
+_FP_SCANNER_ACTORS: frozenset[str] = frozenset(
+    {
+        "censys",
+        "rapid7",
+        "shadowserver",
+        "qualys",
+        "binaryedge",
+        "netspi",
+        "stretchoid",
+        "onyphe",
+        "leakix",
+        "nessus",
+    }
+)
+
+
+def _fp_category(r: dict) -> tuple[str, str]:
+    """Return (display_label, category_key) for an FP record.
+
+    Derives a richer category from disposition + actor since both
+    gov scans and commercial scanners carry disposition='false_positive'
+    but represent meaningfully different signal types.
+    """
+    disposition = r.get("disposition") or ""
+    actor = r.get("actor") or ""
+
+    if disposition == "benign_true_positive":
+        return "Benign True Positive", "benign_true_positive"
+    if actor in _FP_GOV_ACTORS:
+        return "Gov Scan", "gov_scan"
+    if actor in _FP_SCANNER_ACTORS:
+        actor_label = actor.replace("_", " ").title()
+        return f"Auth Scanner · {actor_label}", "auth_scanner"
+    return "False Positive", "false_positive"
+
+
 def _fp_row(r: dict) -> dict:
     ticket_ids = [str(tid) for tid in (r.get("ticket_ids") or [])]
     first_seen, last_seen = _ticket_date_range(ticket_ids)
+    category, category_raw = _fp_category(r)
     return {
         "ip": r["ip"],
-        "category": (r.get("disposition") or "—").replace("_", " ").title(),
-        "category_raw": r.get("disposition") or "",
+        "category": category,
+        "category_raw": category_raw,
         "threat_type": r.get("threat_type") or "—",
         "actor": r.get("actor") or "—",
         "score": int(r.get("score") or 0),
@@ -162,7 +200,8 @@ def _fp_row(r: dict) -> dict:
 
 
 def _infra_row(r: dict) -> dict:
-    org = r.get("org") or {}
+    _org = r.get("org") or {}
+    org = _org if isinstance(_org, dict) else {}
     return {
         "ip": r["ip"],
         "org_name": org.get("name") or "—",
@@ -229,9 +268,7 @@ ALL_ATTACK_TYPES: list[str] = sorted(
 ALL_BLOCKLISTS: list[str] = sorted(
     {bl for r in _raw_malicious for bl in r.get("blocklists", [])}
 )
-ALL_FP_CATEGORIES: list[str] = sorted(
-    {r.get("disposition", "") for r in _raw_fp if r.get("disposition")}
-)
+ALL_FP_CATEGORIES: list[str] = sorted({_fp_category(r)[1] for r in _raw_fp})
 ALL_INFRA_CATEGORIES: list[str] = sorted(
     {r.get("org_category", "") for r in INFRA_ROWS if r.get("org_category")}
 )
