@@ -22,10 +22,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 # Allow running as script from project root
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.enricher import greynoise, abuseipdb, shodan, virustotal
 from src.utils.dns import setup_dns
@@ -73,10 +74,15 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
 
     if classification == "benign":
         if offer_fp:
-            add_fp = input("\nGreyNoise classifies this as benign. Add FP filter? [y/N]: ").strip().lower()
+            add_fp = (
+                input("\nGreyNoise classifies this as benign. Add FP filter? [y/N]: ")
+                .strip()
+                .lower()
+            )
             if add_fp == "y":
                 # Lazy import to avoid circular dependency when called from querier
                 from src.querier.fp_manager import create_filter_interactive
+
                 name = gn.get("name", "")
                 hint = f"{name} — GreyNoise benign" if name else ""
                 create_filter_interactive(alert={"src_ip": ip}, comment_hint=hint)
@@ -84,14 +90,16 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
         return result
 
     if classification == "malicious":
-        console.print("[yellow]GreyNoise: malicious — querying AbuseIPDB for corroboration...[/yellow]\n")
+        console.print(
+            "[yellow]GreyNoise: malicious — querying AbuseIPDB for corroboration...[/yellow]\n"
+        )
     else:
         console.print("[dim]GreyNoise: not in dataset — querying AbuseIPDB...[/dim]\n")
 
     # ---- Steps 2-4: AbuseIPDB, Shodan, VirusTotal in parallel ----
     remaining = {
-        "abuseipdb":  abuseipdb.check_ip,
-        "shodan":     shodan.check_ip,
+        "abuseipdb": abuseipdb.check_ip,
+        "shodan": shodan.check_ip,
         "virustotal": virustotal.check_ip,
     }
     with ThreadPoolExecutor(max_workers=3) as pool:
@@ -133,7 +141,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES Threat Intel Enrichment")
     parser.add_argument("--ip", required=True, help="IP address to enrich")
     parser.add_argument("--no-fp", action="store_true", help="Skip FP filter offer")
-    parser.add_argument("--urls-only", action="store_true", help="Print reference URLs without making any API calls")
+    parser.add_argument(
+        "--urls-only",
+        action="store_true",
+        help="Print reference URLs without making any API calls",
+    )
     args = parser.parse_args()
 
     load_dotenv()

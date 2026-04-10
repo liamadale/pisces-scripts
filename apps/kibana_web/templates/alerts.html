@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
   <h1>{% if page_title %}{{ page_title }}{% else %}Alerts{% endif %}</h1>
-  <span class="count-note" id="row-count">{{ records|length }} record(s)</span>
+  <span class="count-note" id="row-count">{{ records|length }} unique record(s), {{ records|sum(attribute='freq') }} total</span>
 </div>
 
 <form class="filter-form" id="alert-filter-form"

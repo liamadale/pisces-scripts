@@ -29,6 +29,7 @@ CATEGORIES_FILE = os.path.join(FILTERS_DIR, "categories.yaml")
 # categories.yaml helpers
 # ---------------------------------------------------------------------------
 
+
 def load_categories() -> dict:
     """Load categories.yaml, returning the inner dict (never raises)."""
     if not os.path.exists(CATEGORIES_FILE):
@@ -43,7 +44,9 @@ def load_categories() -> dict:
 
 def save_categories(data: dict) -> None:
     with open(CATEGORIES_FILE, "w") as fh:
-        yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        yaml.dump(
+            data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
+        )
 
 
 def _categories_dict(data: dict) -> dict:
@@ -67,6 +70,7 @@ def ensure_subcategory(category: str, subcategory: str) -> None:
 # Filter file helpers
 # ---------------------------------------------------------------------------
 
+
 def filter_file_path(category: str, subcategory: str) -> str:
     return os.path.join(FILTERS_DIR, category, f"{subcategory}.yaml")
 
@@ -81,10 +85,14 @@ def load_filter_file(path: str) -> dict:
 def write_filter_file(path: str, data: dict) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
-        yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        yaml.dump(
+            data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
+        )
 
 
-def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "analyst") -> None:
+def append_clauses_to_file(
+    path: str, new_clauses: list[dict], author: str = "analyst"
+) -> None:
     """Append must_not clauses to an existing filter file, or create it."""
     if os.path.exists(path):
         existing = load_filter_file(path)
@@ -110,6 +118,7 @@ def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "an
 # Sync / validate helpers
 # ---------------------------------------------------------------------------
 
+
 def sync_categories() -> list[str]:
     """Scan filters/ directory and report files not in categories.yaml registry."""
     data = load_categories()
@@ -124,8 +133,12 @@ def sync_categories() -> list[str]:
             if not fname.endswith(".yaml") and not fname.endswith(".yml"):
                 continue
             subcategory = os.path.splitext(fname)[0]
-            if category not in cats or subcategory not in cats[category].get("subcategories", []):
-                warnings.append(f"  {category}/{fname} — not in categories.yaml registry")
+            if category not in cats or subcategory not in cats[category].get(
+                "subcategories", []
+            ):
+                warnings.append(
+                    f"  {category}/{fname} — not in categories.yaml registry"
+                )
 
     return warnings
 
@@ -148,10 +161,20 @@ def validate_all_filters() -> tuple[int, list[str]]:
                 if not isinstance(data, dict):
                     errors.append(f"{fpath}: top-level must be a mapping")
                     continue
-                required = {"description", "author", "date_added", "category", "subcategory", "enabled", "must_not"}
+                required = {
+                    "description",
+                    "author",
+                    "date_added",
+                    "category",
+                    "subcategory",
+                    "enabled",
+                    "must_not",
+                }
                 missing = required - set(data.keys())
                 if missing:
-                    errors.append(f"{fpath}: missing keys: {', '.join(sorted(missing))}")
+                    errors.append(
+                        f"{fpath}: missing keys: {', '.join(sorted(missing))}"
+                    )
                     continue
                 if not isinstance(data["must_not"], list):
                     errors.append(f"{fpath}: 'must_not' must be a list")
@@ -169,6 +192,7 @@ def validate_all_filters() -> tuple[int, list[str]]:
 # Interactive filter creation
 # ---------------------------------------------------------------------------
 
+
 def _prompt_category() -> tuple[str, bool]:
     """Return (category_name, is_new)."""
     data = load_categories()
@@ -177,7 +201,7 @@ def _prompt_category() -> tuple[str, bool]:
     console.print("\n[bold cyan]Select category:[/bold cyan]")
     for i, cat in enumerate(cats, 1):
         console.print(f"  [{i}] {cat}")
-    console.print(f"  [N] New category")
+    console.print("  [N] New category")
 
     choice = input("Choice: ").strip()
     if choice.lower() == "n":
@@ -199,7 +223,7 @@ def _prompt_subcategory(category: str) -> tuple[str, bool]:
     console.print(f"\n[bold cyan]Select subcategory for '{category}':[/bold cyan]")
     for i, sub in enumerate(subs, 1):
         console.print(f"  [{i}] {sub}")
-    console.print(f"  [N] New subcategory")
+    console.print("  [N] New subcategory")
 
     choice = input("Choice: ").strip()
     if choice.lower() == "n":
@@ -219,7 +243,9 @@ def _infer_clauses_from_alert(alert: dict, category: str) -> list[dict]:
     if category == "ips" and alert.get("src_ip"):
         clauses.append({"term": {"src_ip": alert["src_ip"]}})
     elif category == "signatures" and alert.get("alert", {}).get("signature"):
-        clauses.append({"match_phrase": {"alert.signature": alert["alert"]["signature"]}})
+        clauses.append(
+            {"match_phrase": {"alert.signature": alert["alert"]["signature"]}}
+        )
     elif category == "ports" and alert.get("dest_port"):
         clauses.append({"term": {"dest_port": alert["dest_port"]}})
     return clauses
@@ -235,7 +261,9 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
     console.print(f"  notice.note: [cyan]{notice_note}[/cyan]")
 
     if not src_ip or not notice_note:
-        console.print("[red]Missing src_ip or notice_note — cannot create narrow filter.[/red]")
+        console.print(
+            "[red]Missing src_ip or notice_note — cannot create narrow filter.[/red]"
+        )
         return
 
     subcategory, _ = _prompt_subcategory("notices")
@@ -255,6 +283,7 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
 
     fpath = filter_file_path("notices", subcategory)
     import yaml as _yaml
+
     preview = {
         "category": "notices",
         "subcategory": subcategory,
@@ -262,7 +291,11 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
         "must_not": [clause],
     }
     console.print("\n[bold cyan]Preview:[/bold cyan]")
-    console.print(_yaml.dump(preview, default_flow_style=False, allow_unicode=True, sort_keys=False))
+    console.print(
+        _yaml.dump(
+            preview, default_flow_style=False, allow_unicode=True, sort_keys=False
+        )
+    )
 
     confirm = input("Write filter? [y/N]: ").strip().lower()
     if confirm != "y":
@@ -274,7 +307,9 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
     console.print(f"[green]Written: {fpath}[/green]")
 
 
-def create_filter_interactive(alert: dict | None = None, author: str = "analyst", comment_hint: str = "") -> None:
+def create_filter_interactive(
+    alert: dict | None = None, author: str = "analyst", comment_hint: str = ""
+) -> None:
     """Guide analyst through creating a new FP filter, optionally seeded from an alert."""
     console.print("\n[bold yellow]=== False Positive Filter Creator ===[/bold yellow]")
 
@@ -293,7 +328,7 @@ def create_filter_interactive(alert: dict | None = None, author: str = "analyst"
     if alert:
         clauses = _infer_clauses_from_alert(alert, category)
         if clauses:
-            console.print(f"\n[green]Inferred clause(s) from alert:[/green]")
+            console.print("\n[green]Inferred clause(s) from alert:[/green]")
             for c in clauses:
                 console.print(f"  {c}")
             add_more = input("Add additional clauses? [y/N]: ").strip().lower()
@@ -304,7 +339,7 @@ def create_filter_interactive(alert: dict | None = None, author: str = "analyst"
 
     if add_more == "y":
         console.print("\nEnter must_not clauses as YAML (one clause per entry).")
-        console.print("Example:  term:\\n  src_ip: \"1.2.3.4\"")
+        console.print('Example:  term:\\n  src_ip: "1.2.3.4"')
         console.print("Enter a blank line to finish.\n")
         lines = []
         while True:
@@ -352,7 +387,11 @@ def create_filter_interactive(alert: dict | None = None, author: str = "analyst"
         "must_not": clauses,
     }
     console.print("\n[bold cyan]Preview:[/bold cyan]")
-    console.print(yaml.dump(preview, default_flow_style=False, allow_unicode=True, sort_keys=False))
+    console.print(
+        yaml.dump(
+            preview, default_flow_style=False, allow_unicode=True, sort_keys=False
+        )
+    )
 
     confirm = input("Write filter? [y/N]: ").strip().lower()
     if confirm != "y":
@@ -367,6 +406,7 @@ def create_filter_interactive(alert: dict | None = None, author: str = "analyst"
 # ---------------------------------------------------------------------------
 # CLI subcommands
 # ---------------------------------------------------------------------------
+
 
 def cmd_list() -> None:
     data = load_categories()
@@ -419,19 +459,29 @@ def cmd_edit(subcategory_name: str) -> None:
     # Search all categories for this subcategory
     for root, _dirs, files in os.walk(FILTERS_DIR):
         for fname in files:
-            if os.path.splitext(fname)[0] == subcategory_name and fname.endswith(".yaml"):
+            if os.path.splitext(fname)[0] == subcategory_name and fname.endswith(
+                ".yaml"
+            ):
                 fpath = os.path.join(root, fname)
                 subprocess.run([editor, fpath])
                 return
-    console.print(f"[red]No filter file found for subcategory '{subcategory_name}'[/red]")
+    console.print(
+        f"[red]No filter file found for subcategory '{subcategory_name}'[/red]"
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES FP Filter Manager")
     parser.add_argument("--list", action="store_true", help="List all current filters")
-    parser.add_argument("--validate", action="store_true", help="Validate all filter YAML files")
-    parser.add_argument("--edit", metavar="SUBCATEGORY", help="Open filter file in $EDITOR")
-    parser.add_argument("--new", action="store_true", help="Create a new FP filter interactively")
+    parser.add_argument(
+        "--validate", action="store_true", help="Validate all filter YAML files"
+    )
+    parser.add_argument(
+        "--edit", metavar="SUBCATEGORY", help="Open filter file in $EDITOR"
+    )
+    parser.add_argument(
+        "--new", action="store_true", help="Create a new FP filter interactively"
+    )
     args = parser.parse_args()
 
     if args.list:

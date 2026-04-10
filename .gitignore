@@ -261,3 +261,7 @@ reports/
 AGENT.md
 
 apps/threat_modeling/
+
+# Graphify (AI code analysis tool)
+.graphify*
+graphify-out/

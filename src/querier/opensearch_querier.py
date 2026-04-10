@@ -20,7 +20,9 @@ import sys
 
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import (
@@ -33,7 +35,6 @@ from src.querier.zeek_modules.base import (
     list_sensors,
     load_with_remap,
     match_all_sample,
-    query_opensearch,
     run_query,
     FILTERS_DIR,
 )
@@ -52,24 +53,32 @@ def _build_parser(module) -> argparse.ArgumentParser:
 
     # Shared args
     parser.add_argument(
-        "--time-range", default="now-24h",
-        help="Date-math time range (default: now-24h). Available: " + "  ".join(TIME_RANGES),
+        "--time-range",
+        default="now-24h",
+        help="Date-math time range (default: now-24h). Available: "
+        + "  ".join(TIME_RANGES),
     )
     parser.add_argument(
-        "--sensor", default="all",
+        "--sensor",
+        default="all",
         help="Comma-separated host.name list, or 'all' (default)",
     )
     parser.add_argument(
-        "--log-type", default="conn",
+        "--log-type",
+        default="conn",
         choices=_VALID_LOG_TYPES,
-        help="Zeek log type to query (default: conn). Options: " + ", ".join(_VALID_LOG_TYPES),
+        help="Zeek log type to query (default: conn). Options: "
+        + ", ".join(_VALID_LOG_TYPES),
     )
     parser.add_argument(
-        "--limit", type=int, default=50,
+        "--limit",
+        type=int,
+        default=50,
         help="Max raw results from OpenSearch (default: 50)",
     )
     parser.add_argument(
-        "--public-only", action="store_true",
+        "--public-only",
+        action="store_true",
         help="Exclude private/RFC1918 source IPs",
     )
     parser.add_argument(
@@ -84,35 +93,43 @@ def _build_parser(module) -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--no-filters", action="store_true",
+        "--no-filters",
+        action="store_true",
         help="Skip all YAML false positive filters (useful for debugging empty results)",
     )
     parser.add_argument(
-        "--no-interactive", action="store_true",
+        "--no-interactive",
+        action="store_true",
         help="Print results and exit without the interactive prompt",
     )
     parser.add_argument(
-        "--list-sensors", action="store_true",
+        "--list-sensors",
+        action="store_true",
         help="Aggregate on host.name and exit",
     )
     parser.add_argument(
-        "--list-log-types", action="store_true",
+        "--list-log-types",
+        action="store_true",
         help="Aggregate on event.dataset and exit",
     )
     parser.add_argument(
-        "--list-indices", action="store_true",
+        "--list-indices",
+        action="store_true",
         help="List all indices in the cluster and exit (for debugging)",
     )
     parser.add_argument(
-        "--match-all-sample", action="store_true",
+        "--match-all-sample",
+        action="store_true",
         help="Run a plain match_all and print raw hits (shows actual field names)",
     )
     parser.add_argument(
-        "--dump-query", action="store_true",
+        "--dump-query",
+        action="store_true",
         help="Print the ES query body and exit (for debugging)",
     )
     parser.add_argument(
-        "--use-cache", action="store_true",
+        "--use-cache",
+        action="store_true",
         help="Use cached OpenSearch response if available",
     )
 
