@@ -58,13 +58,6 @@ _BLOCKLIST_REFRESH_SECONDS = 86_400
 # Enrichment cache TTL: 30 days
 _CACHE_TTL_DAYS = 30
 
-# Shodan InternetDB base URL and rate limit
-_SHODAN_INTERNETDB_URL = "https://internetdb.shodan.io/{ip}"
-# Delay between live Shodan InternetDB requests.  internetdb.shodan.io is a free
-# unauthenticated endpoint with an undocumented rate limit.  1 req/sec stays
-# comfortably within observed limits; cached lookups are not throttled.
-_SHODAN_DELAY_SECONDS: float = 1.0
-
 # MaxMind GeoLite2 database paths (relative to data/ directory).
 # Download from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
 _MAXMIND_CITY_DB = os.path.join(_DATA_DIR, "GeoLite2-City.mmdb")
@@ -121,10 +114,6 @@ class OfflineEnrichment:
     Attributes:
         blocklist_hits: Blocklist source names for any IP in the ticket.
             e.g. ``["spamhaus_drop", "feodo", "threatfox"]``
-        shodan_tags: Shodan InternetDB tags seen on any IP in the ticket.
-            e.g. ``["scanner", "honeypot", "tor", "vpn", "cdn"]``
-        shodan_vulns: CVE IDs reported by Shodan InternetDB for any IP.
-            e.g. ``["CVE-2021-44228", "CVE-2021-41773"]``
         asn_tier: Reputation tier of the ASN hosting the IP.
             One of ``"bulletproof"``, ``"transit"``, ``"cloud"``,
             ``"residential"`` or ``None`` if unknown.
@@ -146,8 +135,6 @@ class OfflineEnrichment:
     """
 
     blocklist_hits: list[str] = field(default_factory=list)
-    shodan_tags: list[str] = field(default_factory=list)
-    shodan_vulns: list[str] = field(default_factory=list)
     asn_tier: str | None = None
     local_prior: str | None = None
     greynoise_classification: str | None = None
@@ -173,7 +160,7 @@ class OfflineEnrichmentProvider:
             project-root-relative ``data/`` directory.
     """
 
-    def __init__(self, data_dir: str | None = None, skip_shodan: bool = False) -> None:
+    def __init__(self, data_dir: str | None = None) -> None:
         if data_dir is not None:
             base = data_dir
             self._blocklist_dir = os.path.join(base, "blocklists")
@@ -200,8 +187,7 @@ class OfflineEnrichmentProvider:
         self._cidr_prefixes: dict[str, list[ipaddress.IPv4Network]] = {}
         self._ip_sets: dict[str, set[str]] = {}
 
-        # Enrichment cache: ip → {fetched_at, shodan_internetdb, greynoise,
-        #                          abuseipdb}
+        # Enrichment cache: ip → {fetched_at, greynoise, abuseipdb}
         self._ecache: dict[str, dict[str, Any]] = {}
 
         # Local registry stores
@@ -212,13 +198,6 @@ class OfflineEnrichmentProvider:
         self._asn_rep: dict[str, dict[str, str]] = {}
         # pyasn database object (None if not installed / no BGP dump)
         self._asndb: Any = None
-
-        self._skip_shodan: bool = skip_shodan
-
-        # Telemetry counters (reset by flush_and_reset_stats())
-        self._shodan_api_calls: int = 0
-        self._shodan_cache_hits: int = 0
-        self._shodan_cache_dirty: bool = False  # flush batched, not per-call
 
         # MaxMind GeoLite2 reader handles (None when not installed / DB absent)
         self._mmdb_city: Any = None
@@ -258,8 +237,6 @@ class OfflineEnrichmentProvider:
                 :class:`OfflineEnrichment` for use by the classifier.
         """
         blocklist_hits: set[str] = set()
-        shodan_tags: set[str] = set()
-        shodan_vulns: set[str] = set()
         asn_tier: str | None = None
         local_prior: str | None = None
         greynoise_classification: str | None = None
@@ -272,10 +249,6 @@ class OfflineEnrichmentProvider:
 
         for ip_addr in ticket.get("ips", []):
             blocklist_hits.update(self._lookup_blocklists(ip_addr))
-
-            tags, vulns = self._lookup_shodan_internetdb(ip_addr)
-            shodan_tags.update(tags)
-            shodan_vulns.update(vulns)
 
             tier = self._lookup_asn_tier(ip_addr)
             if tier and asn_tier is None:
@@ -314,8 +287,6 @@ class OfflineEnrichmentProvider:
 
         return OfflineEnrichment(
             blocklist_hits=sorted(blocklist_hits),
-            shodan_tags=sorted(shodan_tags),
-            shodan_vulns=sorted(shodan_vulns),
             asn_tier=asn_tier,
             local_prior=local_prior,
             greynoise_classification=greynoise_classification,
@@ -365,34 +336,6 @@ class OfflineEnrichmentProvider:
         if "greynoise" not in entry and "abuseipdb" not in entry:
             return False
         return self._is_cache_entry_fresh(entry)
-
-    def flush_shodan_cache(self) -> None:
-        """Flush any pending Shodan cache writes to disk.
-
-        Shodan InternetDB results are batched in memory and only written to
-        disk when this method is called (or when paid API results are saved).
-        Call this at the end of each generator pass to persist the cache.
-        """
-        if self._shodan_cache_dirty:
-            self._flush_cache()
-            self._shodan_cache_dirty = False
-
-    def stats(self) -> dict[str, int]:
-        """Return telemetry counters since the last reset.
-
-        Returns:
-            {
-                "shodan_api_calls":  number of live HTTP requests made,
-                "shodan_cache_hits": number of results served from cache,
-                "shodan_total":      total Shodan lookups attempted,
-            }
-        """
-        total = self._shodan_api_calls + self._shodan_cache_hits
-        return {
-            "shodan_api_calls": self._shodan_api_calls,
-            "shodan_cache_hits": self._shodan_cache_hits,
-            "shodan_total": total,
-        }
 
     # ------------------------------------------------------------------
     # Loader helpers (called once at __init__)
@@ -582,73 +525,6 @@ class OfflineEnrichmentProvider:
                 hits.append(source)
 
         return hits
-
-    def _lookup_shodan_internetdb(self, ip: str) -> tuple[list[str], list[str]]:
-        """Return (tags, vulns) from Shodan InternetDB for *ip*.
-
-        Uses a 30-day TTL cache stored in ``data/enrichment_cache.json``.
-        Gracefully returns empty lists on network errors.
-        """
-        if self._skip_shodan:
-            return [], []
-
-        entry = self._ecache.get(ip, {})
-        cached_sdb = entry.get("shodan_internetdb")
-        if cached_sdb is not None and self._is_cache_entry_fresh(entry):
-            self._shodan_cache_hits += 1
-            return cached_sdb.get("tags", []), cached_sdb.get("vulns", [])
-
-        # Skip private/loopback IPs — InternetDB won't have them
-        try:
-            addr = ipaddress.ip_address(ip)
-            if addr.is_private or addr.is_loopback or addr.is_reserved:
-                return [], []
-        except ValueError:
-            return [], []
-
-        self._shodan_api_calls += 1
-        try:
-            resp = requests.get(
-                _SHODAN_INTERNETDB_URL.format(ip=ip),
-                timeout=10,
-                headers={"User-Agent": "pisces/1.0"},
-            )
-        except requests.RequestException as exc:
-            logger.debug("Shodan InternetDB request failed for %s: %s", ip, exc)
-            time.sleep(_SHODAN_DELAY_SECONDS)
-            return [], []
-
-        # Throttle live requests to stay within internetdb.shodan.io rate limits.
-        # Cached lookups skip this sleep entirely.
-        time.sleep(_SHODAN_DELAY_SECONDS)
-
-        if resp.status_code == 404:
-            # Not in Shodan — cache empty result so we don't retry
-            entry = self._ecache.setdefault(ip, {})
-            entry["fetched_at"] = datetime.now(tz=timezone.utc).isoformat()
-            entry["shodan_internetdb"] = {"tags": [], "vulns": []}
-            self._shodan_cache_dirty = True
-            return [], []
-
-        if not resp.ok:
-            logger.debug("Shodan InternetDB HTTP %s for %s", resp.status_code, ip)
-            return [], []
-
-        try:
-            data = resp.json()
-        except ValueError:
-            return [], []
-
-        tags: list[str] = data.get("tags", [])
-        # InternetDB returns vulns as a list of CVE strings
-        vulns: list[str] = data.get("vulns", [])
-
-        entry = self._ecache.setdefault(ip, {})
-        entry["fetched_at"] = datetime.now(tz=timezone.utc).isoformat()
-        entry["shodan_internetdb"] = {"tags": tags, "vulns": vulns}
-        self._shodan_cache_dirty = True
-
-        return tags, vulns
 
     def _lookup_asn_tier(self, ip: str) -> str | None:
         """Return the reputation tier for the ASN that routes *ip*.

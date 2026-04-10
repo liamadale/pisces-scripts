@@ -57,7 +57,7 @@ def generate_infra_registry(
 
         processed += 1
         if processed % _PROGRESS_INTERVAL == 0:
-            _progress("Infra", processed, len(tickets), provider)
+            _progress("Infra", processed, len(tickets))
 
         result = classify_rules(ticket, provider.enrich_ticket(ticket))
         if result.disposition != Disposition.BENIGN_TRUE_POSITIVE:
@@ -182,8 +182,7 @@ def generate_infra_registry(
                 set(rec["protocols_seen"]) | set(_extract_protocols(all_text))
             )
 
-    provider.flush_shodan_cache()
-    _progress("Infra done", processed, len(tickets), provider)
+    _progress("Infra done", processed, len(tickets))
 
     if skipped_malicious:
         console.print(

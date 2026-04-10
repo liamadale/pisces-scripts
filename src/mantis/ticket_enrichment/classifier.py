@@ -1,8 +1,8 @@
-"""Layered ticket classification: enhanced rules (Layer 1) + ML inference (Layer 2).
+"""Rule-based ticket classification (Layer 1).
 
 Public API:
-    classify(ticket, use_ml=True)  -> ClassificationResult
-    classify_rules(ticket)         -> ClassificationResult  (Layer 1 only)
+    classify(ticket)       -> ClassificationResult
+    classify_rules(ticket) -> ClassificationResult
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass, field
 
 from .categories import ET_CATEGORY_MAP, Disposition, ThreatType, Actor
+from .offline import OfflineEnrichment
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -32,6 +33,32 @@ class ClassificationResult:
 REPUTATION_FP_THRESHOLD = 70  # >= 70 → FALSE_POSITIVE or BENIGN_TRUE_POSITIVE
 REPUTATION_TP_THRESHOLD = 30  # <= 30 → TRUE_POSITIVE
 # 31-69 → UNDETERMINED
+
+
+# ---------------------------------------------------------------------------
+# Pre-processing: defang IOC notation
+# ---------------------------------------------------------------------------
+
+_DEFANG_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"hxxps://", re.I), "https://"),
+    (re.compile(r"hxxp://", re.I), "http://"),
+    (re.compile(r"\[\.\]"), "."),
+    (re.compile(r"\(\.\)"), "."),
+    (re.compile(r"\[at\]", re.I), "@"),
+]
+
+
+def _defang(text: str) -> str:
+    """Restore defanged IOC notation to canonical form.
+
+    Analysts routinely defang IPs and URLs in notes to prevent accidental
+    clicking (e.g. ``93.174.93[.]12``, ``hxxp://evil.com``).  Applying this
+    before any keyword or regex matching ensures those indicators are
+    recognised by downstream checks.
+    """
+    for pattern, replacement in _DEFANG_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +159,11 @@ _ET_MEDIUM_CONFIDENCE = {
 # Layer 1b: Expanded keyword sets
 # ---------------------------------------------------------------------------
 
-# Strong FP signals in admin notes (+3).
-# Used both for the benign-override on ET-category tickets and for score accumulation.
-_FP_NOTE_STRONG = {
+# Explicit FP verdicts in admin notes — the analyst is deliberately declaring
+# the ticket benign.  These trigger the admin_note_fp_override hard return and
+# the ET-category benign override.  Only include phrases an analyst would use
+# intentionally to render a verdict, NOT incidental descriptors.
+_FP_NOTE_EXPLICIT = {
     "false positive",
     "fp",
     "benign",
@@ -150,7 +179,7 @@ _FP_NOTE_STRONG = {
     "no ioc",
     "expected behavior",
     "nothing malicious",
-    # Commonly-used phrases in dataset
+    # Commonly-used verdict phrases in dataset
     "whitelisted",
     "expected traffic",
     "internal scan",
@@ -169,24 +198,32 @@ _FP_NOTE_STRONG = {
     "cleared",
     "verified safe",
     "no concern",
-    "noise",
-    "background noise",
-    "internet noise",
-    # Missed FP verdicts found in analysis
+    # Outcome-based verdicts
     "not a threat",
     "not a risk",
     "no risk",
     "not successful",
     "was not successful",
-    "returned 0 bytes",
-    "did not get far",
-    "no response",
     "unrelated to the actual alert",
     "safe to close",
     "okay to close",
     "not compromised",
     "not related",
-    # External scanners: these are FP sources, not org infrastructure
+}
+
+# Contextual descriptors that suggest benign activity but are NOT explicit verdicts.
+# An analyst mentioning "noise" or "censys" is describing what they observed, not
+# necessarily declaring the ticket a false positive.  These are soft signals only —
+# they contribute a small positive score delta in accumulation but do NOT gate the
+# admin_note_fp_override or ET-category benign override hard returns.
+_FP_NOTE_CONTEXT = {
+    "noise",
+    "background noise",
+    "internet noise",
+    "returned 0 bytes",
+    "did not get far",
+    "no response",
+    # Scanner tool mentions — descriptive, not a verdict
     "censys",
     "shodan",
     "masscan",
@@ -300,24 +337,27 @@ _NEGATION_RE = re.compile(
 
 
 def _keyword_negated(text: str, keyword: str) -> bool:
-    """Return True if every occurrence of keyword in text is preceded by a negation.
+    """Return True if every occurrence of keyword in text is negated.
 
-    Scans an 8-word window before each match.  Returns False (not negated) as soon
-    as any affirmative occurrence is found, so the disqualifier still fires if the
-    keyword appears *both* in a negated and an affirmative context.
+    Uses spaCy dependency parsing when available for accurate
+    sentence-scoped negation detection.  Falls back to the regex
+    lookback window when spaCy is not installed.
     """
+    from . import nlp as _nlp_module
+
+    result = _nlp_module.is_negated(text, keyword)
+    if result is not None:
+        return result
+
+    # Regex fallback — 60-char lookback window.
     kw_re = re.compile(r"\b" + re.escape(keyword) + r"\b", re.I)
     found_any = False
     for m in kw_re.finditer(text):
         found_any = True
-        # Extract up to 60 characters before the match as the look-back window
         window_start = max(0, m.start() - 60)
         window = text[window_start : m.start()]
         if not _NEGATION_RE.search(window):
-            return False  # affirmative occurrence — not negated
-    # If we found the keyword but every occurrence was negated, return True.
-    # If we never found it at all, return False (caller's `kw in text` already
-    # confirmed presence, so this branch shouldn't be reached in practice).
+            return False
     return found_any
 
 
@@ -385,12 +425,25 @@ def _parse_enrichment_data(text: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _score_admin_notes(notes: list[dict]) -> tuple[int, list[str]]:
+def _score_admin_notes(
+    notes: list[dict],
+    structured_gn: str | None = None,
+    structured_abuse: int | None = None,
+) -> tuple[int, list[str]]:
     """Score admin notes for benign/malicious signals.
 
     Returns (reputation_delta, signals) where reputation_delta is a signed
     integer to be applied to a base reputation of 50. Positive values push
     toward 100 (benign), negative toward 0 (malicious).
+
+    Args:
+        notes: Raw ticket note dicts.
+        structured_gn: GreyNoise classification from ``OfflineEnrichment``
+            (structured path).  When set, text-based GreyNoise parsing is
+            skipped to avoid double-counting.
+        structured_abuse: AbuseIPDB confidence from ``OfflineEnrichment``
+            (structured path).  When set, text-based AbuseIPDB parsing is
+            skipped to avoid double-counting.
     """
     admin_texts = [n["text"] for n in notes if n.get("is_admin_note")]
     if not admin_texts:
@@ -400,11 +453,18 @@ def _score_admin_notes(notes: list[dict]) -> tuple[int, list[str]]:
     delta = 0
     signals: list[str] = []
 
-    for kw in _FP_NOTE_STRONG:
+    for kw in _FP_NOTE_EXPLICIT:
         if kw in all_lower:
             delta += 35  # 50 + 35 = 85
             signals.append(f"admin_note: '{kw}'")
             break  # one strong signal is enough
+
+    if delta == 0:
+        for kw in _FP_NOTE_CONTEXT:
+            if kw in all_lower:
+                delta += 10  # 50 + 10 = 60 → UNDETERMINED, not FP
+                signals.append(f"admin_note_context: '{kw}'")
+                break
 
     for kw in _INFRA_NOTE:
         if kw in all_lower:
@@ -412,23 +472,29 @@ def _score_admin_notes(notes: list[dict]) -> tuple[int, list[str]]:
             signals.append(f"infra: '{kw}'")
             break
 
-    # Check enrichment data in admin notes
-    enrichment = _parse_enrichment_data(" ".join(admin_texts))
-    if enrichment.get("greynoise_classification") == "benign":
-        delta += 25  # 50 + 25 = 75
-        signals.append("greynoise: benign")
-    elif enrichment.get("greynoise_classification") == "malicious":
-        delta -= 22  # 50 - 22 = 28
-        signals.append("greynoise: malicious")
+    # Check enrichment data in admin notes — skip if structured data is
+    # already present to avoid double-counting the same signal.
+    enrichment_text = _parse_enrichment_data(" ".join(admin_texts))
+    if structured_gn is None:
+        if enrichment_text.get("greynoise_classification") == "benign":
+            delta += 25  # 50 + 25 = 75
+            signals.append("greynoise: benign")
+        elif enrichment_text.get("greynoise_classification") == "malicious":
+            delta -= 22  # 50 - 22 = 28
+            signals.append("greynoise: malicious")
 
-    if enrichment.get("abuseipdb_confidence", 0) >= 80:
-        delta -= 22  # 50 - 22 = 28
-        signals.append(f"abuseipdb: {enrichment['abuseipdb_confidence']}% confidence")
-    elif enrichment.get("abuseipdb_confidence", 100) <= 10:
-        delta += 15  # 50 + 15 = 65
-        signals.append(
-            f"abuseipdb: {enrichment['abuseipdb_confidence']}% confidence (low)"
-        )
+    if structured_abuse is None:
+        if enrichment_text.get("abuseipdb_confidence", 0) >= 80:
+            delta -= 22  # 50 - 22 = 28
+            signals.append(
+                f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence"
+            )
+        elif enrichment_text.get("abuseipdb_confidence", 100) <= 10:
+            delta += 15  # 50 + 15 = 65
+            signals.append(
+                f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence"
+                " (low)"
+            )
 
     return delta, signals
 
@@ -499,20 +565,39 @@ def _has_dns_resolver_ip(ticket: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def classify_rules(ticket: dict) -> ClassificationResult:
-    """Layer 1: Enhanced rule-based classification."""
-    summary = ticket.get("summary", "")
+def classify_rules(
+    ticket: dict,
+    enrichment: OfflineEnrichment | None = None,
+) -> ClassificationResult:
+    """Layer 1: Enhanced rule-based classification.
+
+    Args:
+        ticket: Raw ticket dict from tickets_index.json.
+        enrichment: Optional offline enrichment hints (blocklist hits, Shodan
+            tags, ASN tier, local reputation prior, and optional paid API
+            results) produced by ``OfflineEnrichmentProvider.enrich_ticket()``.
+            When ``None`` the classifier falls back to the original text-only
+            logic with no degradation — all offline enrichment signals are
+            simply absent.
+    """
+
+    # --- Pre-processing: defang IOC notation ---
+    # Apply before any text extraction so defanged indicators are recognised.
+    def _field(key: str) -> str:
+        return _defang(ticket.get(key, "") or "")
+
+    summary = _field("summary")
     summary_lower = summary.lower()
     resolution = ticket.get("resolution", "").lower()
-    description = (ticket.get("description", "") or "").lower()
+    description = _defang(ticket.get("description", "") or "").lower()
     notes = ticket.get("notes", [])
-    admin_note_texts = [n["text"] for n in notes if n.get("is_admin_note")]
+    admin_note_texts = [_defang(n["text"]) for n in notes if n.get("is_admin_note")]
     all_note_lower = " ".join(admin_note_texts).lower()
 
     # --- Government/authorized scanner (highest priority) ---
     # Build a wider search string that includes ALL notes (not just admin notes)
     # for this specific check — CISA admissions may appear in regular user notes.
-    all_notes_text = " ".join(n["text"] for n in notes).lower()
+    all_notes_text = " ".join(_defang(n["text"]) for n in notes).lower()
     scanner_search_text = summary_lower + " " + all_notes_text + " " + description
     if _GOV_SCANNER_RE.search(scanner_search_text):
         actor = Actor.OTHER
@@ -529,6 +614,42 @@ def classify_rules(ticket: dict) -> ClassificationResult:
             ["gov_scanner_regex"],
         )
 
+    # --- Offline enrichment signals ---
+    # Signals produced by zero-cost offline lookups (blocklists, Shodan
+    # InternetDB, ASN reputation, local registry priors).  These run before
+    # any text-mining so that structured facts take precedence over keyword
+    # pattern matching.
+    offline_signals: list[str] = []
+    if enrichment is not None:
+        # Local reputation prior from previous analyst verdicts.
+        # All three variants are soft signals — they push the score but do not
+        # short-circuit evaluation.  Strong current-ticket evidence (blocklist
+        # hits, explicit admin malicious notes, unambiguous FP verdicts) takes
+        # precedence via the gates that follow.
+        if enrichment.local_prior in ("false_positive", "malicious", "conflicted"):
+            offline_signals.append(f"local_prior: {enrichment.local_prior}")
+
+        # Blocklist hits — treat like ET HIGH confidence (score 18).
+        # A strong FP note can still override (checked below in admin FP gate).
+        if enrichment.blocklist_hits:
+            has_admin_fp = any(kw in all_note_lower for kw in _FP_NOTE_EXPLICIT)
+            if not has_admin_fp:
+                return ClassificationResult(
+                    Disposition.TRUE_POSITIVE,
+                    ThreatType.BLOCKLIST_HIT,
+                    None,
+                    18,
+                    "rule",
+                    [f"blocklist: {', '.join(enrichment.blocklist_hits)}"],
+                )
+            offline_signals.append(
+                f"blocklist_hit_overridden_by_fp: {', '.join(enrichment.blocklist_hits)}"
+            )
+
+        # Bulletproof ASN — TP weight added to score accumulation below.
+        if enrichment.asn_tier == "bulletproof":
+            offline_signals.append("asn_tier: bulletproof")
+
     # --- Admin note FP override (must run before malicious keyword scan) ---
     # Admin notes explaining benign context frequently use words like "malicious",
     # "exploit", or "threat actor" in negative clauses ("not malicious", "not
@@ -537,7 +658,7 @@ def classify_rules(ticket: dict) -> ClassificationResult:
     # negated keywords never fire the hard disqualifier below.
     # The unambiguous-keyword guard prevents peripheral FP phrases ("returned 0 bytes")
     # from overriding notes that also contain clear threat signals.
-    if admin_note_texts and any(kw in all_note_lower for kw in _FP_NOTE_STRONG):
+    if admin_note_texts and any(kw in all_note_lower for kw in _FP_NOTE_EXPLICIT):
         has_unambiguous_threat = any(kw in all_note_lower for kw in _MALICIOUS_NOTE)
         if not has_unambiguous_threat:
             return ClassificationResult(
@@ -631,7 +752,7 @@ def classify_rules(ticket: dict) -> ClassificationResult:
         threat_type, prefix = et_result
 
         # Check for admin benign override first (covers missed FP verdicts in notes).
-        benign_override = any(kw in all_note_lower for kw in _FP_NOTE_STRONG)
+        benign_override = any(kw in all_note_lower for kw in _FP_NOTE_EXPLICIT)
         if benign_override:
             return ClassificationResult(
                 Disposition.FALSE_POSITIVE,
@@ -653,7 +774,10 @@ def classify_rules(ticket: dict) -> ClassificationResult:
         else:
             # ET INFO, ET POLICY, ET HUNTING, ET TOR, ET P2P, ET DNS — informational/policy
             # These fire on routine traffic frequently; require admin note to be credible.
-            base_rep = 42
+            # base_rep 38 keeps them UNDETERMINED by default but allows an admin
+            # malicious note (38 - 8 = 30) to push to TRUE_POSITIVE, and ensures
+            # they contribute accumulated negative reputation rather than disappearing.
+            base_rep = 38
 
         # Admin note (non-benign) lowers reputation by 8 (adds confidence)
         rep = (base_rep - 8) if admin_note_texts else base_rep
@@ -674,10 +798,69 @@ def classify_rules(ticket: dict) -> ClassificationResult:
     reputation = 50
     disposition = Disposition.UNDETERMINED
     threat_type: ThreatType | None = None
-    signals: list[str] = []
+    signals: list[str] = list(offline_signals)
+
+    # Offline enrichment score adjustments (applied first, before text scoring).
+    # Shodan scanner/honeypot tags are strong FP priors (+25).
+    # Bulletproof ASN is a strong TP prior (-20).
+    # GreyNoise / AbuseIPDB structured results from paid API cache.
+    # IP role: source (attacker) pushes toward TP (-8); dest (victim) pushes
+    # toward FP (+8) — explicit labelling raises or lowers classification
+    # confidence independent of the ticket keywords.
+    _structured_gn: str | None = None
+    _structured_abuse: int | None = None
+    if enrichment is not None:
+        # Local reputation prior: historical verdicts nudge the baseline before
+        # other signals are applied.  FP prior (+20) pushes toward benign;
+        # malicious prior (-22) pushes toward threat.  Both are weaker than a
+        # fresh explicit admin note (+35 / hard disqualifier) so current-ticket
+        # evidence dominates.  FP prior alone reaches exactly 70 (the FP
+        # threshold) — any malicious signal in the current ticket drops it back
+        # into UNDETERMINED or TRUE_POSITIVE.
+        if enrichment.local_prior == "false_positive":
+            reputation = max(0, min(100, reputation + 20))
+        elif enrichment.local_prior == "malicious":
+            reputation = max(0, min(100, reputation - 22))
+
+        if enrichment.asn_tier == "bulletproof":
+            reputation = max(0, min(100, reputation - 20))
+        # Structured GreyNoise / AbuseIPDB from enrichment cache
+        if enrichment.greynoise_classification == "benign":
+            reputation = max(0, min(100, reputation + 25))
+            signals.append("greynoise_structured: benign")
+            _structured_gn = enrichment.greynoise_classification
+        elif enrichment.greynoise_classification == "malicious":
+            reputation = max(0, min(100, reputation - 22))
+            signals.append("greynoise_structured: malicious")
+            _structured_gn = enrichment.greynoise_classification
+        if enrichment.abuseipdb_confidence is not None:
+            _structured_abuse = enrichment.abuseipdb_confidence
+            if enrichment.abuseipdb_confidence >= 80:
+                reputation = max(0, min(100, reputation - 22))
+                signals.append(
+                    f"abuseipdb_structured: {enrichment.abuseipdb_confidence}%"
+                )
+            elif enrichment.abuseipdb_confidence <= 10:
+                reputation = max(0, min(100, reputation + 15))
+                signals.append(
+                    f"abuseipdb_structured: {enrichment.abuseipdb_confidence}% (low)"
+                )
+        # IP role: explicit source/dest labelling adjusts confidence.
+        if enrichment.ip_role == "source":
+            reputation = max(0, min(100, reputation - 8))
+            signals.append("ip_role: source")
+        elif enrichment.ip_role == "dest":
+            reputation = max(0, min(100, reputation + 8))
+            signals.append("ip_role: dest")
+        # Country: surface in signals for traceability; no score adjustment
+        # (country alone is not a reliable TP/FP signal without corroboration).
+        if enrichment.country:
+            signals.append(f"country: {enrichment.country}")
 
     # Admin note scoring (Layer 1b) — returns a signed delta from 50
-    note_delta, note_signals = _score_admin_notes(notes)
+    note_delta, note_signals = _score_admin_notes(
+        notes, _structured_gn, _structured_abuse
+    )
     reputation = max(0, min(100, reputation + note_delta))
     signals.extend(note_signals)
     if reputation >= REPUTATION_FP_THRESHOLD:
@@ -710,18 +893,22 @@ def classify_rules(ticket: dict) -> ClassificationResult:
         if disposition == Disposition.UNDETERMINED:
             disposition = Disposition.FALSE_POSITIVE
 
-    # Layer 1c: Enrichment data from description
-    enrichment = _parse_enrichment_data(description + " " + all_note_lower)
-    if (
-        enrichment.get("abuseipdb_confidence", 0) >= 90
+    # Layer 1c: Enrichment data from description (text-parsed fallback).
+    # Skip each service's text-based parsing if a structured result from the
+    # enrichment cache is already present to avoid double-counting.
+    enrichment_data = _parse_enrichment_data(description + " " + all_note_lower)
+    if _structured_abuse is None and (
+        enrichment_data.get("abuseipdb_confidence", 0) >= 90
         and disposition == Disposition.UNDETERMINED
     ):
         reputation = 10
         disposition = Disposition.TRUE_POSITIVE
         threat_type = ThreatType.BLOCKLIST_HIT
-        signals.append(f"abuseipdb_confidence: {enrichment['abuseipdb_confidence']}%")
-    elif (
-        enrichment.get("greynoise_classification") == "benign"
+        signals.append(
+            f"abuseipdb_confidence: {enrichment_data['abuseipdb_confidence']}%"
+        )
+    elif _structured_gn is None and (
+        enrichment_data.get("greynoise_classification") == "benign"
         and disposition == Disposition.UNDETERMINED
     ):
         reputation = max(0, min(100, reputation + 25))
@@ -733,117 +920,9 @@ def classify_rules(ticket: dict) -> ClassificationResult:
     )
 
 
-# ---------------------------------------------------------------------------
-# Layer 2: ML inference (lazy-loaded)
-# ---------------------------------------------------------------------------
-
-_cached_model = None  # Cached (vectorizer, clf, label_names) tuple
-
-
-def invalidate_model_cache():
-    """Clear the cached ML model (call after retraining)."""
-    global _cached_model
-    _cached_model = None
-
-
-def _classify_ml(ticket: dict) -> ClassificationResult | None:
-    """Layer 2: TF-IDF + LinearSVC prediction. Returns None if model unavailable."""
-    global _cached_model
-
-    try:
-        from .trainer import load_model, build_feature_text
-    except ImportError:
-        return None
-
-    if _cached_model is None:
-        _cached_model = load_model()
-    if _cached_model is None:
-        return None
-    model_data = _cached_model
-
-    vectorizer, clf, label_names = model_data
-
-    # Handle stale model: if labels aren't valid Disposition values, reject
-    try:
-        for label in label_names:
-            Disposition(label)
-    except ValueError:
-        return None
-
-    text = build_feature_text(ticket)
-    X = vectorizer.transform([text])
-
-    prediction = clf.predict(X)[0]
-    # Get confidence from decision_function
-    decision = clf.decision_function(X)
-    if decision.ndim == 1:
-        # Binary case
-        confidence = abs(float(decision[0]))
-        confidence = min(1.0, confidence / 2.0)
-    else:
-        # Multi-class: use margin between top-2 classes as confidence signal
-        scores = decision[0]
-        sorted_scores = sorted(scores, reverse=True)
-        top_score = sorted_scores[0]
-        margin = (
-            sorted_scores[0] - sorted_scores[1]
-            if len(sorted_scores) > 1
-            else abs(top_score)
-        )
-        if top_score <= 0:
-            confidence = 0.0
-        else:
-            confidence = min(1.0, (top_score * 0.5 + margin * 0.5) / 1.5)
-
-    predicted_label = label_names[prediction]
-    disposition = Disposition(predicted_label)
-
-    # Map ML confidence (0-1) to 0-100 reputation.
-    # For benign predictions: reputation = 70 + round(confidence * 30) → 70-100
-    # Keeps ML results above REPUTATION_FP_THRESHOLD (70) when accepted.
-    if disposition in (Disposition.FALSE_POSITIVE, Disposition.BENIGN_TRUE_POSITIVE):
-        reputation = 70 + round(confidence * 30)
-    else:
-        # Malicious predictions are rejected by the gate in classify(), but map
-        # to low reputation (0-30) for completeness.
-        reputation = 30 - round(confidence * 30)
-    reputation = max(0, min(100, reputation))
-
-    return ClassificationResult(
-        disposition,
-        None,
-        None,
-        reputation,
-        "ml",
-        [f"svm_prediction: {predicted_label}"],
-    )
-
-
-# ---------------------------------------------------------------------------
-# Combined pipeline
-# ---------------------------------------------------------------------------
-
-
-def classify(ticket: dict, use_ml: bool = True) -> ClassificationResult:
-    """Classify a ticket using layered pipeline: rules first, then ML for ambiguous cases."""
-    result = classify_rules(ticket)
-
-    # If rules produced a definitive answer, use it
-    if result.disposition != Disposition.UNDETERMINED:
-        return result
-
-    # Layer 2: ML for tickets rules couldn't classify.
-    # Only accept ML predictions of false_positive or benign_true_positive —
-    # NOT true_positive. Reason: training data is ~92% true_positive (skewed),
-    # so the model defaults to TP for any ambiguous ticket. Rules already handle
-    # TP well; ML adds value by catching FP/benign patterns that rules missed.
-    if use_ml:
-        ml_result = _classify_ml(ticket)
-        if (
-            ml_result is not None
-            and ml_result.score >= REPUTATION_FP_THRESHOLD
-            and ml_result.disposition != Disposition.TRUE_POSITIVE
-        ):
-            return ml_result
-
-    return result
+def classify(
+    ticket: dict,
+    enrichment: OfflineEnrichment | None = None,
+) -> ClassificationResult:
+    """Classify a ticket using rule-based pipeline."""
+    return classify_rules(ticket, enrichment)

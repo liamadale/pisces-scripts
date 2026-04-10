@@ -63,11 +63,8 @@ def _print_classify_stats(
     )
     for i, ticket in enumerate(tickets, 1):
         if i % _PROGRESS_INTERVAL == 0:
-            s = provider.stats()
             console.print(
-                f"[dim]  classify-stats: {i:,}/{len(tickets):,} tickets"
-                f"  |  Shodan: {s['shodan_api_calls']} live"
-                f" / {s['shodan_cache_hits']} cached[/dim]"
+                f"[dim]  classify-stats: {i:,}/{len(tickets):,} tickets[/dim]"
             )
 
         result = classify_rules(ticket, provider.enrich_ticket(ticket))
@@ -81,8 +78,6 @@ def _print_classify_stats(
             admin_notes = [n for n in ticket.get("notes", []) if n.get("is_admin_note")]
             if admin_notes:
                 undetermined_with_notes += 1
-
-    provider.flush_shodan_cache()
 
     total = len(tickets)
     console.print(f"\n[bold]Classification breakdown ({total} tickets):[/bold]")
@@ -333,16 +328,6 @@ def main() -> None:
             "all registries are regenerated with the updated signals."
         ),
     )
-    parser.add_argument(
-        "--no-shodan",
-        action="store_true",
-        default=False,
-        help=(
-            "Skip Shodan InternetDB lookups entirely. Useful when rate-limited "
-            "by internetdb.shodan.io. Cached results are still used; only live "
-            "HTTP requests are suppressed."
-        ),
-    )
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -358,7 +343,7 @@ def main() -> None:
     console.print(f"[dim]Loaded {len(tickets):,} tickets.[/dim]")
 
     console.print("[dim]Initialising offline enrichment provider...[/dim]")
-    provider = OfflineEnrichmentProvider(skip_shodan=args.no_shodan)
+    provider = OfflineEnrichmentProvider()
     console.print(
         f"[dim]Provider ready — {len(provider._mal_by_ip):,} malicious priors, "
         f"{len(provider._fp_by_ip):,} FP priors, "

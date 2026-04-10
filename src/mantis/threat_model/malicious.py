@@ -119,7 +119,7 @@ def generate_threat_db(
 
         processed += 1
         if processed % _PROGRESS_INTERVAL == 0:
-            _progress("Threat DB", processed, len(tickets), provider)
+            _progress("Threat DB", processed, len(tickets))
 
         result = classify_rules(ticket, provider.enrich_ticket(ticket))
         if result.disposition != Disposition.TRUE_POSITIVE:
@@ -258,8 +258,7 @@ def generate_threat_db(
             ):
                 rec["summaries"].append(summary)
 
-    provider.flush_shodan_cache()
-    _progress("Threat DB done", processed, len(tickets), provider)
+    _progress("Threat DB done", processed, len(tickets))
 
     # Remove single-ticket entries with no independent corroboration.
     # An IP that appears in exactly one ticket, has no blocklist hit, and was
