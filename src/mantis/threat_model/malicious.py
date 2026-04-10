@@ -201,8 +201,9 @@ def generate_threat_db(
             role: str | None = "source" if ip in source_ips else None
 
             if ip not in ip_records:
-                # Country: prefer text-extracted value; fall back to API cache.
-                cached_country = provider.get_country(ip)
+                # Scalar metadata: prefer text-extracted values from the ticket;
+                # fall back to MaxMind GeoLite2 (country via AbuseIPDB cache first,
+                # then GeoLite2-City; ASN/ISP from GeoLite2-ASN).
                 ip_records[ip] = {
                     "ip": ip,
                     "org": lookup_org(ip),
@@ -212,9 +213,9 @@ def generate_threat_db(
                     "ticket_count": 0,
                     "attack_types": [],
                     "blocklists": [],
-                    "country": country_code or cached_country,
-                    "isp": isp or None,
-                    "asn": asn or None,
+                    "country": country_code or provider.get_country(ip),
+                    "isp": isp or provider.get_isp(ip),
+                    "asn": asn or provider.get_asn(ip),
                     "usage_type": usage_type or None,
                     "role": role,
                     "summaries": [],
@@ -228,13 +229,14 @@ def generate_threat_db(
             rec["attack_types"] = sorted(set(rec["attack_types"]) | set(attack_types))
             rec["blocklists"] = sorted(set(rec["blocklists"]) | set(blocklists))
 
-            # Take first non-None value for scalar fields (prefer earlier tickets)
+            # Take first non-None value for scalar fields (prefer earlier tickets).
+            # Text-extracted values win over MaxMind; MaxMind fills gaps.
             if not rec["country"]:
                 rec["country"] = country_code or provider.get_country(ip)
-            if not rec["isp"] and isp:
-                rec["isp"] = isp
-            if not rec["asn"] and asn:
-                rec["asn"] = asn
+            if not rec["isp"]:
+                rec["isp"] = isp or provider.get_isp(ip)
+            if not rec["asn"]:
+                rec["asn"] = asn or provider.get_asn(ip)
             if not rec["usage_type"] and usage_type:
                 rec["usage_type"] = usage_type
             # Upgrade role: once confirmed as source, keep it.

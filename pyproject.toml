@@ -9,20 +9,29 @@ dependencies = [
     "rich>=13.0.0",
     "beautifulsoup4>=4.12.0",
     "flask>=3.0",
+    "geoip2>=4.8.0",
 ]
 
 [project.optional-dependencies]
 # AI assistant integration via MCP servers (Claude Code, Claude Desktop, kiro-cli)
 mcp = ["mcp[cli]>=1.0.0"]
 
-# ML-based ticket classifier (Layer 2 in mantis_index.py --use-ml)
-ml = ["scikit-learn>=1.3", "joblib>=1.3"]
+# NLP-enhanced ticket classification (spaCy dependency parsing, NER)
+nlp = [
+    "spacy>=3.7",
+]
+
+# Offline ASN/BGP reputation lookup (requires a BGP dump at data/asn_table.dat)
+# Download a dump via: python -m pyasn.scripts.pyasn_util_download
+offline-enrichment = [
+    "pyasn>=1.6.1",
+]
 
 # Everything
 all = [
     "mcp[cli]>=1.0.0",
-    "scikit-learn>=1.3",
-    "joblib>=1.3",
+    "spacy>=3.7",
+    "pyasn>=1.6.1",
 ]
 
 [dependency-groups]
