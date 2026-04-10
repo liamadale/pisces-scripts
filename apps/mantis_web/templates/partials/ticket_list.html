@@ -4,6 +4,7 @@
   <thead>
     <tr>
       <th>ID</th>
+      <th>Role</th>
       <th>Date</th>
       <th>Location</th>
       <th>Status</th>
@@ -26,6 +27,19 @@
         style="cursor:pointer">
       <td>
         <span class="ticket-id-link">#{{ tid }}</span>
+      </td>
+      <td>
+        {% if t.ip_src is not none %}
+          {% if ip in (t.ip_src or []) %}
+            <span class="badge badge-red" title="Source IP in this ticket" style="font-size:0.68rem"><i class="fa-solid fa-arrow-right-from-bracket"></i> src</span>
+          {% elif ip in (t.ip_dest or []) %}
+            <span class="badge badge-blue" title="Destination IP in this ticket" style="font-size:0.68rem"><i class="fa-solid fa-arrow-right-to-bracket"></i> dest</span>
+          {% elif ip in (t.ip_unknown or []) %}
+            <span class="badge badge-gray" title="Role undetermined" style="font-size:0.68rem"><i class="fa-solid fa-circle-question"></i> ?</span>
+          {% else %}
+            <span class="badge badge-gray" style="font-size:0.68rem">—</span>
+          {% endif %}
+        {% endif %}
       </td>
       <td style="color:var(--on-surface-dim);font-size:0.78rem">
         {{ (t.created_at or '')[:10] }}
@@ -92,5 +106,5 @@
 {% endif %}
 
 {% else %}
-<p class="tm-ticket-no-data">No tickets found for this IP.</p>
+<tr><td colspan="7" class="tm-ticket-no-data">No tickets found for this IP.</td></tr>
 {% endif %}

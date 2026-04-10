@@ -552,9 +552,21 @@ td.zero { color: var(--on-surface-dim); }
 
 /* FP category badges */
 .badge-fp-benign          { background: var(--badge-green-bg);  color: var(--green); }
-.badge-fp-malicious_blocked { background: var(--badge-red-bg); color: var(--red); }
+.badge-fp-benign-tp       { background: var(--badge-yellow-bg); color: var(--yellow); }
+.badge-fp-gov-scan        { background: var(--badge-green-bg);  color: var(--green); }
+.badge-fp-auth-scanner    { background: var(--badge-blue-bg);   color: var(--primary); }
+.badge-fp-analyst         { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
+.badge-fp-malicious_blocked { background: var(--badge-red-bg);  color: var(--red); }
 .badge-fp-unknown         { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
 .badge-fp-suspicious      { background: var(--badge-yellow-bg); color: var(--yellow); }
+
+/* Benign true positive rows — alert fired correctly but activity was authorized */
+tr.row-benign-tp {
+  border-left: 3px solid var(--yellow);
+}
+tr.row-benign-tp td:first-child {
+  padding-left: calc(var(--cell-pad, 10px) - 3px);
+}
 
 .badge-cat {
   display: inline-block;
@@ -1103,7 +1115,70 @@ tr.ticket-row-active {
 .htmx-request .htmx-indicator { display: inline; }
 
 
-/* ── 15. Utilities ────────────────────────────────────── */
+/* ── 15. Ticket IP role groups ───────────────────────── */
+
+.ticket-ip-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ip-role-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.ip-role-label {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  min-width: 74px;
+  padding-top: 2px;
+}
+
+.ip-role-src   .ip-role-label { color: var(--red); }
+.ip-role-dest  .ip-role-label { color: var(--primary); }
+.ip-role-unknown .ip-role-label { color: var(--on-surface-dim); }
+
+.ip-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ip-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  border: 1px solid transparent;
+}
+
+.ip-chip-src {
+  background: var(--badge-red-bg);
+  color: var(--red);
+  border-color: rgba(248, 81, 73, 0.25);
+}
+
+.ip-chip-dest {
+  background: var(--badge-blue-bg);
+  color: var(--primary);
+  border-color: rgba(79, 142, 247, 0.25);
+}
+
+.ip-chip-unknown {
+  background: var(--badge-gray-bg);
+  color: var(--on-surface-dim);
+}
+
+/* ── 16. Utilities ────────────────────────────────────── */
 
 .modal-backdrop {
   position: fixed;

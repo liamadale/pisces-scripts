@@ -55,8 +55,53 @@
 </div>
 {% endif %}
 
-{# IPs observed in this ticket #}
-{% if t.ips %}
+{# IP roles — use pre-computed fields when available, fall back to flat list #}
+{% set has_roles = t.ip_src is not none or t.ip_dest is not none or t.ip_unknown is not none %}
+{% if has_roles %}
+<div class="ticket-ip-roles">
+  {% if t.ip_src %}
+  <div class="ip-role-group ip-role-src">
+    <span class="ip-role-label">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i> Source
+    </span>
+    <div class="ip-role-chips">
+      {% for ip in (t.ip_src or []) %}
+      <code class="ip-chip ip-chip-src">{{ ip }}</code>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if t.ip_dest %}
+  <div class="ip-role-group ip-role-dest">
+    <span class="ip-role-label">
+      <i class="fa-solid fa-arrow-right-to-bracket"></i> Destination
+    </span>
+    <div class="ip-role-chips">
+      {% for ip in (t.ip_dest or []) %}
+      {% set is_private = ip.startswith('10.') or ip.startswith('192.168.') or ip.startswith('172.') %}
+      <code class="ip-chip ip-chip-dest">{% if is_private %}<i class="fa-solid fa-house" style="font-size:0.6rem;margin-right:3px;opacity:0.7"></i>{% endif %}{{ ip }}</code>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if t.ip_unknown %}
+  <div class="ip-role-group ip-role-unknown">
+    <span class="ip-role-label">
+      <i class="fa-solid fa-circle-question"></i> Unlabelled
+    </span>
+    <div class="ip-role-chips">
+      {% for ip in (t.ip_unknown or []) %}
+      {% set is_private = ip.startswith('10.') or ip.startswith('192.168.') or ip.startswith('172.') %}
+      <code class="ip-chip ip-chip-unknown">{% if is_private %}<i class="fa-solid fa-house" style="font-size:0.6rem;margin-right:3px;opacity:0.7"></i>{% endif %}{{ ip }}</code>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if not t.ip_src and not t.ip_dest and not t.ip_unknown %}
+  <span style="font-size:0.78rem;color:var(--on-surface-dim)">No IPs extracted.</span>
+  {% endif %}
+</div>
+{% elif t.ips %}
 <div style="font-size:0.78rem;color:var(--on-surface-dim);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
   <i class="fa-solid fa-network-wired"></i> IPs:
   {% for ip in (t.ips or [])[:20] %}
