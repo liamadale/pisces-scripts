@@ -1,20 +1,22 @@
-"""Hybrid ML + rule-based ticket classification pipeline.
+"""Rule-based ticket classification pipeline with optional NLP.
 
 Public API:
-    classify(ticket)          -> ClassificationResult
-    classify_rules(ticket)    -> ClassificationResult   (Layer 1 only)
-    train_model(tickets)      -> None                   (Layer 2 training)
+    classify(ticket)              -> ClassificationResult
+    classify_rules(ticket)        -> ClassificationResult
+    OfflineEnrichment             -- structured offline enrichment hints
+    OfflineEnrichmentProvider     -- aggregates offline signals for a ticket
+    nlp                           -> NLP helper module (graceful fallback)
 """
 
+from . import nlp
 from .categories import Disposition, ThreatType, Actor
 from .classifier import (
     classify,
     classify_rules,
     ClassificationResult,
-    invalidate_model_cache,
     is_known_dns_resolver,
 )
-from .trainer import train_model
+from .offline import OfflineEnrichment, OfflineEnrichmentProvider
 
 __all__ = [
     "Disposition",
@@ -23,7 +25,8 @@ __all__ = [
     "classify",
     "classify_rules",
     "ClassificationResult",
-    "train_model",
-    "invalidate_model_cache",
     "is_known_dns_resolver",
+    "OfflineEnrichment",
+    "OfflineEnrichmentProvider",
+    "nlp",
 ]
