@@ -1,0 +1,26 @@
+"""Shared Jinja2 globals and filters registered on all PISCES web apps."""
+
+from flask import Flask
+
+from src.querier.zeek_modules.base import is_private
+from src.utils.format import fmt_bytes
+from src.utils.ip_org import lookup_org
+
+
+def register_shared_helpers(app: Flask) -> None:
+    """Register shared Jinja2 globals and filters on a Flask app instance."""
+    app.jinja_env.filters["fmt_bytes"] = fmt_bytes
+
+    app.jinja_env.globals["is_private"] = is_private
+    app.jinja_env.globals["lookup_org"] = lookup_org
+    app.jinja_env.globals["mantis_status_badge"] = lambda s: {
+        "resolved": "badge-green",
+        "closed": "badge-green",
+        "new": "badge-blue",
+        "acknowledged": "badge-blue",
+    }.get(s, "badge-yellow")
+    app.jinja_env.globals["mantis_sev_badge"] = lambda s: {
+        "major": "badge-yellow",
+        "critical": "badge-red",
+        "minor": "badge-blue",
+    }.get(s, "badge-gray")

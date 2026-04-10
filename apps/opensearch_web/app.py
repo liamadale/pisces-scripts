@@ -1,13 +1,10 @@
 """Flask application factory and route definitions for PISCES Web UI."""
 
-import json
-
 from flask import Flask, render_template, request, abort
 
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import TIME_RANGES, is_private
-from src.utils.format import fmt_bytes, fmt_dur
-from src.utils.ip_org import lookup_org
+from src.querier.zeek_modules.base import TIME_RANGES
+from src.utils.format import fmt_dur
 from apps.opensearch_web import cache as wcache
 from apps.opensearch_web.queries import (
     MODULE_PARAM_KEYS,
@@ -15,26 +12,32 @@ from apps.opensearch_web.queries import (
     cached_run_query,
     run_cross_protocol_query,
 )
+from apps.shared.blueprints import (
+    make_cache_blueprint,
+    make_enrich_blueprint,
+    make_mantis_blueprint,
+)
+from apps.shared.jinja_globals import register_shared_helpers
+
+
+def _resolve_city(request):  # type: ignore[no-untyped-def]
+    from src.mantis.mantis_search import sensor_to_project
+
+    return sensor_to_project(request.args.get("sensor", "all"))
 
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
-    # Register Jinja2 filters
-    app.jinja_env.filters["fmt_bytes"] = fmt_bytes
+    register_shared_helpers(app)
+
+    # opensearch-specific filter
     app.jinja_env.filters["fmt_dur"] = fmt_dur
 
-    # Register Jinja2 globals
-    app.jinja_env.globals["is_private"] = is_private
-    app.jinja_env.globals["lookup_org"] = lookup_org
-    app.jinja_env.globals["mantis_status_badge"] = lambda s: {
-        "resolved": "badge-green", "closed": "badge-green",
-        "new": "badge-blue", "acknowledged": "badge-blue",
-    }.get(s, "badge-yellow")
-    app.jinja_env.globals["mantis_sev_badge"] = lambda s: {
-        "major": "badge-yellow", "critical": "badge-red",
-        "minor": "badge-blue",
-    }.get(s, "badge-gray")
+    # Register shared blueprints
+    app.register_blueprint(make_enrich_blueprint())
+    app.register_blueprint(make_mantis_blueprint(_resolve_city))
+    app.register_blueprint(make_cache_blueprint(wcache))
 
     # Make TIME_RANGES and MODULES available to all templates
     @app.context_processor
@@ -147,6 +150,7 @@ def create_app() -> Flask:
     @app.route("/api/filter/form")
     def api_filter_form():
         from src.querier.fp_manager import load_categories
+
         cats_data = load_categories()
         return render_template(
             "partials/filter_form.html",
@@ -164,35 +168,48 @@ def create_app() -> Flask:
     @app.route("/api/filter/create", methods=["POST"])
     def api_filter_create():
         from src.querier.fp_manager import (
-            append_clauses_to_file, ensure_subcategory, filter_file_path,
+            append_clauses_to_file,
+            ensure_subcategory,
+            filter_file_path,
         )
-        category    = request.form.get("category", "").strip()
+
+        category = request.form.get("category", "").strip()
         subcategory = request.form.get("subcategory", "").strip()
         filter_type = request.form.get("filter_type", "")
-        src_ip      = request.form.get("src_ip", "")
-        dest_ip     = request.form.get("dest_ip", "")
+        src_ip = request.form.get("src_ip", "")
+        dest_ip = request.form.get("dest_ip", "")
         notice_note = request.form.get("notice_note", "")
-        comment     = request.form.get("comment", "").strip()
-        idx         = request.form.get("idx", "0")
+        comment = request.form.get("comment", "").strip()
+        idx = request.form.get("idx", "0")
 
         if not category or not subcategory:
-            return render_template("partials/filter_result.html",
-                                   success=False, error="Category and subcategory are required.",
-                                   idx=idx)
+            return render_template(
+                "partials/filter_result.html",
+                success=False,
+                error="Category and subcategory are required.",
+                idx=idx,
+            )
 
         if filter_type == "src_ip":
             clause = {"term": {"src_ip": src_ip}}
         elif filter_type == "dest_ip":
             clause = {"term": {"dest_ip": dest_ip}}
         elif filter_type == "notice_src_ip_and_note":
-            clause = {"bool": {"must": [
-                {"term": {"src_ip": src_ip}},
-                {"term": {"zeek.notice.note": notice_note}},
-            ]}}
+            clause = {
+                "bool": {
+                    "must": [
+                        {"term": {"src_ip": src_ip}},
+                        {"term": {"zeek.notice.note": notice_note}},
+                    ]
+                }
+            }
         else:
-            return render_template("partials/filter_result.html",
-                                   success=False, error=f"Unknown filter type: {filter_type!r}",
-                                   idx=idx)
+            return render_template(
+                "partials/filter_result.html",
+                success=False,
+                error=f"Unknown filter type: {filter_type!r}",
+                idx=idx,
+            )
 
         if comment:
             clause["comment"] = comment
@@ -201,38 +218,17 @@ def create_app() -> Flask:
             path = filter_file_path(category, subcategory)
             append_clauses_to_file(path, [clause], author="web")
             ensure_subcategory(category, subcategory)
-            return render_template("partials/filter_result.html",
-                                   success=True, category=category, subcategory=subcategory,
-                                   idx=idx)
+            return render_template(
+                "partials/filter_result.html",
+                success=True,
+                category=category,
+                subcategory=subcategory,
+                idx=idx,
+            )
         except Exception as exc:
-            return render_template("partials/filter_result.html",
-                                   success=False, error=str(exc), idx=idx)
-
-    # ------------------------------------------------------------------
-    # GET /api/mantis/search  — HTMX: search Mantis tickets, return card partial
-    # ------------------------------------------------------------------
-    @app.route("/api/mantis/search")
-    def api_mantis_search():
-        from src.mantis.mantis_search import search, sensor_to_project
-        query = request.args.get("query", "").strip()
-        idx = request.args.get("idx", "0")
-        city = sensor_to_project(request.args.get("sensor", "all"))
-        tickets = search(query, city=city) if query else []
-        return render_template("partials/mantis_results.html",
-                               tickets=tickets, query=query, idx=idx)
-
-    # ------------------------------------------------------------------
-    # Cache debug endpoints
-    # ------------------------------------------------------------------
-    @app.route("/api/cache/stats")
-    def api_cache_stats():
-        s = wcache.stats()
-        return json.dumps({**s, "ttl": wcache.TTL}), 200, {"Content-Type": "application/json"}
-
-    @app.route("/api/cache/clear", methods=["GET", "POST"])
-    def api_cache_clear():
-        wcache.invalidate()
-        return "", 204
+            return render_template(
+                "partials/filter_result.html", success=False, error=str(exc), idx=idx
+            )
 
     # ------------------------------------------------------------------
     # GET /api/notice/summary  — HTMX: notice type frequency aggregation
@@ -240,8 +236,12 @@ def create_app() -> Flask:
     @app.route("/api/notice/summary")
     def api_notice_summary():
         from src.querier.zeek_modules.base import (
-            build_base_query, load_with_remap, query_opensearch, FILTERS_DIR,
+            build_base_query,
+            load_with_remap,
+            query_opensearch,
+            FILTERS_DIR,
         )
+
         mod = MODULES["notice"]
         search_params = build_search_params_from_request(request)
 
@@ -282,7 +282,9 @@ def create_app() -> Flask:
         raw = query_opensearch(body, params)
         buckets = []
         if raw:
-            buckets = raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
+            buckets = (
+                raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
+            )
 
         return render_template("partials/notice_summary.html", buckets=buckets)
 
@@ -292,8 +294,10 @@ def create_app() -> Flask:
     @app.route("/api/sensor/summary")
     def api_sensor_summary():
         from src.querier.zeek_modules.base import (
-            build_base_query, query_opensearch,
+            build_base_query,
+            query_opensearch,
         )
+
         search_params = build_search_params_from_request(request)
 
         body, params = build_base_query(
@@ -337,36 +341,6 @@ def create_app() -> Flask:
             "partials/sensor_summary.html",
             buckets=buckets,
             current_sensors=current_sensors,
-        )
-
-    # ------------------------------------------------------------------
-    # POST /api/enrich/<ip>  — HTMX: run enrichment, return card partial
-    # ------------------------------------------------------------------
-    @app.route("/api/enrich/<ip>", methods=["POST"])
-    def api_enrich(ip: str):
-        if is_private(ip):
-            return (
-                '<p class="empty-note">'
-                '<i class="fa-solid fa-house-lock"></i> Private IP — enrichment unavailable'
-                '</p>'
-            )
-        from src.enricher.threat_intel import enrich_ip
-        from src.enricher import greynoise, abuseipdb, shodan, virustotal
-
-        result = enrich_ip(ip, offer_fp=False)
-
-        urls = {
-            "greynoise": greynoise.URL.format(ip=ip),
-            "abuseipdb": abuseipdb.URL.format(ip=ip),
-            "shodan": shodan.URL.format(ip=ip),
-            "virustotal": virustotal.URL.format(ip=ip),
-        }
-
-        return render_template(
-            "partials/enrich_card.html",
-            ip=ip,
-            result=result,
-            urls=urls,
         )
 
     return app
