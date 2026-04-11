@@ -30,7 +30,11 @@ def create_app() -> Flask:
     @app.route("/api/cache/stats")
     def api_cache_stats():
         s = dcache.stats()
-        return json.dumps({**s, "ttl": dcache.TTL}), 200, {"Content-Type": "application/json"}
+        return (
+            json.dumps({**s, "ttl": dcache.TTL}),
+            200,
+            {"Content-Type": "application/json"},
+        )
 
     @app.route("/api/cache/clear", methods=["GET", "POST"])
     def api_cache_clear():

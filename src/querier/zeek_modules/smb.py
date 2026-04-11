@@ -32,17 +32,29 @@ class SmbModule(ZeekModule):
         clauses = []
         if search_params.get("smb_share"):
             # Match on either smb_mapping.path or smb_files.path
-            clauses.append({
-                "bool": {
-                    "should": [
-                        {"match_phrase": {"zeek.smb_mapping.path": search_params["smb_share"]}},
-                        {"match_phrase": {"zeek.smb_files.path": search_params["smb_share"]}},
-                    ],
-                    "minimum_should_match": 1,
+            clauses.append(
+                {
+                    "bool": {
+                        "should": [
+                            {
+                                "match_phrase": {
+                                    "zeek.smb_mapping.path": search_params["smb_share"]
+                                }
+                            },
+                            {
+                                "match_phrase": {
+                                    "zeek.smb_files.path": search_params["smb_share"]
+                                }
+                            },
+                        ],
+                        "minimum_should_match": 1,
+                    }
                 }
-            })
+            )
         if search_params.get("smb_action"):
-            clauses.append({"term": {"zeek.smb_files.action": search_params["smb_action"]}})
+            clauses.append(
+                {"term": {"zeek.smb_files.action": search_params["smb_action"]}}
+            )
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
@@ -64,23 +76,23 @@ class SmbModule(ZeekModule):
             smb_service = ""
 
         return {
-            "timestamp":   src.get("@timestamp", ""),
-            "sensor":      src.get("host", {}).get("name", ""),
-            "log_type":    dataset,
-            "src_ip":      src.get("source", {}).get("ip", ""),
-            "src_port":    src.get("source", {}).get("port"),
-            "dest_ip":     src.get("destination", {}).get("ip", ""),
-            "dest_port":   src.get("destination", {}).get("port"),
-            "smb_type":    smb_type,
-            "smb_action":  smb_action,
-            "smb_path":    smb_path,
-            "smb_name":    smb_name,
-            "smb_service":  smb_service,
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": dataset,
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
+            "smb_type": smb_type,
+            "smb_action": smb_action,
+            "smb_path": smb_path,
+            "smb_name": smb_name,
+            "smb_service": smb_service,
             "community_id": src.get("network", {}).get("community_id", ""),
-            "direction":    src.get("network", {}).get("direction", ""),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "direction": src.get("network", {}).get("direction", ""),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":         src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -91,19 +103,27 @@ class SmbModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",      lambda r: r.get("timestamp", "—")),
-        ("Sensor",         lambda r: r.get("sensor", "—")),
-        ("Src IP",         lambda r: r.get("src_ip", "—")),
-        ("Dst IP",         lambda r: r.get("dest_ip", "—") or "—"),
-        ("Type",           lambda r: r.get("smb_type", "—") or "—"),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        ("Dst IP", lambda r: r.get("dest_ip", "—") or "—"),
+        ("Type", lambda r: r.get("smb_type", "—") or "—"),
         ("Action/Service", lambda r: r.get("smb_action", "—") or "—"),
-        ("Path",           lambda r: r.get("smb_path", "—") or "—"),
-        ("Name",           lambda r: r.get("smb_name", "—") or "—"),
-        ("Comm ID",        lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",      lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",           lambda r: str(r.get("freq", "—"))),
+        ("Path", lambda r: r.get("smb_path", "—") or "—"),
+        ("Name", lambda r: r.get("smb_name", "—") or "—"),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -117,7 +137,9 @@ class SmbModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column(
+            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
+        )
         table.add_column("Path", no_wrap=True, max_width=30, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 
@@ -138,11 +160,13 @@ class SmbModule(ZeekModule):
 
     def add_args(self, parser) -> None:
         parser.add_argument(
-            "--share", dest="smb_share",
+            "--share",
+            dest="smb_share",
             help="Filter by SMB share path (match_phrase on smb_mapping.path OR smb_files.path)",
         )
         parser.add_argument(
-            "--action", dest="smb_action",
+            "--action",
+            dest="smb_action",
             help="Filter by SMB file action (term on zeek.smb_files.action)",
         )
 

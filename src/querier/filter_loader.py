@@ -34,7 +34,11 @@ def load_filters(
     filter_count = 0
 
     if not os.path.isdir(filters_dir):
-        return {"must_not": [], "filter_count": 0, "errors": [f"filters_dir not found: {filters_dir}"]}
+        return {
+            "must_not": [],
+            "filter_count": 0,
+            "errors": [f"filters_dir not found: {filters_dir}"],
+        }
 
     for root, _dirs, files in os.walk(filters_dir):
         for fname in sorted(files):
@@ -95,8 +99,10 @@ if __name__ == "__main__":
     filters_dir = os.path.join(base, "filters")
 
     result = load_filters(filters_dir)
-    print(f"Loaded {result['filter_count']} filter file(s), "
-          f"{len(result['must_not'])} must_not clause(s)")
+    print(
+        f"Loaded {result['filter_count']} filter file(s), "
+        f"{len(result['must_not'])} must_not clause(s)"
+    )
 
     if result["errors"]:
         print(f"\n{len(result['errors'])} error(s):")
@@ -107,5 +113,6 @@ if __name__ == "__main__":
 
     if "--verbose" in sys.argv:
         import json
+
         print("\nmust_not clauses:")
         print(json.dumps(result["must_not"], indent=2))

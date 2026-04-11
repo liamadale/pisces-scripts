@@ -26,6 +26,7 @@ _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 load_dotenv(os.path.abspath(_env_path))
 
 from src.utils.dns import setup_dns
+
 setup_dns()
 
 import requests
@@ -42,6 +43,7 @@ mcp = FastMCP("mantis")
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _ok(data) -> str:
     return json.dumps({"status": "ok", "data": data}, default=str)
@@ -63,6 +65,7 @@ def _mantis_session() -> requests.Session:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def search_tickets(

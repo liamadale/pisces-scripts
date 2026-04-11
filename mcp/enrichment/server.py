@@ -27,6 +27,7 @@ _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 load_dotenv(os.path.abspath(_env_path))
 
 from src.utils.dns import setup_dns
+
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
@@ -41,6 +42,7 @@ mcp = FastMCP("enrichment")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _ok(data) -> str:
     return json.dumps({"status": "ok", "data": data}, default=str)
 
@@ -52,6 +54,7 @@ def _err(msg: str) -> str:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def enrich_ip(ip: str) -> str:
@@ -76,9 +79,9 @@ def enrich_ip(ip: str) -> str:
 
         result["org"] = lookup_org(ip)
         result["urls"] = {
-            "greynoise":  greynoise.URL.format(ip=ip),
-            "abuseipdb":  abuseipdb.URL.format(ip=ip),
-            "shodan":     shodan.URL.format(ip=ip),
+            "greynoise": greynoise.URL.format(ip=ip),
+            "abuseipdb": abuseipdb.URL.format(ip=ip),
+            "shodan": shodan.URL.format(ip=ip),
             "virustotal": virustotal.URL.format(ip=ip),
         }
         return _ok(result)

@@ -37,7 +37,11 @@ def agg_opensearch_protocols(time_range: str) -> dict:
         }
     }
     raw = query_opensearch(body, params)
-    buckets = raw.get("aggregations", {}).get("protocols", {}).get("buckets", []) if raw else []
+    buckets = (
+        raw.get("aggregations", {}).get("protocols", {}).get("buckets", [])
+        if raw
+        else []
+    )
     return {
         "labels": [b["key"] for b in buckets],
         "counts": [b["doc_count"] for b in buckets],
@@ -72,7 +76,9 @@ def agg_opensearch_sensors(time_range: str) -> dict:
         }
     }
     raw = query_opensearch(body, params)
-    buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", []) if raw else []
+    buckets = (
+        raw.get("aggregations", {}).get("sensors", {}).get("buckets", []) if raw else []
+    )
     return {
         "labels": [b["key"] for b in buckets],
         "counts": [b["doc_count"] for b in buckets],
@@ -82,6 +88,7 @@ def agg_opensearch_sensors(time_range: str) -> dict:
 def agg_opensearch_notice_count(time_range: str) -> int:
     """Total Zeek notice events in the given time range."""
     from src.querier.zeek_modules import MODULES
+
     mod = MODULES["notice"]
     body, params = build_base_query(
         must_not=[],
@@ -108,6 +115,7 @@ def agg_opensearch_notice_count(time_range: str) -> int:
 def agg_opensearch_top_ips(time_range: str, limit: int = 15) -> dict:
     """Top source IPs by total cross-protocol frequency."""
     from apps.opensearch_web.queries import run_cross_protocol_query
+
     search_params = {
         "time_range": time_range,
         "sensor": "all",

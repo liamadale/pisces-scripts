@@ -35,21 +35,21 @@ class WeirdModule(ZeekModule):
     def parse_hit(self, src: dict) -> dict:
         weird = src.get("zeek", {}).get("weird", {})
         return {
-            "timestamp":  src.get("@timestamp", ""),
-            "sensor":     src.get("host", {}).get("name", ""),
-            "log_type":   src.get("event", {}).get("dataset", ""),
-            "src_ip":     src.get("source", {}).get("ip", ""),
-            "src_port":   src.get("source", {}).get("port"),
-            "dest_ip":    src.get("destination", {}).get("ip", ""),
-            "dest_port":  src.get("destination", {}).get("port"),
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": src.get("event", {}).get("dataset", ""),
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
             "weird_name": weird.get("name", ""),
             "weird_addl": weird.get("addl", ""),
-            "weird_peer":   weird.get("peer", ""),
+            "weird_peer": weird.get("peer", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "direction":    src.get("network", {}).get("direction", ""),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "direction": src.get("network", {}).get("direction", ""),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":         src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -59,17 +59,25 @@ class WeirdModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",   lambda r: r.get("timestamp", "—")),
-        ("Sensor",      lambda r: r.get("sensor", "—")),
-        ("Src IP",      lambda r: r.get("src_ip", "—")),
-        ("Dst IP",      lambda r: r.get("dest_ip", "—") or "—"),
-        ("Weird Name",  lambda r: r.get("weird_name", "—") or "—"),
-        ("Additional",  lambda r: r.get("weird_addl", "—") or "—"),
-        ("Comm ID",     lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",   lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",        lambda r: str(r.get("freq", "—"))),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        ("Dst IP", lambda r: r.get("dest_ip", "—") or "—"),
+        ("Weird Name", lambda r: r.get("weird_name", "—") or "—"),
+        ("Additional", lambda r: r.get("weird_addl", "—") or "—"),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -83,7 +91,9 @@ class WeirdModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column(
+            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
+        )
         table.add_column("Weird Name", no_wrap=True, max_width=25, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 
@@ -104,7 +114,8 @@ class WeirdModule(ZeekModule):
 
     def add_args(self, parser) -> None:
         parser.add_argument(
-            "--name", dest="weird_name",
+            "--name",
+            dest="weird_name",
             help="Filter by weird event name (term on zeek.weird.name)",
         )
 

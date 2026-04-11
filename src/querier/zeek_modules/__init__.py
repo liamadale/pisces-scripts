@@ -15,16 +15,16 @@ from .notice import NoticeModule
 from .weird import WeirdModule
 
 MODULES: dict = {
-    "conn":   ConnModule(),
-    "dns":    DnsModule(),
-    "http":   HttpModule(),
-    "ssl":    SslModule(),
-    "smtp":   SmtpModule(),
-    "rdp":    RdpModule(),
-    "smb":    SmbModule(),
-    "ssh":    SshModule(),
+    "conn": ConnModule(),
+    "dns": DnsModule(),
+    "http": HttpModule(),
+    "ssl": SslModule(),
+    "smtp": SmtpModule(),
+    "rdp": RdpModule(),
+    "smb": SmbModule(),
+    "ssh": SshModule(),
     "notice": NoticeModule(),
-    "weird":  WeirdModule(),
+    "weird": WeirdModule(),
 }
 
 __all__ = ["MODULES"]

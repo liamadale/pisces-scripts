@@ -19,7 +19,9 @@ def agg_kibana_severity(time_range: str) -> dict:
 
 def agg_kibana_signatures(time_range: str) -> dict:
     """Top 20 Suricata signatures by alert count."""
-    buckets = get_signature_frequency({"time_range": time_range, "no_filters": False, "severity": 3})
+    buckets = get_signature_frequency(
+        {"time_range": time_range, "no_filters": False, "severity": 3}
+    )
     # get_signature_frequency returns asc (rarest first) — reverse for top-N
     top = sorted(buckets, key=lambda b: -b["doc_count"])[:20]
     return {

@@ -31,7 +31,9 @@ class DnsModule(ZeekModule):
     def build_extra_must(self, search_params: dict) -> list:
         clauses = []
         if search_params.get("dns_query"):
-            clauses.append({"match_phrase": {"zeek.dns.query": search_params["dns_query"]}})
+            clauses.append(
+                {"match_phrase": {"zeek.dns.query": search_params["dns_query"]}}
+            )
         if search_params.get("rcode"):
             clauses.append({"term": {"zeek.dns.rcode_name": search_params["rcode"]}})
         if search_params.get("qtype"):
@@ -46,23 +48,23 @@ class DnsModule(ZeekModule):
         else:
             answers_str = str(answers) if answers else ""
         return {
-            "timestamp":  src.get("@timestamp", ""),
-            "sensor":     src.get("host", {}).get("name", ""),
-            "log_type":   src.get("event", {}).get("dataset", ""),
-            "src_ip":     src.get("source", {}).get("ip", ""),
-            "src_port":   src.get("source", {}).get("port"),
-            "dest_ip":    src.get("destination", {}).get("ip", ""),
-            "dest_port":  src.get("destination", {}).get("port"),
-            "query":      dns.get("query", ""),
-            "qtype":      dns.get("qtype_name", ""),
-            "rcode":      dns.get("rcode_name", ""),
-            "answers":      answers_str,
-            "rtt":          dns.get("rtt"),
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": src.get("event", {}).get("dataset", ""),
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
+            "query": dns.get("query", ""),
+            "qtype": dns.get("qtype_name", ""),
+            "rcode": dns.get("rcode_name", ""),
+            "answers": answers_str,
+            "rtt": dns.get("rtt"),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "direction":    src.get("network", {}).get("direction", ""),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "direction": src.get("network", {}).get("direction", ""),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":         src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -73,19 +75,27 @@ class DnsModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",  lambda r: r.get("timestamp", "—")),
-        ("Sensor",     lambda r: r.get("sensor", "—")),
-        ("Src IP",     lambda r: r.get("src_ip", "—")),
-        ("Resolver",   lambda r: r.get("dest_ip", "—") or "—"),
-        ("Query",      lambda r: r.get("query", "—") or "—"),
-        ("Type",       lambda r: r.get("qtype", "—") or "—"),
-        ("RCode",      lambda r: r.get("rcode", "—") or "—"),
-        ("Answers",    lambda r: r.get("answers", "—") or "—"),
-        ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",  lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",       lambda r: str(r.get("freq", "—"))),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        ("Resolver", lambda r: r.get("dest_ip", "—") or "—"),
+        ("Query", lambda r: r.get("query", "—") or "—"),
+        ("Type", lambda r: r.get("qtype", "—") or "—"),
+        ("RCode", lambda r: r.get("rcode", "—") or "—"),
+        ("Answers", lambda r: r.get("answers", "—") or "—"),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -119,7 +129,8 @@ class DnsModule(ZeekModule):
 
     def add_args(self, parser) -> None:
         parser.add_argument(
-            "--query", dest="dns_query",
+            "--query",
+            dest="dns_query",
             help="Filter by DNS query (match_phrase on zeek.dns.query)",
         )
         parser.add_argument(

@@ -35,24 +35,24 @@ class ConnModule(ZeekModule):
     def parse_hit(self, src: dict) -> dict:
         net = src.get("network", {})
         return {
-            "timestamp":    src.get("@timestamp", ""),
-            "sensor":       src.get("host", {}).get("name", ""),
-            "log_type":     src.get("event", {}).get("dataset", ""),
-            "src_ip":       src.get("source", {}).get("ip", ""),
-            "src_port":     src.get("source", {}).get("port"),
-            "dest_ip":      src.get("destination", {}).get("ip", ""),
-            "dest_port":    src.get("destination", {}).get("port"),
-            "proto":        _first(net.get("transport", "")),
-            "app_proto":    _first(net.get("protocol", "")),
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": src.get("event", {}).get("dataset", ""),
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
+            "proto": _first(net.get("transport", "")),
+            "app_proto": _first(net.get("protocol", "")),
             "community_id": net.get("community_id", ""),
-            "direction":    net.get("direction", ""),
-            "bytes_orig":   src.get("source", {}).get("bytes"),
-            "bytes_resp":   src.get("destination", {}).get("bytes"),
-            "duration":     src.get("zeek", {}).get("conn", {}).get("duration"),
-            "conn_state":   src.get("zeek", {}).get("conn", {}).get("conn_state"),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "direction": net.get("direction", ""),
+            "bytes_orig": src.get("source", {}).get("bytes"),
+            "bytes_resp": src.get("destination", {}).get("bytes"),
+            "duration": src.get("zeek", {}).get("conn", {}).get("duration"),
+            "conn_state": src.get("zeek", {}).get("conn", {}).get("conn_state"),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":         src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -64,23 +64,37 @@ class ConnModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",  lambda r: r.get("timestamp", "—")),
-        ("Sensor",     lambda r: r.get("sensor", "—")),
-        ("Src IP",     lambda r: r.get("src_ip", "—")),
-        ("Src Port",   lambda r: str(r["src_port"]) if r.get("src_port") is not None else "—"),
-        ("Dst IP",     lambda r: r.get("dest_ip", "—")),
-        ("Dst Port",   lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—"),
-        ("Proto",      lambda r: r.get("proto") or "—"),
-        ("App",        lambda r: r.get("app_proto") or "—"),
-        ("State",      lambda r: r.get("conn_state") or "—"),
-        ("Duration",   lambda r: _fmt_dur(r.get("duration"))),
-        ("↑ Bytes",    lambda r: _fmt_bytes(r.get("bytes_orig"))),
-        ("↓ Bytes",    lambda r: _fmt_bytes(r.get("bytes_resp"))),
-        ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",  lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",       lambda r: str(r.get("freq", "—"))),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        (
+            "Src Port",
+            lambda r: str(r["src_port"]) if r.get("src_port") is not None else "—",
+        ),
+        ("Dst IP", lambda r: r.get("dest_ip", "—")),
+        (
+            "Dst Port",
+            lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—",
+        ),
+        ("Proto", lambda r: r.get("proto") or "—"),
+        ("App", lambda r: r.get("app_proto") or "—"),
+        ("State", lambda r: r.get("conn_state") or "—"),
+        ("Duration", lambda r: _fmt_dur(r.get("duration"))),
+        ("↑ Bytes", lambda r: _fmt_bytes(r.get("bytes_orig"))),
+        ("↓ Bytes", lambda r: _fmt_bytes(r.get("bytes_resp"))),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -94,7 +108,9 @@ class ConnModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Flow", style="yellow", no_wrap=True, max_width=40, overflow="ellipsis")
+        table.add_column(
+            "Flow", style="yellow", no_wrap=True, max_width=40, overflow="ellipsis"
+        )
         table.add_column("App/State", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
@@ -107,7 +123,11 @@ class ConnModule(ZeekModule):
             app_proto = rec.get("app_proto") or ""
             proto = rec.get("proto") or ""
             conn_state = rec.get("conn_state") or ""
-            app_state = f"{app_proto or proto}/{conn_state}" if (app_proto or proto) else conn_state
+            app_state = (
+                f"{app_proto or proto}/{conn_state}"
+                if (app_proto or proto)
+                else conn_state
+            )
             table.add_row(
                 str(idx),
                 rec["timestamp"][5:16].replace("T", " "),

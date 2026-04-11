@@ -34,11 +34,7 @@ _fmt_dur = fmt_dur
 
 # Project root — four dirname() calls up from src/querier/zeek_modules/base.py
 _BASE = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__))
-        )
-    )
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 FILTERS_DIR = os.path.join(_BASE, "filters")
 
@@ -46,24 +42,34 @@ FILTERS_DIR = os.path.join(_BASE, "filters")
 # Constants
 # ---------------------------------------------------------------------------
 
-OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "https://pisces-opensearch.cyberrangepoulsbo.com")
+OPENSEARCH_URL = os.environ.get(
+    "OPENSEARCH_URL", "https://pisces-opensearch.cyberrangepoulsbo.com"
+)
 INDEX = "arkime_sessions3-*"
 
 # Field name translation: existing YAML filter field → Malcolm/Zeek field
 FIELD_MAP = {
-    "src_ip":    "source.ip",
-    "dest_ip":   "destination.ip",
-    "src_port":  "source.port",
+    "src_ip": "source.ip",
+    "dest_ip": "destination.ip",
+    "src_port": "source.port",
     "dest_port": "destination.port",
     "app_proto": "network.protocol",
-    "clientID":  "host.name",
+    "clientID": "host.name",
 }
 
 TIME_RANGES = [
-    "now-15m", "now-30m",
-    "now-1h",  "now-3h",  "now-6h", "now-12h",
-    "now-24h", "now-2d",  "now-3d", "now-7d",
-    "now-14d", "now-30d",
+    "now-15m",
+    "now-30m",
+    "now-1h",
+    "now-3h",
+    "now-6h",
+    "now-12h",
+    "now-24h",
+    "now-2d",
+    "now-3d",
+    "now-7d",
+    "now-14d",
+    "now-30d",
 ]
 
 # Non-routable CIDRs excluded by --public-only.
@@ -73,18 +79,19 @@ _PRIVATE_CIDRS = [
     "172.16.0.0/12",
     "192.168.0.0/16",
     "127.0.0.0/8",
-    "169.254.0.0/16",   # link-local / APIPA
+    "169.254.0.0/16",  # link-local / APIPA
     # IPv6
-    "::1/128",          # loopback
-    "fe80::/10",        # link-local
-    "fc00::/7",         # unique-local (fd00::/8 etc.)
-    "ff00::/8",         # multicast
+    "::1/128",  # loopback
+    "fe80::/10",  # link-local
+    "fc00::/7",  # unique-local (fd00::/8 etc.)
+    "ff00::/8",  # multicast
 ]
 
 
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
+
 
 def _first(val):
     """Return val as-is if scalar, or the first element if it's a list."""
@@ -101,7 +108,6 @@ def is_private(ip: str) -> bool:
         return False
 
 
-
 def _sensor_str(rec: dict) -> str:
     """Format the sensor(s) column for display."""
     sensors = rec.get("sensors")
@@ -112,6 +118,7 @@ def _sensor_str(rec: dict) -> str:
 # ---------------------------------------------------------------------------
 # Field remapping
 # ---------------------------------------------------------------------------
+
 
 def _remap_clause(clause: dict) -> dict:
     """Recursively remap Kibana field names to Malcolm/Zeek field names.
@@ -125,7 +132,16 @@ def _remap_clause(clause: dict) -> dict:
 
     result = {}
     for key, value in clause.items():
-        if key in ("term", "terms", "range", "match_phrase", "match", "wildcard", "prefix", "regexp"):
+        if key in (
+            "term",
+            "terms",
+            "range",
+            "match_phrase",
+            "match",
+            "wildcard",
+            "prefix",
+            "regexp",
+        ):
             remapped_inner = {}
             for field, field_val in value.items():
                 new_field = FIELD_MAP.get(field, field)
@@ -152,6 +168,7 @@ def _remap_clause(clause: dict) -> dict:
 # Cache helpers
 # ---------------------------------------------------------------------------
 
+
 def _cache_path(args_hash: str) -> str:
     return _cache_path_util(f"opensearch_{args_hash}.json")
 
@@ -164,6 +181,7 @@ _load_cache = load_cache
 # OpenSearch session + query
 # ---------------------------------------------------------------------------
 
+
 def _opensearch_session() -> tuple:
     """Return (base_url, authenticated Session) or (None, None) on missing creds."""
     opensearch_url = os.environ.get("OPENSEARCH_URL", OPENSEARCH_URL)
@@ -171,16 +189,20 @@ def _opensearch_session() -> tuple:
     password = os.environ.get("PISCES_PASSWORD", "")
 
     if not username or not password:
-        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
+        console.print(
+            "[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]"
+        )
         return None, None
 
     session = requests.Session()
     session.auth = (username, password)
     session.verify = False
-    session.headers.update({
-        "Content-Type": "application/json",
-        "osd-xsrf": "true",
-    })
+    session.headers.update(
+        {
+            "Content-Type": "application/json",
+            "osd-xsrf": "true",
+        }
+    )
     return opensearch_url, session
 
 
@@ -201,11 +223,15 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
         return None
 
     if resp.status_code == 401:
-        console.print("[red]OpenSearch authentication failed — check PISCES_USERNAME/PASSWORD[/red]")
+        console.print(
+            "[red]OpenSearch authentication failed — check PISCES_USERNAME/PASSWORD[/red]"
+        )
         return None
 
     if not resp.ok:
-        console.print(f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]")
+        console.print(
+            f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]"
+        )
         return None
 
     return resp.json()
@@ -215,9 +241,11 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
 # Filter loading
 # ---------------------------------------------------------------------------
 
+
 def load_with_remap(filters_dir: str) -> tuple:
     """Load filters and remap field names. Returns (must_not, fcount, errors)."""
     from src.querier.filter_loader import load_filters
+
     filter_result = load_filters(filters_dir)
     raw_must_not = filter_result["must_not"]
     fcount = filter_result["filter_count"]
@@ -229,6 +257,7 @@ def load_with_remap(filters_dir: str) -> tuple:
 # ---------------------------------------------------------------------------
 # Query building
 # ---------------------------------------------------------------------------
+
 
 def build_base_query(
     must_not: list,
@@ -247,9 +276,7 @@ def build_base_query(
 
     datasets: list of event.dataset values, or ["all"] to omit the filter.
     """
-    must_clauses: list = [
-        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}
-    ]
+    must_clauses: list = [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]
 
     if datasets and datasets != ["all"]:
         must_clauses.append({"terms": {"event.dataset": datasets}})
@@ -264,7 +291,9 @@ def build_base_query(
         must_clauses.append({"term": {"network.direction": direction}})
 
     if min_risk_score:
-        must_clauses.append({"range": {"event.risk_score_norm": {"gte": min_risk_score}}})
+        must_clauses.append(
+            {"range": {"event.risk_score_norm": {"gte": min_risk_score}}}
+        )
 
     must_clauses.extend(extra_must)
 
@@ -297,6 +326,7 @@ def build_base_query(
 # Deduplication
 # ---------------------------------------------------------------------------
 
+
 def deduplicate_zeek(records: list, key_fn) -> list:
     """Deduplicate records by key_fn, keeping the most recent per group.
 
@@ -328,15 +358,20 @@ def deduplicate_zeek(records: list, key_fn) -> list:
 # run_query
 # ---------------------------------------------------------------------------
 
+
 def run_query(module, search_params: dict) -> list:
     """Execute a full query cycle: load filters, build query, fetch, parse, dedup."""
     if search_params.get("no_filters"):
         must_not: list = []
-        console.print("[yellow]--no-filters: all false positive filters disabled[/yellow]")
+        console.print(
+            "[yellow]--no-filters: all false positive filters disabled[/yellow]"
+        )
     else:
         must_not, fcount, errors = load_with_remap(FILTERS_DIR)
         console.print("[dim]Loading false positive filters...[/dim]")
-        console.print(f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]")
+        console.print(
+            f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]"
+        )
         for err in errors:
             console.print(f"[yellow]Filter warning: {err}[/yellow]")
 
@@ -379,7 +414,9 @@ def run_query(module, search_params: dict) -> list:
         raw = query_opensearch(body, params)
         if raw is None:
             if search_params.get("raise_on_error"):
-                raise RuntimeError("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+                raise RuntimeError(
+                    "OpenSearch query failed — check credentials and OPENSEARCH_URL"
+                )
             return []
         _save_cache(raw, cpath)
 
@@ -397,6 +434,7 @@ def run_query(module, search_params: dict) -> list:
 # Interactive loop
 # ---------------------------------------------------------------------------
 
+
 def interactive_loop(records: list, search_params: dict, module, query_fn=None) -> None:
     """Interactive post-display prompt — dispatch to module for protocol actions.
 
@@ -406,7 +444,11 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
     _query_fn = query_fn if query_fn is not None else run_query
 
     from src.enricher.threat_intel import enrich_ip
-    from src.mantis.mantis_search import search as mantis_search, display_results as display_mantis, sensor_to_project
+    from src.mantis.mantis_search import (
+        search as mantis_search,
+        display_results as display_mantis,
+        sensor_to_project,
+    )
 
     last_record: dict | None = None
 
@@ -492,9 +534,12 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
 # Search-again prompt
 # ---------------------------------------------------------------------------
 
+
 def _search_again_prompt(current: dict, module) -> dict:
     """Prompt for new search parameters, shared + module-specific."""
-    console.print("\n[bold cyan]New Search Parameters[/bold cyan] [dim](Enter to keep current)[/dim]")
+    console.print(
+        "\n[bold cyan]New Search Parameters[/bold cyan] [dim](Enter to keep current)[/dim]"
+    )
     console.print("[dim]Time ranges: " + "  ".join(TIME_RANGES) + "[/dim]")
 
     def _ask(label: str, current_val) -> str:
@@ -510,7 +555,9 @@ def _search_again_prompt(current: dict, module) -> dict:
     new = dict(current)
     new["time_range"] = _ask("Time range", current.get("time_range", "now-24h"))
     if module.SENSOR_PARAM is not None:
-        new[module.SENSOR_PARAM] = _ask("Sensor (comma-sep or 'all')", current.get(module.SENSOR_PARAM, "all"))
+        new[module.SENSOR_PARAM] = _ask(
+            "Sensor (comma-sep or 'all')", current.get(module.SENSOR_PARAM, "all")
+        )
 
     pub_raw = _ask("Public only (y/n)", "y" if current.get("public_only") else "n")
     new["public_only"] = pub_raw.lower() in ("y", "yes")
@@ -518,7 +565,10 @@ def _search_again_prompt(current: dict, module) -> dict:
     src_raw = _ask("Src IP filter (blank to clear)", current.get("src_ip"))
     new["src_ip"] = src_raw if src_raw else None
 
-    dir_raw = _ask("Direction filter (inbound/outbound/internal/external/blank)", current.get("direction"))
+    dir_raw = _ask(
+        "Direction filter (inbound/outbound/internal/external/blank)",
+        current.get("direction"),
+    )
     new["direction"] = dir_raw if dir_raw else None
 
     limit_raw = _ask("Limit", current.get("limit", 500))
@@ -536,6 +586,7 @@ def _search_again_prompt(current: dict, module) -> dict:
 # ---------------------------------------------------------------------------
 # Diagnostic helpers
 # ---------------------------------------------------------------------------
+
 
 def list_sensors(time_range: str = "now-7d") -> None:
     """Aggregate on host.name and print all known sensors."""
@@ -658,7 +709,9 @@ def list_indices() -> None:
         return
 
     if not resp.ok:
-        console.print(f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]")
+        console.print(
+            f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]"
+        )
         return
 
     indices = resp.json()
@@ -666,7 +719,9 @@ def list_indices() -> None:
         console.print("[yellow]No indices found.[/yellow]")
         return
 
-    table = Table(title="OpenSearch indices (sorted by doc count)", box=box.SIMPLE_HEAVY)
+    table = Table(
+        title="OpenSearch indices (sorted by doc count)", box=box.SIMPLE_HEAVY
+    )
     table.add_column("Index", style="cyan")
     table.add_column("Docs", justify="right")
     table.add_column("Size", justify="right")
@@ -674,7 +729,9 @@ def list_indices() -> None:
 
     for entry in indices:
         health = entry.get("health", "")
-        health_color = {"green": "green", "yellow": "yellow", "red": "red"}.get(health, "white")
+        health_color = {"green": "green", "yellow": "yellow", "red": "red"}.get(
+            health, "white"
+        )
         table.add_row(
             entry.get("index", ""),
             entry.get("docs.count", "—"),
@@ -683,7 +740,9 @@ def list_indices() -> None:
         )
 
     console.print(table)
-    console.print(f"[dim]Current INDEX pattern: '{INDEX}' — update the INDEX constant if needed.[/dim]")
+    console.print(
+        f"[dim]Current INDEX pattern: '{INDEX}' — update the INDEX constant if needed.[/dim]"
+    )
 
 
 def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
@@ -691,11 +750,17 @@ def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
     body = {
         "size": limit,
         "sort": [{"@timestamp": {"order": "desc"}}],
-        "query": {"bool": {"must": [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]}},
+        "query": {
+            "bool": {
+                "must": [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]
+            }
+        },
     }
     params = {"path": f"{INDEX}/_search", "method": "POST"}
 
-    console.print(f"[dim]match_all against '{INDEX}' ({time_range}, limit {limit})...[/dim]")
+    console.print(
+        f"[dim]match_all against '{INDEX}' ({time_range}, limit {limit})...[/dim]"
+    )
     raw = query_opensearch(body, params)
     if raw is None:
         return
@@ -720,13 +785,16 @@ def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
 # ZeekModule base class
 # ---------------------------------------------------------------------------
 
+
 class ZeekModule:
     """Protocol module interface. Subclass and override methods as needed."""
 
     DATASETS: list = ["all"]
     SOURCE_FIELDS: list = []
     DETAIL_FIELDS: list = []  # List of (label: str, value_fn: Callable[[dict], str])
-    SENSOR_PARAM: str | None = "sensor"  # Set to None to skip the sensor prompt in re-search
+    SENSOR_PARAM: str | None = (
+        "sensor"  # Set to None to skip the sensor prompt in re-search
+    )
 
     def build_extra_must(self, search_params: dict) -> list:
         """Return protocol-specific must clauses built from search_params."""
@@ -751,16 +819,19 @@ class ZeekModule:
     def display_detail(self, record: dict, idx: int) -> None:
         """Render a Rich Panel with every DETAIL_FIELDS field for the selected record."""
         from rich.panel import Panel
+
         grid = Table.grid(padding=(0, 2))
         grid.add_column(style="dim", no_wrap=True, min_width=12)
         grid.add_column(overflow="fold")
         for label, fn in self.DETAIL_FIELDS:
             grid.add_row(label, fn(record))
-        console.print(Panel(
-            grid,
-            title=f"[bold]#{idx}[/bold]  {self.describe_record(record)}",
-            expand=False,
-        ))
+        console.print(
+            Panel(
+                grid,
+                title=f"[bold]#{idx}[/bold]  {self.describe_record(record)}",
+                expand=False,
+            )
+        )
 
     def add_args(self, parser) -> None:
         """Add protocol-specific argparse arguments to the shared parser."""
@@ -780,13 +851,14 @@ class ZeekModule:
     def fp_action(self, record: dict) -> None:
         """Handle the [f]alse positive action. Override for custom behaviour."""
         from src.querier.fp_manager import create_filter_interactive
+
         fp_alert = {
-            "src_ip":    record.get("src_ip"),
-            "dest_ip":   record.get("dest_ip"),
+            "src_ip": record.get("src_ip"),
+            "dest_ip": record.get("dest_ip"),
             "dest_port": record.get("dest_port"),
             "alert": {
                 "signature": self.fp_signature(record),
-                "severity":  3,
+                "severity": 3,
             },
             "clientID": (record.get("sensors") or [record.get("sensor", "")])[0],
         }

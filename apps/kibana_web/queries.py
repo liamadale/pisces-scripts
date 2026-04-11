@@ -22,17 +22,19 @@ def build_search_params_from_request(request) -> dict:
     limit = int(limit_raw) if limit_raw.isdigit() else 500
 
     return {
-        "time_range":  request.values.get("time_range", "now-24h"),
-        "severity":    severity,
-        "cities":      request.values.get("cities", "all") or "all",
-        "src_ip":      request.values.get("src_ip") or None,
-        "signature":   request.values.get("signature") or None,
-        "protocol":    request.values.get("protocol") or None,
-        "min_bytes":   int(v) if (v := request.values.get("min_bytes", "").strip()) and v.isdigit() else None,
+        "time_range": request.values.get("time_range", "now-24h"),
+        "severity": severity,
+        "cities": request.values.get("cities", "all") or "all",
+        "src_ip": request.values.get("src_ip") or None,
+        "signature": request.values.get("signature") or None,
+        "protocol": request.values.get("protocol") or None,
+        "min_bytes": int(v)
+        if (v := request.values.get("min_bytes", "").strip()) and v.isdigit()
+        else None,
         "public_only": request.values.get("public_only") in ("on", "true", "1"),
-        "limit":       limit,
-        "no_filters":  False,
-        "use_cache":   False,
+        "limit": limit,
+        "no_filters": False,
+        "use_cache": False,
     }
 
 

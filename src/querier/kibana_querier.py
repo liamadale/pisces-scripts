@@ -22,7 +22,9 @@ from dotenv import load_dotenv
 # The lab Kibana instance uses a self-signed cert; suppress per-request warnings.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.querier.filter_loader import load_filters
 from src.querier.kibana_module import (
@@ -44,29 +46,60 @@ def main() -> None:
         description="PISCES SOC Analyst Tool — Kibana Querier",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--time-range", default="now-24h",
-                        help="Kibana date-math time range (default: now-24h). "
-                             "Available: " + "  ".join(TIME_RANGES))
-    parser.add_argument("--severity", type=int, default=3, choices=[1, 2, 3],
-                        help="Max Suricata severity to include (1=high, 3=low, default: 3)")
-    parser.add_argument("--cities", default="all",
-                        help="Comma-separated city/clientID list, or 'all' (default)")
-    parser.add_argument("--public-only", action="store_true",
-                        help="Exclude private/RFC1918 source IPs")
-    parser.add_argument("--signature", help="Filter to alerts matching this signature pattern")
+    parser.add_argument(
+        "--time-range",
+        default="now-24h",
+        help="Kibana date-math time range (default: now-24h). "
+        "Available: " + "  ".join(TIME_RANGES),
+    )
+    parser.add_argument(
+        "--severity",
+        type=int,
+        default=3,
+        choices=[1, 2, 3],
+        help="Max Suricata severity to include (1=high, 3=low, default: 3)",
+    )
+    parser.add_argument(
+        "--cities",
+        default="all",
+        help="Comma-separated city/clientID list, or 'all' (default)",
+    )
+    parser.add_argument(
+        "--public-only", action="store_true", help="Exclude private/RFC1918 source IPs"
+    )
+    parser.add_argument(
+        "--signature", help="Filter to alerts matching this signature pattern"
+    )
     parser.add_argument("--min-bytes", type=int, help="Minimum bytes_toserver")
     parser.add_argument("--protocol", help="Protocol filter (TCP/UDP/etc.)")
-    parser.add_argument("--limit", type=int, default=50, help="Max raw results from ES (default: 50)")
-    parser.add_argument("--no-interactive", action="store_true",
-                        help="Print results and exit without the interactive prompt")
-    parser.add_argument("--use-cache", action="store_true",
-                        help="Use cached Kibana response if available")
-    parser.add_argument("--dump-query", action="store_true",
-                        help="Print the ES query body and exit (for debugging)")
-    parser.add_argument("--list-cities", action="store_true",
-                        help="List all clientID values (cities) seen on the ELK stack and exit")
-    parser.add_argument("--no-filters", action="store_true",
-                        help="Skip all YAML false positive filters (useful for debugging empty results)")
+    parser.add_argument(
+        "--limit", type=int, default=50, help="Max raw results from ES (default: 50)"
+    )
+    parser.add_argument(
+        "--no-interactive",
+        action="store_true",
+        help="Print results and exit without the interactive prompt",
+    )
+    parser.add_argument(
+        "--use-cache",
+        action="store_true",
+        help="Use cached Kibana response if available",
+    )
+    parser.add_argument(
+        "--dump-query",
+        action="store_true",
+        help="Print the ES query body and exit (for debugging)",
+    )
+    parser.add_argument(
+        "--list-cities",
+        action="store_true",
+        help="List all clientID values (cities) seen on the ELK stack and exit",
+    )
+    parser.add_argument(
+        "--no-filters",
+        action="store_true",
+        help="Skip all YAML false positive filters (useful for debugging empty results)",
+    )
     args = parser.parse_args()
 
     console.print(BANNER)
@@ -79,16 +112,16 @@ def main() -> None:
         return
 
     search_params = {
-        "time_range":  args.time_range,
-        "severity":    args.severity,
-        "cities":      args.cities,
+        "time_range": args.time_range,
+        "severity": args.severity,
+        "cities": args.cities,
         "public_only": args.public_only,
-        "signature":   args.signature,
-        "min_bytes":   args.min_bytes,
-        "protocol":    args.protocol,
-        "limit":       args.limit,
-        "no_filters":  args.no_filters,
-        "use_cache":   args.use_cache,
+        "signature": args.signature,
+        "min_bytes": args.min_bytes,
+        "protocol": args.protocol,
+        "limit": args.limit,
+        "no_filters": args.no_filters,
+        "use_cache": args.use_cache,
     }
 
     module = KibanaModule()

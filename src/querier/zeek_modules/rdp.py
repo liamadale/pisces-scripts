@@ -35,31 +35,33 @@ class RdpModule(ZeekModule):
         if search_params.get("rdp_result"):
             clauses.append({"term": {"zeek.rdp.result": search_params["rdp_result"]}})
         if search_params.get("rdp_cookie"):
-            clauses.append({"match_phrase": {"zeek.rdp.cookie": search_params["rdp_cookie"]}})
+            clauses.append(
+                {"match_phrase": {"zeek.rdp.cookie": search_params["rdp_cookie"]}}
+            )
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
         rdp = src.get("zeek", {}).get("rdp", {})
         return {
-            "timestamp":       src.get("@timestamp", ""),
-            "sensor":          src.get("host", {}).get("name", ""),
-            "log_type":        src.get("event", {}).get("dataset", ""),
-            "src_ip":          src.get("source", {}).get("ip", ""),
-            "src_port":        src.get("source", {}).get("port"),
-            "dest_ip":         src.get("destination", {}).get("ip", ""),
-            "dest_port":       src.get("destination", {}).get("port"),
-            "rdp_cookie":      rdp.get("cookie", ""),
-            "rdp_result":      rdp.get("result", ""),
-            "rdp_security":    rdp.get("security_protocol", ""),
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": src.get("event", {}).get("dataset", ""),
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
+            "rdp_cookie": rdp.get("cookie", ""),
+            "rdp_result": rdp.get("result", ""),
+            "rdp_security": rdp.get("security_protocol", ""),
             "rdp_client_name": rdp.get("client_name", ""),
             "rdp_client_build": rdp.get("client_build", ""),
-            "rdp_keyboard":    rdp.get("keyboard_layout", ""),
-            "rdp_encryption":  rdp.get("encryption_method", ""),
-            "community_id":    src.get("network", {}).get("community_id", ""),
-            "direction":       src.get("network", {}).get("direction", ""),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "rdp_keyboard": rdp.get("keyboard_layout", ""),
+            "rdp_encryption": rdp.get("encryption_method", ""),
+            "community_id": src.get("network", {}).get("community_id", ""),
+            "direction": src.get("network", {}).get("direction", ""),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":            src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -70,20 +72,28 @@ class RdpModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",    lambda r: r.get("timestamp", "—")),
-        ("Sensor",       lambda r: r.get("sensor", "—")),
-        ("Src IP",       lambda r: r.get("src_ip", "—")),
-        ("Dst IP",       lambda r: r.get("dest_ip", "—") or "—"),
-        ("Cookie",       lambda r: r.get("rdp_cookie", "—") or "—"),
-        ("Result",       lambda r: r.get("rdp_result", "—") or "—"),
-        ("Security",     lambda r: r.get("rdp_security", "—") or "—"),
-        ("Client Name",  lambda r: r.get("rdp_client_name", "—") or "—"),
-        ("Build",        lambda r: r.get("rdp_client_build", "—") or "—"),
-        ("Comm ID",      lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",    lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",         lambda r: str(r.get("freq", "—"))),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        ("Dst IP", lambda r: r.get("dest_ip", "—") or "—"),
+        ("Cookie", lambda r: r.get("rdp_cookie", "—") or "—"),
+        ("Result", lambda r: r.get("rdp_result", "—") or "—"),
+        ("Security", lambda r: r.get("rdp_security", "—") or "—"),
+        ("Client Name", lambda r: r.get("rdp_client_name", "—") or "—"),
+        ("Build", lambda r: r.get("rdp_client_build", "—") or "—"),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -97,7 +107,9 @@ class RdpModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
+        table.add_column(
+            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
+        )
         table.add_column("Cookie", no_wrap=True, max_width=15, overflow="ellipsis")
         table.add_column("Result", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
@@ -120,11 +132,13 @@ class RdpModule(ZeekModule):
 
     def add_args(self, parser) -> None:
         parser.add_argument(
-            "--result", dest="rdp_result",
+            "--result",
+            dest="rdp_result",
             help="Filter by RDP result (term on zeek.rdp.result, e.g. fail)",
         )
         parser.add_argument(
-            "--cookie", dest="rdp_cookie",
+            "--cookie",
+            dest="rdp_cookie",
             help="Filter by RDP cookie (match_phrase on zeek.rdp.cookie)",
         )
 

@@ -20,7 +20,11 @@ from rich.text import Text
 
 from src.querier.filter_loader import load_filters
 from src.querier.zeek_modules.base import ZeekModule, _PRIVATE_CIDRS
-from src.utils.cache import cache_path as _cache_path_util, save_cache as _save_cache, load_cache as _load_cache
+from src.utils.cache import (
+    cache_path as _cache_path_util,
+    save_cache as _save_cache,
+    load_cache as _load_cache,
+)
 from src.utils.format import fmt_bytes as _fmt_bytes
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -35,10 +39,18 @@ KIBANA_URL = KIBANA_BASE_URL + "/api/console/proxy" if KIBANA_BASE_URL else ""
 INDEX = "suricata*"
 
 TIME_RANGES = [
-    "now-15m", "now-30m",
-    "now-1h",  "now-3h",  "now-6h", "now-12h",
-    "now-24h", "now-2d",  "now-3d", "now-7d",
-    "now-14d", "now-30d",
+    "now-15m",
+    "now-30m",
+    "now-1h",
+    "now-3h",
+    "now-6h",
+    "now-12h",
+    "now-24h",
+    "now-2d",
+    "now-3d",
+    "now-7d",
+    "now-14d",
+    "now-30d",
 ]
 
 # Suricata severity → Rich color
@@ -48,6 +60,7 @@ SEVERITY_COLORS = {1: "red", 2: "yellow", 3: "cyan"}
 # ---------------------------------------------------------------------------
 # Query building
 # ---------------------------------------------------------------------------
+
 
 def build_query(
     must_not: list[dict],
@@ -82,15 +95,17 @@ def build_query(
             must_not.append({"term": {"src_ip": cidr}})
 
     if src_ip:
-        must_clauses.append({
-            "bool": {
-                "should": [
-                    {"term": {"src_ip": src_ip}},
-                    {"term": {"dest_ip": src_ip}},
-                ],
-                "minimum_should_match": 1,
+        must_clauses.append(
+            {
+                "bool": {
+                    "should": [
+                        {"term": {"src_ip": src_ip}},
+                        {"term": {"dest_ip": src_ip}},
+                    ],
+                    "minimum_should_match": 1,
+                }
             }
-        })
+        )
 
     if signature:
         must_clauses.append({"match_phrase": {"alert.signature": signature}})
@@ -138,6 +153,7 @@ def build_query(
 # Kibana HTTP request
 # ---------------------------------------------------------------------------
 
+
 def query_kibana(body: dict, params: dict) -> dict | None:
     kibana_base = os.environ.get("KIBANA_URL", KIBANA_BASE_URL)
     kibana_url = kibana_base + "/api/console/proxy" if kibana_base else ""
@@ -148,7 +164,9 @@ def query_kibana(body: dict, params: dict) -> dict | None:
         console.print("[red]KIBANA_URL must be set in .env[/red]")
         return None
     if not username or not password:
-        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
+        console.print(
+            "[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]"
+        )
         return None
 
     headers = {
@@ -171,7 +189,9 @@ def query_kibana(body: dict, params: dict) -> dict | None:
         return None
 
     if resp.status_code == 401:
-        console.print("[red]Kibana authentication failed — check PISCES_USERNAME/PASSWORD[/red]")
+        console.print(
+            "[red]Kibana authentication failed — check PISCES_USERNAME/PASSWORD[/red]"
+        )
         return None
 
     if not resp.ok:
@@ -184,6 +204,7 @@ def query_kibana(body: dict, params: dict) -> dict | None:
 # ---------------------------------------------------------------------------
 # City listing (diagnostic)
 # ---------------------------------------------------------------------------
+
 
 def get_cities_data(time_range: str = "now-7d") -> list[dict]:
     """Return city buckets as a list of {key, doc_count} dicts."""
@@ -277,7 +298,9 @@ def get_ip_severity_overview(search_params: dict) -> list[dict]:
                 "terms": {"field": "src_ip", "size": 200, "order": {"_count": "desc"}},
                 "aggs": {
                     "by_sev": {"terms": {"field": "alert.severity"}},
-                    "top_sig": {"terms": {"field": "alert.signature.keyword", "size": 1}},
+                    "top_sig": {
+                        "terms": {"field": "alert.signature.keyword", "size": 1}
+                    },
                 },
             }
         },
@@ -289,17 +312,22 @@ def get_ip_severity_overview(search_params: dict) -> list[dict]:
 
     rows = []
     for bucket in raw.get("aggregations", {}).get("by_src_ip", {}).get("buckets", []):
-        sev_counts = {b["key"]: b["doc_count"] for b in bucket.get("by_sev", {}).get("buckets", [])}
+        sev_counts = {
+            b["key"]: b["doc_count"]
+            for b in bucket.get("by_sev", {}).get("buckets", [])
+        }
         top_sig_buckets = bucket.get("top_sig", {}).get("buckets", [])
         top_sig = top_sig_buckets[0]["key"] if top_sig_buckets else ""
-        rows.append({
-            "src_ip":  bucket["key"],
-            "sev1":    sev_counts.get(1, 0),
-            "sev2":    sev_counts.get(2, 0),
-            "sev3":    sev_counts.get(3, 0),
-            "total":   bucket["doc_count"],
-            "top_sig": top_sig,
-        })
+        rows.append(
+            {
+                "src_ip": bucket["key"],
+                "sev1": sev_counts.get(1, 0),
+                "sev2": sev_counts.get(2, 0),
+                "sev3": sev_counts.get(3, 0),
+                "total": bucket["doc_count"],
+                "top_sig": top_sig,
+            }
+        )
 
     return sorted(rows, key=lambda r: -r["total"])
 
@@ -353,6 +381,7 @@ def get_signature_frequency(search_params: dict) -> list[dict]:
 # Cache helper
 # ---------------------------------------------------------------------------
 
+
 def _cache_path(args_hash: str) -> str:
     return _cache_path_util(f"kibana_{args_hash}.json")
 
@@ -360,6 +389,7 @@ def _cache_path(args_hash: str) -> str:
 # ---------------------------------------------------------------------------
 # Deduplication
 # ---------------------------------------------------------------------------
+
 
 def _deduplicate(alerts: list[dict]) -> list[dict]:
     """Deduplicate by (src_ip, signature), counting frequency and collecting cities."""
@@ -384,43 +414,53 @@ def _deduplicate(alerts: list[dict]) -> list[dict]:
 # KibanaModule
 # ---------------------------------------------------------------------------
 
+
 class KibanaModule(ZeekModule):
     """ZeekModule subclass for Kibana/Suricata alert queries."""
 
     SENSOR_PARAM = None  # Kibana has no sensor concept; skip sensor prompt in re-search
 
     DETAIL_FIELDS = [
-        ("Timestamp",  lambda r: r.get("timestamp", "")[:19].replace("T", " ")),
-        ("Signature",  lambda r: r.get("signature", "")),
-        ("Severity",   lambda r: str(r.get("severity", ""))),
-        ("Src IP",     lambda r: r.get("src_ip", "")),
-        ("Src Port",   lambda r: str(r["src_port"]) if r.get("src_port") is not None else "—"),
-        ("Dest IP",    lambda r: r.get("dest_ip", "")),
-        ("Dest Port",  lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—"),
-        ("Protocol",   lambda r: r.get("proto", "") or "—"),
-        ("→Server",    lambda r: _fmt_bytes(r.get("bytes_toserver"))),
-        ("→Client",    lambda r: _fmt_bytes(r.get("bytes_toclient"))),
-        ("Cities",     lambda r: ", ".join(r.get("cities") or [r.get("city", "")])),
-        ("Freq",       lambda r: str(r.get("freq", 1))),
-        ("Flow ID",    lambda r: str(r["flow_id"]) if r.get("flow_id") is not None else "—"),
+        ("Timestamp", lambda r: r.get("timestamp", "")[:19].replace("T", " ")),
+        ("Signature", lambda r: r.get("signature", "")),
+        ("Severity", lambda r: str(r.get("severity", ""))),
+        ("Src IP", lambda r: r.get("src_ip", "")),
+        (
+            "Src Port",
+            lambda r: str(r["src_port"]) if r.get("src_port") is not None else "—",
+        ),
+        ("Dest IP", lambda r: r.get("dest_ip", "")),
+        (
+            "Dest Port",
+            lambda r: str(r["dest_port"]) if r.get("dest_port") is not None else "—",
+        ),
+        ("Protocol", lambda r: r.get("proto", "") or "—"),
+        ("→Server", lambda r: _fmt_bytes(r.get("bytes_toserver"))),
+        ("→Client", lambda r: _fmt_bytes(r.get("bytes_toclient"))),
+        ("Cities", lambda r: ", ".join(r.get("cities") or [r.get("city", "")])),
+        ("Freq", lambda r: str(r.get("freq", 1))),
+        (
+            "Flow ID",
+            lambda r: str(r["flow_id"]) if r.get("flow_id") is not None else "—",
+        ),
     ]
 
     def parse_hit(self, src: dict) -> dict:
         """Convert a single _source dict to a normalised alert record."""
         return {
-            "timestamp":      src.get("@timestamp", ""),
-            "city":           src.get("clientID", ""),
-            "signature":      src.get("alert", {}).get("signature", ""),
-            "severity":       src.get("alert", {}).get("severity", 3),
-            "src_ip":         src.get("src_ip", ""),
-            "src_port":       src.get("src_port"),
-            "dest_ip":        src.get("dest_ip", ""),
-            "dest_port":      src.get("dest_port"),
-            "proto":          src.get("app_proto", ""),
+            "timestamp": src.get("@timestamp", ""),
+            "city": src.get("clientID", ""),
+            "signature": src.get("alert", {}).get("signature", ""),
+            "severity": src.get("alert", {}).get("severity", 3),
+            "src_ip": src.get("src_ip", ""),
+            "src_port": src.get("src_port"),
+            "dest_ip": src.get("dest_ip", ""),
+            "dest_port": src.get("dest_port"),
+            "proto": src.get("app_proto", ""),
             "bytes_toserver": src.get("flow", {}).get("bytes_toserver"),
             "bytes_toclient": src.get("flow", {}).get("bytes_toclient"),
-            "flow_id":        src.get("flow_id"),
-            "_raw":           src,
+            "flow_id": src.get("flow_id"),
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -433,15 +473,18 @@ class KibanaModule(ZeekModule):
 
     def fp_action(self, record: dict) -> None:
         from src.querier.fp_manager import create_filter_interactive
+
         fp_alert = {
-            "src_ip":    record["src_ip"],
-            "dest_ip":   record["dest_ip"],
+            "src_ip": record["src_ip"],
+            "dest_ip": record["dest_ip"],
             "dest_port": record["dest_port"],
             "alert": {
                 "signature": record["signature"],
-                "severity":  record["severity"],
+                "severity": record["severity"],
             },
-            "clientID": record["cities"][0] if record.get("cities") else record.get("city", ""),
+            "clientID": record["cities"][0]
+            if record.get("cities")
+            else record.get("city", ""),
         }
         create_filter_interactive(alert=fp_alert)
 
@@ -524,22 +567,23 @@ class KibanaModule(ZeekModule):
     @staticmethod
     def _sig_col_budget(alerts: list[dict]) -> int:
         """Estimate characters available to the Signature column at current terminal width."""
+
         def _maxlen(vals) -> int:
             return max((len(str(v)) for v in vals if v is not None), default=0)
 
         col_content_widths = [
-            3,   # #
+            3,  # #
             16,  # Timestamp (YYYY-MM-DD HH:MM)
             _maxlen(", ".join(a.get("cities") or [a.get("city", "")]) for a in alerts),
-            3,   # Sev
+            3,  # Sev
             _maxlen(a.get("freq", 1) for a in alerts),
             _maxlen(a.get("src_ip", "") for a in alerts),
             _maxlen(a.get("src_port") for a in alerts),
-            7,   # →Srv
+            7,  # →Srv
             _maxlen(a.get("dest_ip", "") for a in alerts),
             _maxlen(a.get("dest_port") for a in alerts),
-            5,   # Proto
-            7,   # →Cli
+            5,  # Proto
+            7,  # →Cli
             _maxlen(a.get("flow_id") for a in alerts),
         ]
         n_cols = len(col_content_widths) + 1  # +1 for Signature itself
@@ -551,17 +595,22 @@ class KibanaModule(ZeekModule):
 # run_kibana_query
 # ---------------------------------------------------------------------------
 
+
 def run_kibana_query(module: KibanaModule, search_params: dict) -> list:
     """Build + execute a Kibana query; return deduplicated alerts (empty list on error)."""
     if search_params.get("no_filters"):
         must_not: list = []
-        console.print("[yellow]--no-filters: all false positive filters disabled[/yellow]")
+        console.print(
+            "[yellow]--no-filters: all false positive filters disabled[/yellow]"
+        )
     else:
         filter_result = load_filters(FILTERS_DIR)
         must_not = filter_result["must_not"]
         fcount = filter_result["filter_count"]
         console.print("[dim]Loading false positive filters...[/dim]")
-        console.print(f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]")
+        console.print(
+            f"[dim]Loaded {fcount} filter file(s) → {len(must_not)} must_not clause(s)[/dim]"
+        )
         if filter_result["errors"]:
             for err in filter_result["errors"]:
                 console.print(f"[yellow]Filter warning: {err}[/yellow]")
@@ -595,7 +644,9 @@ def run_kibana_query(module: KibanaModule, search_params: dict) -> list:
             console.print(f"[dim]Using cached response: {cpath}[/dim]")
 
     if raw is None:
-        console.print(f"[dim]Querying Kibana ({search_params.get('time_range', 'now-24h')})...[/dim]")
+        console.print(
+            f"[dim]Querying Kibana ({search_params.get('time_range', 'now-24h')})...[/dim]"
+        )
         raw = query_kibana(body, params)
         if raw is None:
             return []

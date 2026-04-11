@@ -41,23 +41,23 @@ class NoticeModule(ZeekModule):
     def parse_hit(self, src: dict) -> dict:
         notice = src.get("zeek", {}).get("notice", {})
         return {
-            "timestamp":    src.get("@timestamp", ""),
-            "sensor":       src.get("host", {}).get("name", ""),
-            "log_type":     src.get("event", {}).get("dataset", ""),
-            "src_ip":       src.get("source", {}).get("ip", ""),
-            "src_port":     src.get("source", {}).get("port"),
-            "dest_ip":      src.get("destination", {}).get("ip", ""),
-            "dest_port":    src.get("destination", {}).get("port"),
-            "notice_note":  notice.get("note", ""),
-            "notice_msg":   notice.get("msg", ""),
-            "notice_sub":   notice.get("sub", ""),
+            "timestamp": src.get("@timestamp", ""),
+            "sensor": src.get("host", {}).get("name", ""),
+            "log_type": src.get("event", {}).get("dataset", ""),
+            "src_ip": src.get("source", {}).get("ip", ""),
+            "src_port": src.get("source", {}).get("port"),
+            "dest_ip": src.get("destination", {}).get("ip", ""),
+            "dest_port": src.get("destination", {}).get("port"),
+            "notice_note": notice.get("note", ""),
+            "notice_msg": notice.get("msg", ""),
+            "notice_sub": notice.get("sub", ""),
             "notice_actions": notice.get("actions", ""),
             "notice_dropped": notice.get("dropped"),
-            "community_id":  src.get("network", {}).get("community_id", ""),
-            "direction":     src.get("network", {}).get("direction", ""),
-            "risk_score":      src.get("event", {}).get("risk_score"),
+            "community_id": src.get("network", {}).get("community_id", ""),
+            "direction": src.get("network", {}).get("direction", ""),
+            "risk_score": src.get("event", {}).get("risk_score"),
             "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
-            "_raw":          src,
+            "_raw": src,
         }
 
     def dedup_key(self, record: dict) -> tuple:
@@ -67,18 +67,33 @@ class NoticeModule(ZeekModule):
         )
 
     DETAIL_FIELDS = [
-        ("Timestamp",  lambda r: r.get("timestamp", "—")),
-        ("Sensor",     lambda r: r.get("sensor", "—")),
-        ("Src IP",     lambda r: r.get("src_ip", "—")),
-        ("Dst IP",     lambda r: r.get("dest_ip", "—") or "—"),
-        ("Note Type",  lambda r: r.get("notice_note", "—") or "—"),
-        ("Message",    lambda r: r.get("notice_msg", "—") or "—"),
-        ("Dropped",    lambda r: "✓" if r.get("notice_dropped") is True else ("✗" if r.get("notice_dropped") is False else "—")),
-        ("Comm ID",    lambda r: r.get("community_id", "—") or "—"),
-        ("Direction",  lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score",      lambda r: str(r.get("risk_score"))      if r.get("risk_score")      else "—"),
-        ("Risk Score Norm", lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"),
-        ("Freq",       lambda r: str(r.get("freq", "—"))),
+        ("Timestamp", lambda r: r.get("timestamp", "—")),
+        ("Sensor", lambda r: r.get("sensor", "—")),
+        ("Src IP", lambda r: r.get("src_ip", "—")),
+        ("Dst IP", lambda r: r.get("dest_ip", "—") or "—"),
+        ("Note Type", lambda r: r.get("notice_note", "—") or "—"),
+        ("Message", lambda r: r.get("notice_msg", "—") or "—"),
+        (
+            "Dropped",
+            lambda r: (
+                "✓"
+                if r.get("notice_dropped") is True
+                else ("✗" if r.get("notice_dropped") is False else "—")
+            ),
+        ),
+        ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+        (
+            "Risk Score",
+            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
+        ),
+        (
+            "Risk Score Norm",
+            lambda r: (
+                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
+            ),
+        ),
+        ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
     def display(self, records: list) -> None:
@@ -110,15 +125,13 @@ class NoticeModule(ZeekModule):
 
     def add_args(self, parser) -> None:
         parser.add_argument(
-            "--note", dest="notice_note",
+            "--note",
+            dest="notice_note",
             help="Filter by notice type (term on zeek.notice.note, e.g. SSH::Password_Guessing)",
         )
 
     def describe_record(self, record: dict) -> str:
-        return (
-            f"notice {record.get('src_ip', '?')} "
-            f"{record.get('notice_note', '?')}"
-        )
+        return f"notice {record.get('src_ip', '?')} {record.get('notice_note', '?')}"
 
     def fp_signature(self, record: dict) -> str:
         return record.get("notice_note") or "zeek/notice"
@@ -141,23 +154,27 @@ class NoticeModule(ZeekModule):
 
         if choice == "b":
             from src.querier.fp_manager import create_filter_interactive
+
             fp_alert = {
-                "src_ip":    record.get("src_ip"),
-                "dest_ip":   record.get("dest_ip"),
+                "src_ip": record.get("src_ip"),
+                "dest_ip": record.get("dest_ip"),
                 "dest_port": record.get("dest_port"),
                 "alert": {
                     "signature": self.fp_signature(record),
-                    "severity":  3,
+                    "severity": 3,
                 },
                 "clientID": (record.get("sensors") or [record.get("sensor", "")])[0],
             }
             create_filter_interactive(alert=fp_alert)
         elif choice == "n":
             from src.querier.fp_manager import create_notice_filter_interactive
+
             create_notice_filter_interactive(record)
         else:
             console.print("[dim]Skipped.[/dim]")
 
     def add_search_params_prompt(self, new: dict, _ask) -> None:
-        val = _ask("Notice note filter (e.g. SSH::Password_Guessing)", new.get("notice_note"))
+        val = _ask(
+            "Notice note filter (e.g. SSH::Password_Guessing)", new.get("notice_note")
+        )
         new["notice_note"] = val if val else None

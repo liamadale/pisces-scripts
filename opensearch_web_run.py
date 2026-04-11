@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Thin shim → apps/opensearch_web/run.py"""
+
 import os
 import runpy
 import sys

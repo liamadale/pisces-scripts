@@ -28,10 +28,16 @@ _env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 load_dotenv(os.path.abspath(_env_path))
 
 from src.utils.dns import setup_dns
+
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
-from src.querier.kibana_module import KibanaModule, run_kibana_query, query_kibana, INDEX
+from src.querier.kibana_module import (
+    KibanaModule,
+    run_kibana_query,
+    query_kibana,
+    INDEX,
+)
 
 mcp = FastMCP("kibana")
 
@@ -39,6 +45,7 @@ mcp = FastMCP("kibana")
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _serialise_alerts(alerts: list) -> list:
     """Strip _raw keys and convert sets/lists of cities to sorted lists."""
@@ -62,6 +69,7 @@ def _err(msg: str) -> str:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def search_alerts(
@@ -201,11 +209,7 @@ def get_signature_summary(
         raw = query_kibana(body, params)
         if raw is None:
             return _err("Kibana query failed — check credentials")
-        buckets = (
-            raw.get("aggregations", {})
-            .get("signatures", {})
-            .get("buckets", [])
-        )
+        buckets = raw.get("aggregations", {}).get("signatures", {}).get("buckets", [])
         signatures = [{"signature": b["key"], "count": b["doc_count"]} for b in buckets]
         return _ok({"time_range": time_range, "signatures": signatures})
     except Exception as exc:

@@ -10,6 +10,7 @@ if _here not in sys.path:
     sys.path.insert(0, _here)
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from apps.hub.app import create_app

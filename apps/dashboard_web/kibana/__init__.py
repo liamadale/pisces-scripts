@@ -18,9 +18,9 @@ def section():
         return cached
     try:
         data = {
-            "severity":   agg_kibana_severity(time_range),
+            "severity": agg_kibana_severity(time_range),
             "signatures": agg_kibana_signatures(time_range),
-            "cities":     agg_kibana_cities(time_range),
+            "cities": agg_kibana_cities(time_range),
         }
     except Exception as exc:
         data = {"error": str(exc)}

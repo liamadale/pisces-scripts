@@ -20,8 +20,8 @@ def section():
     try:
         data = {
             "protocols": agg_opensearch_protocols(time_range),
-            "sensors":   agg_opensearch_sensors(time_range),
-            "top_ips":   agg_opensearch_top_ips(time_range),
+            "sensors": agg_opensearch_sensors(time_range),
+            "top_ips": agg_opensearch_top_ips(time_range),
         }
     except Exception as exc:
         data = {"error": str(exc)}
