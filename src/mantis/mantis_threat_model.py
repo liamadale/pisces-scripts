@@ -378,6 +378,7 @@ def main() -> None:
             provider,
             exclude_ips=_load_ip_set(args.threat_output),
         )
+        generate_dns_resolver_registry(tickets, args.dns_output)
         generate_undetermined_registry(tickets, args.undetermined_output, provider)
 
     _resolve_registry_conflicts(

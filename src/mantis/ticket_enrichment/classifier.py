@@ -361,7 +361,10 @@ def _keyword_negated(text: str, keyword: str) -> bool:
     return found_any
 
 
-# Summary keywords indicating confirmed threat (disqualifier)
+# Summary keywords indicating confirmed threat (disqualifier).
+# All entries are checked via substring match — keep only phrases specific
+# enough that substring matching cannot produce false positives.
+# Word-boundary-sensitive terms live in _MALICIOUS_SUMMARY_RE below.
 _MALICIOUS_SUMMARY = {
     "et cins",
     "known malicious",
@@ -372,10 +375,13 @@ _MALICIOUS_SUMMARY = {
     "cve-",
     "threat intelligence",
     "malware",
-    "c2",
     "command and control",
     "data exfiltration",
 }
+
+# Regex-based summary disqualifiers for terms that need word boundaries.
+# "c2" excluded from _MALICIOUS_SUMMARY to avoid matching "c2c", "c2b", etc.
+_MALICIOUS_SUMMARY_RE = re.compile(r"\bc2\b", re.I)
 
 # Resolution values that are strong FP signals
 _FP_RESOLUTIONS = {"not a bug": 3, "unable to duplicate": 2}
@@ -705,23 +711,31 @@ def classify_rules(
             "rule",
             [f"malicious_note_re: '{m.group(0)}'"],
         )
+    # Admin corroboration raises confidence: 15 with note, 42 without.
+    # Score 42 is above TP_THRESHOLD (30) so no-admin-note tickets are excluded
+    # from the threat DB unless they have other strong signals.
+    _summary_hit: str | None = None
     for kw in _MALICIOUS_SUMMARY:
         if kw in summary_lower:
-            # Admin corroboration raises confidence: 15 with note, 42 without.
-            # Score 42 is above TP_THRESHOLD (30) so no-admin-note tickets are excluded
-            # from the threat DB unless they have other strong signals.
-            score = 15 if admin_note_texts else 42
-            return ClassificationResult(
-                Disposition.TRUE_POSITIVE,
-                ThreatType.UNKNOWN,
-                None,
-                score,
-                "rule",
-                [
-                    f"malicious_summary: '{kw}'"
-                    + ("" if admin_note_texts else " (no admin note)"),
-                ],
-            )
+            _summary_hit = kw
+            break
+    if _summary_hit is None:
+        m = _MALICIOUS_SUMMARY_RE.search(summary_lower)
+        if m:
+            _summary_hit = m.group(0)
+    if _summary_hit is not None:
+        score = 15 if admin_note_texts else 42
+        return ClassificationResult(
+            Disposition.TRUE_POSITIVE,
+            ThreatType.UNKNOWN,
+            None,
+            score,
+            "rule",
+            [
+                f"malicious_summary: '{_summary_hit}'"
+                + ("" if admin_note_texts else " (no admin note)"),
+            ],
+        )
 
     # --- Private IP: organizational infrastructure ---
     # Runs after malicious disqualifiers so compromised internal hosts still get TRUE_POSITIVE.

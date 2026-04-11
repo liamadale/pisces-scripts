@@ -117,10 +117,15 @@ def enrich_undetermined_ips(
         if not ip or ip in seen:
             continue
         seen.add(ip)
-        # Skip private / loopback
+        # Skip non-public addresses (matches _is_public logic in _shared.py)
         try:
             addr = ipaddress.ip_address(ip)
-            if addr.is_private or addr.is_loopback or addr.is_reserved:
+            if (
+                addr.is_private
+                or addr.is_loopback
+                or addr.is_reserved
+                or addr.is_multicast
+            ):
                 continue
         except ValueError:
             continue

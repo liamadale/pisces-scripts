@@ -155,10 +155,19 @@ def generate_infra_registry(
         if ticket.get("status", "").lower() not in resolved_statuses:
             continue
         ticket_id = str(ticket["id"])
+        admin_note_text = "\n".join(
+            n["text"] for n in ticket.get("notes", []) if n.get("is_admin_note")
+        )
         all_text = "\n".join(
             filter(
                 None,
-                [ticket.get("summary", ""), ticket.get("description", "")],
+                [
+                    ticket.get("summary", ""),
+                    ticket.get("description", ""),
+                    ticket.get("steps_to_reproduce", ""),
+                    ticket.get("additional_information", ""),
+                    admin_note_text,
+                ],
             )
         )
         for ip in ticket.get("private_ips") or []:

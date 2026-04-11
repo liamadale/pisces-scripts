@@ -265,8 +265,9 @@ def generate_threat_db(
     # never labelled as the source/attacker is too weak to treat as confirmed
     # malicious — a single analyst note could be wrong, and blocklist absence
     # means no external feed independently flagged the IP.  These are dropped
-    # here rather than silently included; the undetermined registry will still
-    # capture them via its own pass.
+    # intentionally and do NOT appear in any other registry: they came from
+    # TRUE_POSITIVE tickets, so generate_undetermined_registry (which only
+    # captures UNDETERMINED disposition) will not pick them up.
     thin_before = len(ip_records)
     ip_records = {
         ip: rec

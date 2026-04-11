@@ -18,6 +18,15 @@ from src.mantis.ticket_enrichment import (
 )
 from src.utils.ip_org import lookup_org
 
+# Signal prefixes that originate from previous-run artefacts rather than
+# current-ticket content.  Used by the feedback-loop guard below.
+_PERSISTENT_SIGNAL_PREFIXES = (
+    "local_prior:",
+    "greynoise_structured:",
+    "abuseipdb_structured:",
+    "country:",
+)
+
 
 def generate_fp_candidates(
     tickets: list[dict],
@@ -64,15 +73,18 @@ def generate_fp_candidates(
             # CISA falls through to FP collection
         if result.score < 50:
             continue
-        # Reject entries whose sole basis for the FP verdict is the local
-        # prior from the previous run.  A local_prior of "false_positive"
-        # raises the base reputation from 50 → 70, which just meets the FP
-        # threshold — but that signal originates from the previous model run,
-        # not from any evidence in the current ticket.  Accepting it without
-        # additional corroboration creates a self-reinforcing feedback loop
-        # where borderline historical decisions are locked in forever.
-        # Require at least one current-ticket signal alongside the prior.
-        if result.signals == ["local_prior: false_positive"]:
+        # Reject entries whose only signals are persistent cross-run artefacts:
+        # local_prior (derived from the previous registry) and/or structured
+        # enrichment-cache results (GreyNoise/AbuseIPDB, 30-day TTL).  Without
+        # at least one signal rooted in the current ticket's content — admin
+        # note, resolution field, summary keyword, or text-parsed enrichment —
+        # these signals form a self-reinforcing feedback loop: the prior pushes
+        # the score to FP, which writes the prior again next run, with a 30-day
+        # cached GreyNoise "benign" result acting as a silent co-reinforcer.
+        if result.signals and all(
+            any(s.startswith(p) for p in _PERSISTENT_SIGNAL_PREFIXES)
+            for s in result.signals
+        ):
             continue
 
         for ip in ticket["ips"]:

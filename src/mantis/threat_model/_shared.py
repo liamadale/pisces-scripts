@@ -175,10 +175,6 @@ _COUNTRY_RE = re.compile(
 _ISP_RE = re.compile(r"(?:^|\n)\s*ISP\s{2,}(.+)", re.M)
 _USAGE_RE = re.compile(r"(?:^|\n)\s*Usage Type\s{2,}(.+)", re.M)
 _ASN_RE = re.compile(r"\b(AS\d{3,7})\b")
-# Country from structured block: "AU Australia" or emoji + name
-_COUNTRY_STRUCT_RE = re.compile(
-    r"(?:^|\n)\s*(?:Country|🇦-🇿{1,2})\s{2,}(\w[\w\s]{2,30})", re.M
-)
 # Emoji flag + country name pattern e.g. "🇸🇮 Slovenia"
 _EMOJI_COUNTRY_RE = re.compile(r"[\U0001F1E0-\U0001F1FF]{2}\s+([A-Za-z][\w\s]{2,25})")
 # "AU Australia" style (2-letter code then name)
