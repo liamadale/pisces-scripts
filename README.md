@@ -1,6 +1,7 @@
 ![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-white.png)
 
 [![CI](https://github.com/liamadale/pisces-scripts/actions/workflows/ci.yml/badge.svg)](https://github.com/liamadale/pisces-scripts/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/liamadale/pisces-scripts/badge)](https://scorecard.dev/viewer/?uri=github.com/liamadale/pisces-scripts)
 
 # PISCES SOC Analyst Toolkit
 

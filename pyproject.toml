@@ -4,10 +4,10 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "requests>=2.31.0",
-    "python-dotenv>=1.0.0",
+    "python-dotenv>=1.2.2",
     "pyyaml>=6.0.0",
     "rich>=13.0.0",
-    "beautifulsoup4>=4.12.0",
+    "beautifulsoup4>=4.14.3",
     "flask>=3.0",
     "geoip2>=4.8.0",
     "orjson>=3.11.8",
@@ -25,14 +25,14 @@ nlp = [
 # Offline ASN/BGP reputation lookup (requires a BGP dump at data/asn_table.dat)
 # Download a dump via: python -m pyasn.scripts.pyasn_util_download
 offline-enrichment = [
-    "pyasn>=1.6.1",
+    "pyasn>=1.6.2",
 ]
 
 # Everything
 all = [
     "mcp[cli]>=1.0.0",
     "spacy>=3.7",
-    "pyasn>=1.6.1",
+    "pyasn>=1.6.2",
 ]
 
 [dependency-groups]
@@ -41,7 +41,7 @@ dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.6",
     "bandit>=1.8.0",
-    "pip-audit>=2.7.0",
+    "pip-audit>=2.10.0",
     "pre-commit>=4.0.0",
 ]
 
