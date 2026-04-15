@@ -29,7 +29,19 @@ class SshModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        (
+            "Auth Result",
+            lambda r: (
+                "✓"
+                if r.get("ssh_auth_success")
+                else ("✗" if r.get("ssh_auth_success") is False else "—")
+            ),
+        ),
+        ("Direction", lambda r: r.get("direction", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("ssh_failed_only"):
             clauses.append({"term": {"zeek.ssh.auth_success": False}})
@@ -37,7 +49,7 @@ class SshModule(ZeekModule):
             val_str = str(search_params["ssh_auth_result"]).lower()
             val = val_str in ("true", "1", "yes")
             clauses.append({"term": {"zeek.ssh.auth_success": val}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         ssh = src.get("zeek", {}).get("ssh", {})

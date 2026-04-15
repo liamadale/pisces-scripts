@@ -30,7 +30,13 @@ class SmtpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("From", lambda r: r.get("smtp_mailfrom", "—") or "—"),
+        ("To", lambda r: r.get("smtp_rcptto", "—") or "—"),
+        ("Subject", lambda r: r.get("smtp_subject", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("smtp_mail_from"):
             clauses.append(
@@ -40,7 +46,7 @@ class SmtpModule(ZeekModule):
             clauses.append({"match_phrase": {"zeek.smtp.rcptto": search_params["smtp_rcpt_to"]}})
         if search_params.get("smtp_subject"):
             clauses.append({"match_phrase": {"zeek.smtp.subject": search_params["smtp_subject"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         smtp = src.get("zeek", {}).get("smtp", {})

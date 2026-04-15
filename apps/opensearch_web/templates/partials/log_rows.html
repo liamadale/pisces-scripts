@@ -18,11 +18,14 @@
     {% endif %}
   </td>
   <td title="{{ rec.get('src_ip','') }}">
-    <a class="ip-link" href="{{ script_name }}/ip/{{ rec.get('src_ip', '') }}?{{ request.query_string.decode() }}">
-      {%- set _sorg = lookup_org(rec.get('src_ip','')) %}
+    {% set _sip = rec.get('src_ip', '') %}
+    {% if _sip %}
+    <a class="ip-link" href="{{ script_name }}/ip/{{ _sip }}?{{ request.query_string.decode() }}">
+      {%- set _sorg = lookup_org(_sip) %}
       {%- if _sorg %}<i class="{{ _sorg.icon }} org-icon org-{{ _sorg.category }}" title="{{ _sorg.name }}"></i> {% endif -%}
-      {{ rec.get('src_ip', '—') }}
+      {{ _sip }}
     </a>
+    {% else %}—{% endif %}
   </td>
   <td class="num">{{ rec.get('src_port', '—') }}</td>
   <td title="{{ rec.get('dest_ip','') }}">
@@ -36,31 +39,9 @@
     {% else %}—{% endif %}
   </td>
   <td class="num">{{ rec.get('dest_port', '—') }}</td>
-  {% if log_type == 'conn' %}
-  <td>{{ rec.get('app_proto', '—') }}</td>
-  <td class="num">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
-  <td class="num">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
-  {% elif log_type == 'dns' %}
-  <td title="{{ rec.get('query','') }}">{{ rec.get('query', '—') }}</td>
-  {% elif log_type == 'http' %}
-  <td title="{{ rec.get('http_uri','') }}">{{ rec.get('http_uri', '—') }}</td>
-  <td class="num">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
-  <td class="num">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
-  {% elif log_type == 'notice' %}
-  <td title="{{ rec.get('notice_note','') }}">{{ rec.get('notice_note', '—') }}</td>
-  {% elif log_type == 'ssh' %}
-  <td>{{ rec.get('ssh_client', '—') }}</td>
-  {% elif log_type == 'rdp' %}
-  <td>{{ rec.get('rdp_cookie', '—') }}</td>
-  {% elif log_type == 'smtp' %}
-  <td title="{{ rec.get('smtp_subject','') }}">{{ rec.get('smtp_subject', '—') }}</td>
-  {% elif log_type == 'ssl' %}
-  <td>{{ rec.get('ssl_server_name', '—') }}</td>
-  {% elif log_type == 'smb' %}
-  <td>{{ rec.get('smb_path', '—') }}</td>
-  {% elif log_type == 'weird' %}
-  <td>{{ rec.get('weird_name', '—') }}</td>
-  {% endif %}
+  {% for _, fn in web_columns %}
+  <td>{{ fn(rec) }}</td>
+  {% endfor %}
   <td class="num">{{ risk_bars(rec) }}</td>
   <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
 </tr>

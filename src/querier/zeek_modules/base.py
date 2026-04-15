@@ -371,18 +371,26 @@ def run_query(module, search_params: dict) -> list:
     if sensor_val and str(sensor_val).lower() != "all":
         sensors = [s.strip() for s in str(sensor_val).split(",")]
 
-    extra_must = module.build_extra_must(search_params)
+    extra_must, post_filters = module.build_extra_must(search_params)
+
+    # Guard src_ip_filter for modules without source.ip in SOURCE_FIELDS —
+    # a term query on a missing field returns zero results.
+    src_ip_for_query = search_params.get("src_ip") if "source.ip" in module.SOURCE_FIELDS else None
+
+    # Over-fetch when post-filters are active so truncation still yields enough rows.
+    requested_limit = search_params.get("limit", 500)
+    query_limit = min(requested_limit * 3, 5000) if post_filters else requested_limit
 
     body, params = build_base_query(
         must_not=must_not,
         extra_must=extra_must,
         source_fields=module.SOURCE_FIELDS,
-        limit=search_params.get("limit", 500),
+        limit=query_limit,
         time_range=search_params.get("time_range", "now-24h"),
         sensors=sensors,
         datasets=module.DATASETS,
         public_only=search_params.get("public_only", False),
-        src_ip_filter=search_params.get("src_ip"),
+        src_ip_filter=src_ip_for_query,
         direction=search_params.get("direction"),
         min_risk_score=search_params.get("min_risk_score"),
     )
@@ -415,8 +423,23 @@ def run_query(module, search_params: dict) -> list:
         console.print("[yellow]No records returned.[/yellow]")
         return []
 
+    # Pre-parse hook — e.g. x509 community_id batch lookup, pe fuid→hash lookup.
+    module.prepare_hits(hits)
+
     records = [module.parse_hit(hit.get("_source", {})) for hit in hits]
     records = [r for r in records if r]
+
+    # Apply post-filters (over-fetch strategy: fetch 3× then truncate).
+    if post_filters:
+        for pf in post_filters:
+            records = [r for r in records if pf(r)]
+        if len(records) < requested_limit:
+            console.print(
+                f"[dim]Showing {len(records)}/{requested_limit} after post-filtering — "
+                f"increase time range for more results.[/dim]"
+            )
+        records = records[:requested_limit]
+
     return deduplicate_zeek(records, module.dedup_key)
 
 
@@ -491,7 +514,15 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
 
         src_ip = record.get("src_ip", "")
         module.display_detail(record, idx + 1)
-        console.print("  \\[e]nrich  \\[f]alse positive  \\[m]antis search  \\[s]kip")
+
+        # Build action menu dynamically based on module capabilities.
+        action_parts = []
+        if module.SUPPORTS_ENRICHMENT:
+            action_parts.append("\\[e]nrich")
+        if module.SUPPORTS_FP:
+            action_parts.append("\\[f]alse positive")
+        action_parts += ["\\[m]antis search", "\\[s]kip"]
+        console.print("  " + "  ".join(action_parts))
 
         try:
             action = prompt("  Action: ").strip().lower()
@@ -503,9 +534,32 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
         if key:
             readline.add_history(action)
 
-        if key == "e":
-            enrich_ip(src_ip)
-        elif key == "f":
+        if key == "e" and module.SUPPORTS_ENRICHMENT:
+            hash_val = record.get("sha256") or record.get("md5") or record.get("file_hash")
+            if hash_val and not src_ip:
+                # Hash-only enrichment (e.g. pe module — no IP).
+                from src.enricher.virustotal import check_hash, display_hash
+
+                console.print(f"[dim]Querying VirusTotal for {hash_val[:16]}…[/dim]")
+                display_hash(hash_val, check_hash(hash_val))
+            elif hash_val:
+                # Both hash and IP available — ask which.
+                console.print("  \\[h]ash (VirusTotal file lookup)  \\[i]p enrichment")
+                try:
+                    sub = prompt("  Choice: ").strip().lower()
+                except KeyboardInterrupt:
+                    console.print("[dim]Cancelled.[/dim]")
+                    sub = ""
+                if sub.startswith("h"):
+                    from src.enricher.virustotal import check_hash, display_hash
+
+                    console.print(f"[dim]Querying VirusTotal for {hash_val[:16]}…[/dim]")
+                    display_hash(hash_val, check_hash(hash_val))
+                else:
+                    enrich_ip(src_ip)
+            else:
+                enrich_ip(src_ip)
+        elif key == "f" and module.SUPPORTS_FP:
             module.fp_action(record)
         elif key == "m":
             dest_ip = record.get("dest_ip", "")
@@ -782,10 +836,26 @@ class ZeekModule:
     DETAIL_FIELDS: list = []  # List of (label: str, value_fn: Callable[[dict], str])
     SENSOR_PARAM: str | None = "sensor"  # Set to None to skip the sensor prompt in re-search
     SUPPORTS_IP_FILTER: bool = True  # Set False for metadata-only modules (pe, capture_loss)
+    SUPPORTS_ENRICHMENT: bool = True  # Set False for modules with no IPs or hashes to enrich
+    SUPPORTS_FP: bool = True  # Set False for diagnostic modules (capture_loss)
+    WEB_CATEGORY: str = "core"  # Category group for the web UI sidebar
+    WEB_COLUMNS: list = []  # List of (header: str, value_fn: Callable[[dict], str]) for web table
 
-    def build_extra_must(self, search_params: dict) -> list:
-        """Return protocol-specific must clauses built from search_params."""
-        return []
+    def build_extra_must(self, search_params: dict) -> tuple:
+        """Return (must_clauses, post_filters) built from search_params.
+
+        must_clauses: list of OpenSearch DSL clause dicts added to the query must.
+        post_filters: list of callables (record: dict) -> bool applied after parsing.
+                      When non-empty, run_query() uses 3× over-fetch automatically.
+        """
+        return [], []
+
+    def prepare_hits(self, hits: list) -> None:
+        """Pre-parse hook called on raw hits before parse_hit() loop.
+
+        Override for batch lookups (e.g. x509 community_id pivot, pe fuid→hash lookup).
+        Default is a no-op.
+        """
 
     def parse_hit(self, src: dict) -> dict:
         """Convert an OpenSearch _source dict to a normalised record dict.

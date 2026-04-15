@@ -32,11 +32,16 @@ class NoticeModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Note", lambda r: r.get("notice_note", "—") or "—"),
+        ("Message", lambda r: (r.get("notice_msg", "") or "")[:80] or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("notice_note"):
             clauses.append({"term": {"zeek.notice.note": search_params["notice_note"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         notice = src.get("zeek", {}).get("notice", {})

@@ -30,14 +30,27 @@ class SslModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("SNI", lambda r: r.get("ssl_server_name", "—") or "—"),
+        ("Version", lambda r: r.get("ssl_version", "—") or "—"),
+        (
+            "Est",
+            lambda r: (
+                "✓"
+                if r.get("ssl_established")
+                else ("✗" if r.get("ssl_established") is False else "—")
+            ),
+        ),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("ssl_sni"):
             clauses.append({"match_phrase": {"zeek.ssl.server_name": search_params["ssl_sni"]}})
         if search_params.get("ssl_invalid_only"):
             # Exclude records where validation is "ok" (invalid = anything else)
             clauses.append({"bool": {"must_not": [{"term": {"zeek.ssl.validation_status": "ok"}}]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         ssl = src.get("zeek", {}).get("ssl", {})

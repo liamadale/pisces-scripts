@@ -34,7 +34,6 @@ from src.utils.dns import setup_dns
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
-
 from src.enricher.threat_intel import enrich_ip
 from src.querier.fp_manager import (
     append_clauses_to_file,
@@ -428,6 +427,197 @@ def search_weird(
         if weird_name:
             params["weird_name"] = weird_name
         records = run_query(MODULES["weird"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 Tier 2 protocol tools — RADIUS, SIP, Tunnel
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def search_radius(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    username: Optional[str] = None,
+    mac: Optional[str] = None,
+    failed_only: bool = False,
+) -> str:
+    """Search Zeek RADIUS authentication logs — VPN/802.1X auth records.
+
+    Args:
+        username: Filter by username (substring match).
+        mac: Filter by MAC address (exact match).
+        failed_only: Show only failed authentication attempts.
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if username:
+            params["username"] = username
+        if mac:
+            params["mac"] = mac
+        if failed_only:
+            params["failed_only"] = failed_only
+        records = run_query(MODULES["radius"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def search_sip(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    method: Optional[str] = None,
+    status_code: Optional[str] = None,
+    user_agent: Optional[str] = None,
+) -> str:
+    """Search Zeek SIP/VoIP session logs.
+
+    Args:
+        method: Filter by SIP method (INVITE, REGISTER, OPTIONS, etc.).
+        status_code: Filter by SIP status code (exact match).
+        user_agent: Filter by User-Agent (substring match).
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if method:
+            params["method"] = method
+        if status_code:
+            params["status_code"] = status_code
+        if user_agent:
+            params["user_agent"] = user_agent
+        records = run_query(MODULES["sip"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def search_tunnel(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    tunnel_type: Optional[str] = None,
+) -> str:
+    """Search Zeek tunnel logs — protocol encapsulation / covert channel detection.
+
+    Args:
+        tunnel_type: Filter by tunnel type (Tunnel::IP, Tunnel::GRE, etc.).
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if tunnel_type:
+            params["tunnel_type"] = tunnel_type
+        records = run_query(MODULES["tunnel"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def search_ntp(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    mode: Optional[int] = None,
+    version: Optional[int] = None,
+) -> str:
+    """Search Zeek NTP logs — time synchronisation and amplification detection.
+
+    Args:
+        mode: Filter by NTP mode (3=client, 4=server, 6=control, 7=private).
+        version: Filter by NTP version (exact match, integer).
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if mode is not None:
+            params["mode"] = mode
+        if version is not None:
+            params["version"] = version
+        records = run_query(MODULES["ntp"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def search_modbus(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    function: Optional[str] = None,
+    exceptions_only: bool = False,
+) -> str:
+    """Search Zeek Modbus/TCP logs — OT/SCADA protocol for PLCs and RTUs.
+
+    Args:
+        function: Filter by Modbus function (e.g. "Read Coils", "Write Single Register").
+        exceptions_only: Show only records with exception codes.
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if function:
+            params["function"] = function
+        if exceptions_only:
+            params["exceptions_only"] = True
+        records = run_query(MODULES["modbus"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def search_dnp3(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    no_filters: bool = False,
+    function: Optional[str] = None,
+) -> str:
+    """Search Zeek DNP3 logs — SCADA protocol for utilities (electric, water, gas).
+
+    Args:
+        function: Filter by DNP3 function request (substring match).
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        if function:
+            params["function"] = function
+        records = run_query(MODULES["dnp3"], params)
         records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:

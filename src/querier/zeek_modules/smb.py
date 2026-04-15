@@ -28,7 +28,12 @@ class SmbModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Share", lambda r: r.get("smb_path", "—") or "—"),
+        ("Action", lambda r: r.get("smb_action", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("smb_share"):
             # Match on either smb_mapping.path or smb_files.path
@@ -45,7 +50,7 @@ class SmbModule(ZeekModule):
             )
         if search_params.get("smb_action"):
             clauses.append({"term": {"zeek.smb_files.action": search_params["smb_action"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         dataset = src.get("event", {}).get("dataset", "")

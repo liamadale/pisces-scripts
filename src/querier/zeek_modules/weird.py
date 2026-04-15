@@ -26,11 +26,16 @@ class WeirdModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Name", lambda r: r.get("weird_name", "—") or "—"),
+        ("Addl", lambda r: r.get("weird_addl", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("weird_name"):
             clauses.append({"term": {"zeek.weird.name": search_params["weird_name"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         weird = src.get("zeek", {}).get("weird", {})
