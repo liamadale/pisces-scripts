@@ -25,14 +25,14 @@ nlp = [
 # Offline ASN/BGP reputation lookup (requires a BGP dump at data/asn_table.dat)
 # Download a dump via: python -m pyasn.scripts.pyasn_util_download
 offline-enrichment = [
-    "pyasn>=1.6.1",
+    "pyasn>=1.6.2",
 ]
 
 # Everything
 all = [
     "mcp[cli]>=1.0.0",
     "spacy>=3.7",
-    "pyasn>=1.6.1",
+    "pyasn>=1.6.2",
 ]
 
 [dependency-groups]
