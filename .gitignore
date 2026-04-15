@@ -183,6 +183,7 @@ cython_debug/
 
 # PISCES tool
 data/
+!data/signatures/
 .venv/
 
 # Visual Studio Code

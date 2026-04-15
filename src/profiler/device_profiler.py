@@ -46,6 +46,12 @@ class DeviceProfile:
     hostname: str | None = None
     ad_domain: str | None = None
 
+    # Classification
+    role: str = "unknown"
+    confidence: float = 0.0
+    os_family: str | None = None
+    software: list[str] = field(default_factory=list)
+
     # Outbound conn (device as client)
     dest_port_distribution: dict[int, int] = field(default_factory=dict)
     protocol_mix: dict[str, int] = field(default_factory=dict)
@@ -560,7 +566,7 @@ def profile_device(
     first_seen = min((t for t in [out["first_seen"], inb["first_seen"]] if t), default="")
     last_seen = max((t for t in [out["last_seen"], inb["last_seen"]] if t), default="")
 
-    return DeviceProfile(
+    profile = DeviceProfile(
         ip=ip,
         sensor=sensor,
         time_range=time_range,
@@ -600,6 +606,16 @@ def profile_device(
         last_seen=last_seen,
     )
 
+    # Classification layer — runs on the populated profile
+    from src.profiler.role_classifier import classify_role, detect_os
+    from src.profiler.software_signatures import match_software
+
+    profile.role, profile.confidence = classify_role(profile)
+    profile.os_family = detect_os(profile)
+    profile.software = match_software(profile)
+
+    return profile
+
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -624,6 +640,14 @@ def _display_profile(profile: DeviceProfile) -> None:
         f"\n[bold]Device Profile:[/bold] {name}"
         f"  [dim]({profile.ip})  sensor={profile.sensor}  range={profile.time_range}[/dim]"
     )
+    role_str = profile.role.replace("_", " ").title()
+    conf_pct = int(profile.confidence * 100)
+    os_str = profile.os_family.title() if profile.os_family else "Unknown"
+    console.print(
+        f"[bold]Role:[/bold] {role_str} ({conf_pct}% confidence)  [bold]OS:[/bold] {os_str}"
+    )
+    if profile.software:
+        console.print(f"[bold]Software:[/bold] {', '.join(profile.software)}")
     if profile.first_seen:
         console.print(
             f"[dim]First seen: {profile.first_seen[:19]}  Last seen: {profile.last_seen[:19]}[/dim]"

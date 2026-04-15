@@ -1,0 +1,100 @@
+# Software signatures for device profiler.
+# Each entry matches DNS domains, HTTP user agents, or SSL SNI patterns
+# observed from a device to identify installed software.
+#
+# Signal types:
+#   dns           — match against dns_top_domains[].domain (fnmatch glob)
+#   http_ua       — match against user_agents[] (fnmatch glob)
+#   ssl_sni       — match against ssl_sni_values[] (fnmatch glob)
+#   requires      — only match if another software name was already detected
+
+- name: NinjaRMM
+  signals:
+    - type: dns
+      pattern: "*.ninjarmm.com"
+    - type: dns
+      pattern: "*.ninjarmm.io"
+
+- name: Rapid7 InsightAgent
+  signals:
+    - type: dns
+      pattern: "*.rapid7.com"
+    - type: dns
+      pattern: "endpoint.ingress.rapid7.com"
+
+- name: Microsoft Defender for Endpoint
+  signals:
+    - type: dns
+      pattern: "winatp-gw-*.microsoft.com"
+
+- name: Azure Arc
+  signals:
+    - type: dns
+      pattern: "*.guestconfiguration.azure.com"
+
+- name: Sophos Endpoint
+  signals:
+    - type: dns
+      pattern: "*.sophosxl.net"
+
+- name: CrowdStrike Falcon
+  signals:
+    - type: dns
+      pattern: "*.crowdstrike.com"
+
+- name: SentinelOne
+  signals:
+    - type: dns
+      pattern: "*.sentinelone.net"
+
+- name: Application Insights
+  signals:
+    - type: dns
+      pattern: "dc.services.visualstudio.com"
+    - type: dns
+      pattern: "*.applicationinsights.azure.com"
+
+- name: Windows Update
+  signals:
+    - type: dns
+      pattern: "*.windowsupdate.com"
+    - type: dns
+      pattern: "*.update.microsoft.com"
+
+- name: Google Chrome
+  signals:
+    - type: dns
+      pattern: "*.gvt1.com"
+    - type: dns
+      pattern: "update.googleapis.com"
+
+- name: Microsoft Edge
+  signals:
+    - type: dns
+      pattern: "msedge.api.cdp.microsoft.com"
+
+- name: Firefox
+  signals:
+    - type: dns
+      pattern: "*.services.mozilla.com"
+    - type: dns
+      pattern: "detectportal.firefox.com"
+
+- name: Microsoft Teams
+  signals:
+    - type: dns
+      pattern: "teams.microsoft.com"
+    - type: dns
+      pattern: "*.teams.microsoft.com"
+
+- name: Zoom
+  signals:
+    - type: dns
+      pattern: "*.zoom.us"
+
+- name: OneDrive
+  signals:
+    - type: dns
+      pattern: "*.onedrive.com"
+    - type: dns
+      pattern: "*.sharepoint.com"
