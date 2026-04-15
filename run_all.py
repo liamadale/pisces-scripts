@@ -22,7 +22,6 @@ from werkzeug.serving import run_simple
 
 from apps.hub.app import create_app as create_hub
 from apps.opensearch_web.app import create_app as create_opensearch
-from apps.kibana_web.app import create_app as create_kibana
 from apps.mantis_web.app import create_app as create_mantis
 from apps.dashboard_web.app import create_app as create_dashboard
 
@@ -30,7 +29,6 @@ application = DispatcherMiddleware(
     create_hub(),
     {
         "/opensearch": create_opensearch(),
-        "/kibana": create_kibana(),
         "/mantis": create_mantis(),
         "/dashboard": create_dashboard(),
     },

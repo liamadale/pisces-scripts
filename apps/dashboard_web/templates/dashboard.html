@@ -9,9 +9,6 @@
     <button id="tab-btn-opensearch" class="tab-btn" onclick="switchTab('opensearch')">
       <i class="fa-solid fa-network-wired"></i> OpenSearch
     </button>
-    <button id="tab-btn-kibana" class="tab-btn" onclick="switchTab('kibana')">
-      <i class="fa-solid fa-shield-halved"></i> Kibana
-    </button>
     <button id="tab-btn-mantis" class="tab-btn" onclick="switchTab('mantis')">
       <i class="fa-solid fa-bug"></i> Threat Intel
     </button>
@@ -46,12 +43,6 @@
   </div>
 </div>
 
-<div id="panel-kibana" class="tab-panel" style="display:none">
-  <div id="panel-kibana-content">
-    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Kibana data…</p>
-  </div>
-</div>
-
 <div id="panel-mantis" class="tab-panel" style="display:none">
   <div id="panel-mantis-content">
     <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Threat Intel data…</p>
@@ -80,7 +71,7 @@ function loadSection(name) {
 }
 
 function switchTab(name) {
-  ['overview', 'opensearch', 'kibana', 'mantis'].forEach(function(t) {
+  ['overview', 'opensearch', 'mantis'].forEach(function(t) {
     var panel = document.getElementById('panel-' + t);
     var btn   = document.getElementById('tab-btn-' + t);
     if (panel) panel.style.display = (t === name) ? '' : 'none';

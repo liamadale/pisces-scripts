@@ -43,10 +43,9 @@ def create_app() -> Flask:
 
     from apps.dashboard_web.overview import bp as overview_bp
     from apps.dashboard_web.opensearch import bp as opensearch_bp
-    from apps.dashboard_web.kibana import bp as kibana_bp
     from apps.dashboard_web.mantis import bp as mantis_bp
 
-    for bp in [overview_bp, opensearch_bp, kibana_bp, mantis_bp]:
+    for bp in [overview_bp, opensearch_bp, mantis_bp]:
         app.register_blueprint(bp)
 
     return app

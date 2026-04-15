@@ -37,7 +37,6 @@ from mcp.server.fastmcp import FastMCP
 
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query, query_opensearch, INDEX, is_private
-from src.querier.kibana_module import KibanaModule, run_kibana_query
 from src.utils.ip_org import lookup_org
 from src.enricher.threat_intel import enrich_ip
 from src.querier.fp_manager import (
@@ -63,16 +62,6 @@ def _serialise_records(records: list) -> list:
         out.append(r)
     return out
 
-
-def _serialise_alerts(alerts: list) -> list:
-    """Same treatment for Kibana alert records."""
-    out = []
-    for alert in alerts:
-        a = {k: v for k, v in alert.items() if k != "_raw"}
-        if isinstance(a.get("cities"), set):
-            a["cities"] = sorted(a["cities"])
-        out.append(a)
-    return out
 
 
 def _ok(data) -> str:
@@ -538,89 +527,6 @@ def pivot_ip(
                 "protocols": results,
             }
         )
-    except Exception as exc:
-        return _err(str(exc))
-
-
-@mcp.tool()
-def pivot_alerts(
-    ip: str,
-    time_range: str = "now-24h",
-    severity: int = 3,
-    limit: int = 200,
-    no_filters: bool = False,
-) -> str:
-    """Check whether an IP has triggered any Suricata IDS alerts.
-
-    A fast way to answer "is this IP in my alert data?" before running a full pivot.
-
-    Args:
-        ip: IP address to check.
-        severity: Maximum Suricata severity level to include (1=high, 2=medium, 3=low).
-    """
-    try:
-        params: dict = {
-            "time_range": time_range,
-            "severity": severity,
-            "limit": limit,
-            "no_filters": no_filters,
-        }
-        alerts = run_kibana_query(KibanaModule(), params)
-        alerts = [a for a in alerts if a.get("src_ip") == ip or a.get("dest_ip") == ip]
-        return _ok(
-            {"ip": ip, "count": len(alerts), "alerts": _serialise_alerts(alerts)}
-        )
-    except Exception as exc:
-        return _err(str(exc))
-
-
-# ---------------------------------------------------------------------------
-# Alert tool
-# ---------------------------------------------------------------------------
-
-
-@mcp.tool()
-def search_alerts(
-    time_range: str = "now-24h",
-    severity: int = 3,
-    src_ip: Optional[str] = None,
-    signature: Optional[str] = None,
-    min_bytes: Optional[int] = None,
-    protocol: Optional[str] = None,
-    limit: int = 200,
-    no_filters: bool = False,
-    public_only: bool = False,
-) -> str:
-    """Search Suricata IDS alerts via Kibana/ELK.
-
-    Args:
-        severity: Maximum severity level to include (1=critical, 2=high, 3=medium/low).
-        src_ip: Filter by source IP address (post-filter).
-        signature: Suricata rule signature substring to match, e.g. "ET SCAN".
-        min_bytes: Minimum bytes transferred to server.
-        protocol: Application protocol to filter by, e.g. "http", "tls".
-    """
-    try:
-        params: dict = {
-            "time_range": time_range,
-            "severity": severity,
-            "no_filters": no_filters,
-            "public_only": public_only,
-            "limit": limit,
-        }
-        if signature:
-            params["signature"] = signature
-        if min_bytes is not None:
-            params["min_bytes"] = min_bytes
-        if protocol:
-            params["protocol"] = protocol
-
-        alerts = run_kibana_query(KibanaModule(), params)
-
-        if src_ip:
-            alerts = [a for a in alerts if a.get("src_ip") == src_ip]
-
-        return _ok({"count": len(alerts), "alerts": _serialise_alerts(alerts)})
     except Exception as exc:
         return _err(str(exc))
 
