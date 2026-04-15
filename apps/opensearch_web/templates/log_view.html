@@ -47,10 +47,7 @@
       <col class="col-num"><col class="col-time"><col class="col-sensor">
       <col class="col-ip"><col class="col-port">
       <col class="col-ip"><col class="col-port">
-      <col class="col-info">
-      {% if log_type in ('conn', 'http') %}
-      <col class="col-bytes"><col class="col-bytes">
-      {% endif %}
+      {% for _ in web_columns %}<col class="col-info">{% endfor %}
       <col class="col-risk">
       <col class="col-freq">
     </colgroup>
@@ -63,31 +60,9 @@
         <th class="sortable num">Src Port</th>
         <th class="sortable">Dst IP</th>
         <th class="sortable num">Dst Port</th>
-        {% if log_type == 'conn' %}
-        <th class="sortable">App</th>
-        <th class="sortable num">↑ Bytes</th>
-        <th class="sortable num">↓ Bytes</th>
-        {% elif log_type == 'dns' %}
-        <th class="sortable">Query</th>
-        {% elif log_type == 'http' %}
-        <th class="sortable">URI</th>
-        <th class="sortable num">↑ Bytes</th>
-        <th class="sortable num">↓ Bytes</th>
-        {% elif log_type == 'notice' %}
-        <th class="sortable">Note</th>
-        {% elif log_type == 'ssh' %}
-        <th class="sortable">Client</th>
-        {% elif log_type == 'rdp' %}
-        <th class="sortable">Cookie</th>
-        {% elif log_type == 'smtp' %}
-        <th class="sortable">Subject</th>
-        {% elif log_type == 'ssl' %}
-        <th class="sortable">SNI</th>
-        {% elif log_type == 'smb' %}
-        <th class="sortable">Path</th>
-        {% elif log_type == 'weird' %}
-        <th class="sortable">Name</th>
-        {% endif %}
+        {% for header, _ in web_columns %}
+        <th class="sortable">{{ header }}</th>
+        {% endfor %}
         <th class="sortable num">Risk</th>
         <th class="sortable num">Freq</th>
       </tr>
