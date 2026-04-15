@@ -34,6 +34,7 @@ from src.utils.dns import setup_dns
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
+
 from src.enricher.threat_intel import enrich_ip
 from src.querier.fp_manager import (
     append_clauses_to_file,

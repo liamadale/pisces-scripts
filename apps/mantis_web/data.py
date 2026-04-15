@@ -12,7 +12,10 @@ DATA_DIR = os.path.join(_REPO, "data", "tickets")
 
 
 def _load(name: str) -> list:
-    with open(os.path.join(DATA_DIR, name), encoding="utf-8") as f:
+    path = os.path.join(DATA_DIR, name)
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
