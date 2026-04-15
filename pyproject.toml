@@ -10,6 +10,7 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "flask>=3.0",
     "geoip2>=4.8.0",
+    "orjson>=3.11.8",
 ]
 
 [project.optional-dependencies]
