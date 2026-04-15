@@ -10,7 +10,6 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import sys
 import time
@@ -23,8 +22,9 @@ from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
-    TaskProgressColumn,
+    TextColumn,
     TimeElapsedColumn,
+    TimeRemainingColumn,
 )
 
 sys.path.insert(
@@ -32,6 +32,7 @@ sys.path.insert(
 )
 
 from src.mantis.mantis_search import _normalize_issue
+from src.utils.cache import dump_json, load_json
 from src.utils.dns import setup_dns
 
 console = Console()
@@ -45,6 +46,7 @@ def _fetch_all_raw(
     api_token: str,
     page_size: int,
     max_pages: int,
+    estimated_total: int | None = None,
 ) -> list[dict]:
     """Phase 1: paginate the MantisBT REST API and collect raw issue dicts."""
     headers = {"Authorization": api_token}
@@ -73,45 +75,58 @@ def _fetch_all_raw(
         )
         return []
 
-    # total_count is present but None on this Mantis instance; paginate until empty
+    # Determine best total estimate for the progress bar
     total_known = data.get("total_count")  # may be None
-    total_pages_est: int | None = None
+    bar_total: int | None = None
     if total_known:
-        total_pages_est = (total_known + page_size - 1) // page_size
+        bar_total = total_known
+        console.print(f"[dim]{total_known:,} total tickets reported by API[/dim]")
+    elif estimated_total:
+        bar_total = estimated_total
         console.print(
-            f"[dim]{total_known} total tickets reported, ~{total_pages_est} pages[/dim]"
+            f"[dim]Estimated ~{estimated_total:,} tickets from existing index[/dim]"
         )
     else:
         console.print(
             "[dim]total_count not available — paginating until empty page[/dim]"
         )
 
+    if max_pages:
+        bar_total = max_pages * page_size
+        console.print(
+            f"[dim]Capped at {max_pages} pages (~{bar_total:,} tickets)[/dim]"
+        )
+
     all_raw.extend(issues)
 
-    with Progress(
+    # Build progress columns — use ticket-count display when we have an estimate,
+    # otherwise just show count + spinner (no bar/ETA without a total).
+    columns = [
         SpinnerColumn(),
         "[progress.description]{task.description}",
-        BarColumn(),
-        TaskProgressColumn(),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        total_for_bar: int | None = total_pages_est if total_known else None
-        if max_pages:
-            total_for_bar = max_pages
-            console.print(
-                f"[dim]Capped at {max_pages} pages ({max_pages * page_size} tickets)[/dim]"
-            )
+    ]
+    if bar_total is not None:
+        columns += [
+            BarColumn(),
+            TextColumn("[cyan]{task.completed:,}/{task.total:,} tickets[/cyan]"),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+        ]
+    else:
+        columns += [
+            TextColumn("[cyan]{task.completed:,} tickets[/cyan]"),
+            TimeElapsedColumn(),
+        ]
 
-        task = progress.add_task("Fetching tickets...", total=total_for_bar)
-        progress.advance(task)  # page 1 already done
+    with Progress(*columns, console=console) as progress:
+        task = progress.add_task("Fetching...", total=bar_total)
+        progress.advance(task, advance=len(issues))
 
         page = 2
         while True:
             if max_pages and page > max_pages:
                 break
 
-            time.sleep(0.1)
             retried = False
             while True:
                 try:
@@ -133,9 +148,11 @@ def _fetch_all_raw(
                         time.sleep(2)
                         continue
                     console.print(f"[red]Page {page} timed out twice — stopping.[/red]")
+                    progress.update(task, total=len(all_raw))
                     return all_raw
                 except requests.RequestException as exc:
                     console.print(f"[red]Page {page} failed: {exc}[/red]")
+                    progress.update(task, total=len(all_raw))
                     return all_raw
 
             page_issues = resp.json().get("issues", [])
@@ -143,12 +160,15 @@ def _fetch_all_raw(
                 break
 
             all_raw.extend(page_issues)
-            progress.advance(task)
+            progress.advance(task, advance=len(page_issues))
 
             if len(page_issues) < page_size:
                 break
 
             page += 1
+
+        # Snap to exact total now that we know the real count
+        progress.update(task, completed=len(all_raw), total=len(all_raw))
 
     return all_raw
 
@@ -156,8 +176,9 @@ def _fetch_all_raw(
 def build_index(
     api_url: str,
     api_token: str,
-    page_size: int = 50,
+    page_size: int = 200,
     max_pages: int = 0,
+    existing_index_path: str | None = None,
 ) -> list[dict]:
     """Paginate through the MantisBT REST API and normalize every issue.
 
@@ -168,7 +189,17 @@ def build_index(
                  registry so that notes written by *any* known handler are
                  correctly flagged is_admin_note=True.
     """
-    all_raw = _fetch_all_raw(api_url, api_token, page_size, max_pages)
+    # Estimate total from existing index for the progress bar
+    estimated_total: int | None = None
+    if existing_index_path and os.path.exists(existing_index_path):
+        try:
+            estimated_total = len(load_json(existing_index_path))  # type: ignore[arg-type]
+        except (OSError, ValueError):
+            pass
+
+    all_raw = _fetch_all_raw(
+        api_url, api_token, page_size, max_pages, estimated_total
+    )
     if not all_raw:
         return []
 
@@ -180,10 +211,21 @@ def build_index(
         f"[dim]Handler registry: {len(handler_registry)} unique handler IDs[/dim]"
     )
 
-    # Phase 2b: normalize with registry
-    all_tickets = [
-        _normalize_issue(issue, api_url, handler_registry) for issue in all_raw
-    ]
+    # Phase 2b: normalize with progress
+    with Progress(
+        SpinnerColumn(),
+        "[progress.description]{task.description}",
+        BarColumn(),
+        TextColumn("[cyan]{task.completed:,}/{task.total:,} tickets[/cyan]"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Normalizing...", total=len(all_raw))
+        all_tickets: list[dict] = []
+        for issue in all_raw:
+            all_tickets.append(_normalize_issue(issue, api_url, handler_registry))
+            progress.advance(task)
+
     return all_tickets
 
 
@@ -195,7 +237,7 @@ def main() -> None:
         default=os.path.join(_BASE, "data", "tickets", "indexed", "tickets_index.json"),
         help="Output path for tickets_index.json",
     )
-    parser.add_argument("--page-size", type=int, default=50, help="Issues per API page")
+    parser.add_argument("--page-size", type=int, default=200, help="Issues per API page")
     parser.add_argument(
         "--max-pages", type=int, default=0, help="Max pages to fetch (0 = all)"
     )
@@ -216,6 +258,7 @@ def main() -> None:
         api_token=api_token,
         page_size=args.page_size,
         max_pages=args.max_pages,
+        existing_index_path=args.output,
     )
 
     if not tickets:
@@ -224,8 +267,7 @@ def main() -> None:
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     tmp_path = args.output + ".tmp"
-    with open(tmp_path, "w") as fh:
-        json.dump(tickets, fh, indent=2)
+    dump_json(tickets, tmp_path)
     os.rename(tmp_path, args.output)
 
     console.print(f"[green]Indexed {len(tickets)} tickets → {args.output}[/green]")
