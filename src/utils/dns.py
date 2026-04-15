@@ -6,9 +6,9 @@ cyberrangepoulsbo.com resolves via the internal nameserver at 192.168.168.1
 rather than public DNS.  Safe to call multiple times (no-op after first call).
 """
 
+import re
 import socket
 import subprocess
-import re
 
 _dns_configured = False
 _original_getaddrinfo = socket.getaddrinfo

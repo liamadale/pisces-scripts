@@ -130,9 +130,7 @@ def _filter_undetermined(args) -> list[dict]:
     q = args.get("q", "").strip().lower()
     min_score_str = args.get("min_score", "").strip()
     if q:
-        rows = [
-            r for r in rows if q in r["ip"].lower() or q in r["signals_str"].lower()
-        ]
+        rows = [r for r in rows if q in r["ip"].lower() or q in r["signals_str"].lower()]
     if min_score_str:
         try:
             min_s = float(min_score_str)

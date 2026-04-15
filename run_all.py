@@ -20,10 +20,10 @@ setup_dns()
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 
-from apps.hub.app import create_app as create_hub
-from apps.opensearch_web.app import create_app as create_opensearch
-from apps.mantis_web.app import create_app as create_mantis
 from apps.dashboard_web.app import create_app as create_dashboard
+from apps.hub.app import create_app as create_hub
+from apps.mantis_web.app import create_app as create_mantis
+from apps.opensearch_web.app import create_app as create_opensearch
 
 application = DispatcherMiddleware(
     create_hub(),

@@ -1,10 +1,10 @@
 """OpenSearch aggregation functions for the dashboard."""
 
 from src.querier.zeek_modules.base import (
-    build_base_query,
-    query_opensearch,
-    load_with_remap,
     FILTERS_DIR,
+    build_base_query,
+    load_with_remap,
+    query_opensearch,
 )
 
 
@@ -37,11 +37,7 @@ def agg_opensearch_protocols(time_range: str) -> dict:
         }
     }
     raw = query_opensearch(body, params)
-    buckets = (
-        raw.get("aggregations", {}).get("protocols", {}).get("buckets", [])
-        if raw
-        else []
-    )
+    buckets = raw.get("aggregations", {}).get("protocols", {}).get("buckets", []) if raw else []
     return {
         "labels": [b["key"] for b in buckets],
         "counts": [b["doc_count"] for b in buckets],
@@ -76,9 +72,7 @@ def agg_opensearch_sensors(time_range: str) -> dict:
         }
     }
     raw = query_opensearch(body, params)
-    buckets = (
-        raw.get("aggregations", {}).get("sensors", {}).get("buckets", []) if raw else []
-    )
+    buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", []) if raw else []
     return {
         "labels": [b["key"] for b in buckets],
         "counts": [b["doc_count"] for b in buckets],

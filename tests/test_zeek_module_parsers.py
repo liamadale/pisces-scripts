@@ -10,7 +10,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.querier.zeek_modules.conn import ConnModule
 from src.querier.zeek_modules.dns import DnsModule
 
-
 # ---------------------------------------------------------------------------
 # ConnModule.parse_hit
 # ---------------------------------------------------------------------------

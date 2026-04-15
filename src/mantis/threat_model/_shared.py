@@ -165,9 +165,7 @@ _COUNTRY_MAP: dict[str, str] = {
     "british": "GB",
 }
 _COUNTRY_RE = re.compile(
-    r"\b("
-    + "|".join(re.escape(k) for k in sorted(_COUNTRY_MAP, key=len, reverse=True))
-    + r")\b",
+    r"\b(" + "|".join(re.escape(k) for k in sorted(_COUNTRY_MAP, key=len, reverse=True)) + r")\b",
     re.I,
 )
 
@@ -313,8 +311,6 @@ def _extract_blocklists(text: str) -> list[str]:
 def _is_public(ip: str) -> bool:
     try:
         addr = ipaddress.ip_address(ip)
-        return not (
-            addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast
-        )
+        return not (addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast)
     except ValueError:
         return False

@@ -6,11 +6,11 @@ Returns raw API data for analyst interpretation — no threshold logic applied.
 
 import os
 import sys
+
 import requests
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
-
 
 _BASE_URL = "https://api.abuseipdb.com/api/v2/check"
 URL = "https://www.abuseipdb.com/check/{ip}"

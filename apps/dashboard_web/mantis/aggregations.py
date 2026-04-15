@@ -11,10 +11,7 @@ def agg_mantis_attack_types() -> list:
     for row in MALICIOUS_ROWS:
         for at in row.get("attack_types", []):
             counter[at] += 1
-    return [
-        {"name": k.replace("_", " ").title(), "value": v}
-        for k, v in counter.most_common()
-    ]
+    return [{"name": k.replace("_", " ").title(), "value": v} for k, v in counter.most_common()]
 
 
 def agg_mantis_timeline() -> dict:

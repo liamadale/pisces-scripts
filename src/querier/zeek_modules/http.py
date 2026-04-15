@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek http log module — HTTP request/response records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _fmt_bytes, _sensor_str, console
 
@@ -35,17 +35,11 @@ class HttpModule(ZeekModule):
         if search_params.get("http_method"):
             clauses.append({"term": {"zeek.http.method": search_params["http_method"]}})
         if search_params.get("http_host"):
-            clauses.append(
-                {"match_phrase": {"zeek.http.host": search_params["http_host"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.http.host": search_params["http_host"]}})
         if search_params.get("status_code") is not None:
-            clauses.append(
-                {"term": {"zeek.http.status_code": search_params["status_code"]}}
-            )
+            clauses.append({"term": {"zeek.http.status_code": search_params["status_code"]}})
         if search_params.get("http_uri"):
-            clauses.append(
-                {"match_phrase": {"zeek.http.uri": search_params["http_uri"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.http.uri": search_params["http_uri"]}})
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
@@ -90,9 +84,7 @@ class HttpModule(ZeekModule):
         ("URI", lambda r: r.get("http_uri", "—") or "—"),
         (
             "Status",
-            lambda r: (
-                str(r["http_status"]) if r.get("http_status") is not None else "—"
-            ),
+            lambda r: str(r["http_status"]) if r.get("http_status") is not None else "—",
         ),
         ("Req Bytes", lambda r: _fmt_bytes(r.get("http_req_bytes"))),
         ("Resp Bytes", lambda r: _fmt_bytes(r.get("http_resp_bytes"))),
@@ -104,9 +96,7 @@ class HttpModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -114,7 +104,8 @@ class HttpModule(ZeekModule):
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
-            f"\n[bold]Found {len(records)} unique HTTP request(s) across {total} raw record(s)[/bold] "
+            f"\n[bold]Found {len(records)} unique HTTP request(s)"
+            f" across {total} raw record(s)[/bold] "
             f"(sorted by frequency)\n"
         )
 

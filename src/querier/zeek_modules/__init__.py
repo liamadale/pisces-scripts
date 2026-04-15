@@ -6,12 +6,12 @@ Import MODULES to get the dispatcher mapping of log-type name → module instanc
 from .conn import ConnModule
 from .dns import DnsModule
 from .http import HttpModule
-from .ssl import SslModule
-from .smtp import SmtpModule
+from .notice import NoticeModule
 from .rdp import RdpModule
 from .smb import SmbModule
+from .smtp import SmtpModule
 from .ssh import SshModule
-from .notice import NoticeModule
+from .ssl import SslModule
 from .weird import WeirdModule
 
 MODULES: dict = {

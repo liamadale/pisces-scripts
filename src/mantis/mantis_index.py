@@ -27,9 +27,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.mantis.mantis_search import _normalize_issue
 from src.utils.cache import dump_json, load_json
@@ -70,9 +68,7 @@ def _fetch_all_raw(
     issues = data.get("issues", [])
 
     if not issues:
-        console.print(
-            "[yellow]API returned no issues on page 1 — nothing to index.[/yellow]"
-        )
+        console.print("[yellow]API returned no issues on page 1 — nothing to index.[/yellow]")
         return []
 
     # Determine best total estimate for the progress bar
@@ -83,19 +79,13 @@ def _fetch_all_raw(
         console.print(f"[dim]{total_known:,} total tickets reported by API[/dim]")
     elif estimated_total:
         bar_total = estimated_total
-        console.print(
-            f"[dim]Estimated ~{estimated_total:,} tickets from existing index[/dim]"
-        )
+        console.print(f"[dim]Estimated ~{estimated_total:,} tickets from existing index[/dim]")
     else:
-        console.print(
-            "[dim]total_count not available — paginating until empty page[/dim]"
-        )
+        console.print("[dim]total_count not available — paginating until empty page[/dim]")
 
     if max_pages:
         bar_total = max_pages * page_size
-        console.print(
-            f"[dim]Capped at {max_pages} pages (~{bar_total:,} tickets)[/dim]"
-        )
+        console.print(f"[dim]Capped at {max_pages} pages (~{bar_total:,} tickets)[/dim]")
 
     all_raw.extend(issues)
 
@@ -142,9 +132,7 @@ def _fetch_all_raw(
                 except requests.Timeout:
                     if not retried:
                         retried = True
-                        console.print(
-                            f"[yellow]Timeout on page {page}, retrying...[/yellow]"
-                        )
+                        console.print(f"[yellow]Timeout on page {page}, retrying...[/yellow]")
                         time.sleep(2)
                         continue
                     console.print(f"[red]Page {page} timed out twice — stopping.[/red]")
@@ -197,9 +185,7 @@ def build_index(
         except (OSError, ValueError):
             pass
 
-    all_raw = _fetch_all_raw(
-        api_url, api_token, page_size, max_pages, estimated_total
-    )
+    all_raw = _fetch_all_raw(api_url, api_token, page_size, max_pages, estimated_total)
     if not all_raw:
         return []
 
@@ -207,9 +193,7 @@ def build_index(
     handler_registry: set[int] = {
         issue["handler"]["id"] for issue in all_raw if issue.get("handler")
     }
-    console.print(
-        f"[dim]Handler registry: {len(handler_registry)} unique handler IDs[/dim]"
-    )
+    console.print(f"[dim]Handler registry: {len(handler_registry)} unique handler IDs[/dim]")
 
     # Phase 2b: normalize with progress
     with Progress(
@@ -238,9 +222,7 @@ def main() -> None:
         help="Output path for tickets_index.json",
     )
     parser.add_argument("--page-size", type=int, default=200, help="Issues per API page")
-    parser.add_argument(
-        "--max-pages", type=int, default=0, help="Max pages to fetch (0 = all)"
-    )
+    parser.add_argument("--max-pages", type=int, default=0, help="Max pages to fetch (0 = all)")
     args = parser.parse_args()
 
     load_dotenv()

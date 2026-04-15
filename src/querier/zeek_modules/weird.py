@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek weird log module — unusual protocol behaviour records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -73,9 +73,7 @@ class WeirdModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -83,7 +81,8 @@ class WeirdModule(ZeekModule):
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
-            f"\n[bold]Found {len(records)} unique weird event(s) across {total} raw record(s)[/bold] "
+            f"\n[bold]Found {len(records)} unique weird event(s)"
+            f" across {total} raw record(s)[/bold] "
             f"(sorted by frequency)\n"
         )
 
@@ -91,9 +90,7 @@ class WeirdModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
         table.add_column("Weird Name", no_wrap=True, max_width=25, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 

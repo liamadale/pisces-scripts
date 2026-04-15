@@ -82,8 +82,7 @@ def generate_fp_candidates(
         # the score to FP, which writes the prior again next run, with a 30-day
         # cached GreyNoise "benign" result acting as a silent co-reinforcer.
         if result.signals and all(
-            any(s.startswith(p) for p in _PERSISTENT_SIGNAL_PREFIXES)
-            for s in result.signals
+            any(s.startswith(p) for p in _PERSISTENT_SIGNAL_PREFIXES) for s in result.signals
         ):
             continue
 
@@ -100,9 +99,7 @@ def generate_fp_candidates(
             if ip not in ip_data:
                 ip_data[ip] = {
                     "disposition": disp_key,
-                    "threat_type": result.threat_type.value
-                    if result.threat_type
-                    else None,
+                    "threat_type": result.threat_type.value if result.threat_type else None,
                     "actor": result.actor.value if result.actor else None,
                     "score": result.score,
                     "country": provider.get_country(ip),

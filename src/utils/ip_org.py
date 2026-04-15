@@ -205,9 +205,7 @@ def _fetch_cloud_ranges() -> None:
         pass
 
     try:
-        with urllib.request.urlopen(
-            "https://www.gstatic.com/ipranges/cloud.json", timeout=15
-        ) as r:
+        with urllib.request.urlopen("https://www.gstatic.com/ipranges/cloud.json", timeout=15) as r:
             gcp = json.loads(r.read())
         for p in gcp.get("prefixes", []):
             if "ipv4Prefix" in p:
@@ -355,10 +353,7 @@ if not _cache_loaded or time.time() - _CACHE_FILE.stat().st_mtime > _CACHE_TTL:
     threading.Thread(target=_fetch_cloud_ranges, daemon=True).start()
 
 _stretchoid_loaded = _load_stretchoid_cache()
-if (
-    not _stretchoid_loaded
-    or time.time() - _STRETCHOID_CACHE_FILE.stat().st_mtime > _STRETCHOID_TTL
-):
+if not _stretchoid_loaded or time.time() - _STRETCHOID_CACHE_FILE.stat().st_mtime > _STRETCHOID_TTL:
     threading.Thread(target=_fetch_stretchoid, daemon=True).start()
 
 _cisa_loaded = _load_cisa_cache()

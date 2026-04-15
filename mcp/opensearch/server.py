@@ -14,8 +14,8 @@ Run via Docker:
 
 import json
 import math
-import sys
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
@@ -34,16 +34,15 @@ from src.utils.dns import setup_dns
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
-
-from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import run_query, query_opensearch, INDEX, is_private
-from src.utils.ip_org import lookup_org
 from src.enricher.threat_intel import enrich_ip
 from src.querier.fp_manager import (
     append_clauses_to_file,
     ensure_subcategory,
     filter_file_path,
 )
+from src.querier.zeek_modules import MODULES
+from src.querier.zeek_modules.base import INDEX, is_private, query_opensearch, run_query
+from src.utils.ip_org import lookup_org
 
 mcp = FastMCP("pisces")
 
@@ -61,7 +60,6 @@ def _serialise_records(records: list) -> list:
             r["sensors"] = sorted(r["sensors"])
         out.append(r)
     return out
-
 
 
 def _ok(data) -> str:
@@ -125,9 +123,7 @@ def search_conn(
     Common fields: src_ip, dest_ip, dest_port, proto, bytes, duration, sensor.
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         records = run_query(MODULES["conn"], params)
         records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
@@ -157,9 +153,7 @@ def search_dns(
         dns_qtype: Query type to filter by, e.g. "A", "MX", "TXT".
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if dns_query:
             params["dns_query"] = dns_query
         if dns_rcode:
@@ -197,9 +191,7 @@ def search_http(
         status_code: HTTP response status code to filter by.
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if http_method:
             params["http_method"] = http_method
         if http_host:
@@ -235,9 +227,7 @@ def search_ssl(
         ssl_invalid_only: If True, return only connections with invalid/self-signed certs.
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if ssl_sni:
             params["ssl_sni"] = ssl_sni
         if ssl_invalid_only:
@@ -271,9 +261,7 @@ def search_smtp(
         smtp_subject: Subject line substring to filter by.
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if smtp_mail_from:
             params["smtp_mail_from"] = smtp_mail_from
         if smtp_rcpt_to:
@@ -307,9 +295,7 @@ def search_rdp(
         rdp_cookie: RDP cookie/username string to filter by.
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if rdp_result:
             params["rdp_result"] = rdp_result
         if rdp_cookie:
@@ -341,9 +327,7 @@ def search_smb(
         smb_action: SMB action verb to filter by, e.g. "SMB::FILE_OPEN".
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if smb_share:
             params["smb_share"] = smb_share
         if smb_action:
@@ -375,9 +359,7 @@ def search_ssh(
         ssh_auth_result: Auth result string to filter by, e.g. "failure", "success".
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if ssh_failed_only:
             params["ssh_failed_only"] = True
         if ssh_auth_result is not None:
@@ -410,9 +392,7 @@ def search_notice(
         notice_note: Notice type to filter by, e.g. "Scan::Port_Scan".
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if notice_note:
             params["notice_note"] = notice_note
         records = run_query(MODULES["notice"], params)
@@ -443,9 +423,7 @@ def search_weird(
         weird_name: Weird event name to filter by, e.g. "bad_HTTP_reply".
     """
     try:
-        params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters
-        )
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
         if weird_name:
             params["weird_name"] = weird_name
         records = run_query(MODULES["weird"], params)
@@ -478,9 +456,7 @@ def pivot_ip(
     This is the primary pivot tool for IP-centric investigations.
     """
     try:
-        base = _base_params(
-            time_range, sensor, limit, public_only, ip, None, no_filters
-        )
+        base = _base_params(time_range, sensor, limit, public_only, ip, None, no_filters)
 
         org = lookup_org(ip)
 
@@ -567,9 +543,7 @@ def list_sensors(time_range: str = "now-7d") -> str:
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", [])
         sensors = [{"name": b["key"], "record_count": b["doc_count"]} for b in buckets]
         return _ok({"time_range": time_range, "sensors": sensors})
@@ -613,9 +587,7 @@ def get_notice_summary(
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         buckets = raw.get("aggregations", {}).get("notice_types", {}).get("buckets", [])
         notices = [{"note": b["key"], "count": b["doc_count"]} for b in buckets]
         return _ok({"time_range": time_range, "notices": notices})
@@ -650,9 +622,7 @@ def raw_opensearch_search(
         params = {"path": index_path, "method": method}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         return _ok(raw)
     except Exception as exc:
         return _err(str(exc))
@@ -686,9 +656,7 @@ def aggregate_by_source_ip(
             {"term": {"zeek.notice.note": notice_type}},
         ]
         if sensor != "all":
-            must.append(
-                {"terms": {"host.name": [s.strip() for s in sensor.split(",")]}}
-            )
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
         body = {
             "size": 0,
             "query": {"bool": {"must": must}},
@@ -705,14 +673,10 @@ def aggregate_by_source_ip(
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         buckets = raw.get("aggregations", {}).get("top_sources", {}).get("buckets", [])
         sources = [{"ip": b["key"], "count": b["doc_count"]} for b in buckets]
-        return _ok(
-            {"notice_type": notice_type, "time_range": time_range, "sources": sources}
-        )
+        return _ok({"notice_type": notice_type, "time_range": time_range, "sources": sources})
     except Exception as exc:
         return _err(str(exc))
 
@@ -741,9 +705,7 @@ def get_attack_chain(
             {"prefix": {"zeek.notice.note": "ATTACK::"}},
         ]
         if sensor != "all":
-            must.append(
-                {"terms": {"host.name": [s.strip() for s in sensor.split(",")]}}
-            )
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
         body = {
             "size": 500,
             "query": {"bool": {"must": must}},
@@ -753,14 +715,10 @@ def get_attack_chain(
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         hits = raw.get("hits", {}).get("hits", [])
         records = [MODULES["notice"].parse_hit(h["_source"]) for h in hits]
-        return _ok(
-            {"ip": src_ip, "count": len(records), "chain": _serialise_records(records)}
-        )
+        return _ok({"ip": src_ip, "count": len(records), "chain": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
 
@@ -788,9 +746,7 @@ def enrich_top_talkers(
             {"term": {"zeek.notice.note": notice_type}},
         ]
         if sensor != "all":
-            must.append(
-                {"terms": {"host.name": [s.strip() for s in sensor.split(",")]}}
-            )
+            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
         body = {
             "size": 0,
             "query": {"bool": {"must": must}},
@@ -807,13 +763,9 @@ def enrich_top_talkers(
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         buckets = raw.get("aggregations", {}).get("top_sources", {}).get("buckets", [])
-        public_ips = [
-            (b["key"], b["doc_count"]) for b in buckets if not is_private(b["key"])
-        ]
+        public_ips = [(b["key"], b["doc_count"]) for b in buckets if not is_private(b["key"])]
 
         def _enrich_one(item: tuple) -> dict:
             ip, count = item
@@ -828,9 +780,7 @@ def enrich_top_talkers(
                     results.append(future.result())
             results.sort(key=lambda x: x["count"], reverse=True)
 
-        return _ok(
-            {"notice_type": notice_type, "time_range": time_range, "results": results}
-        )
+        return _ok({"notice_type": notice_type, "time_range": time_range, "results": results})
     except Exception as exc:
         return _err(str(exc))
 
@@ -875,17 +825,13 @@ def compare_to_baseline(
                 }
             },
             "aggs": {
-                "daily": {
-                    "date_histogram": {"field": "@timestamp", "calendar_interval": "1d"}
-                }
+                "daily": {"date_histogram": {"field": "@timestamp", "calendar_interval": "1d"}}
             },
         }
         params = {"path": f"{INDEX}/_search", "method": "POST"}
         raw = query_opensearch(body, params)
         if raw is None:
-            return _err(
-                "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-            )
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
         buckets = raw.get("aggregations", {}).get("daily", {}).get("buckets", [])
         counts = [b["doc_count"] for b in buckets] if buckets else []
 
@@ -980,9 +926,7 @@ def create_fp_filter(
         if scope == "src_ip_and_note" and not notice_note:
             return _err("notice_note is required when scope='src_ip_and_note'")
         if scope not in ("src_ip", "src_ip_and_note"):
-            return _err(
-                f"Invalid scope '{scope}'. Must be 'src_ip' or 'src_ip_and_note'."
-            )
+            return _err(f"Invalid scope '{scope}'. Must be 'src_ip' or 'src_ip_and_note'.")
 
         if scope == "src_ip":
             clause: dict = {"term": {"src_ip": src_ip}}

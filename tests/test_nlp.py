@@ -22,9 +22,7 @@ from src.mantis.ticket_enrichment.nlp import (
 
 # All tests below require spaCy + en_core_web_sm to be installed.
 # Skip the whole module if unavailable rather than failing with misleading errors.
-pytestmark = pytest.mark.skipif(
-    not is_available(), reason="spaCy + en_core_web_sm not installed"
-)
+pytestmark = pytest.mark.skipif(not is_available(), reason="spaCy + en_core_web_sm not installed")
 
 
 # ------------------------------------------------------------------
@@ -53,10 +51,7 @@ class TestIsNegated:
 
     def test_contrastive_clause(self) -> None:
         """Second clause is affirmative — should return False."""
-        text = (
-            "these are not a threat; however, "
-            "104.219.238.86 appears to have malicious history"
-        )
+        text = "these are not a threat; however, 104.219.238.86 appears to have malicious history"
         assert is_negated(text, "malicious") is False
 
     def test_cannot(self) -> None:
@@ -142,9 +137,7 @@ class TestExtractIpRoles:
         assert by_ip["192.168.1.1"] == "dest"
 
     def test_compound_labels(self) -> None:
-        roles = extract_ip_roles(
-            "source IP 78.153.140.0 sent traffic to destination 10.10.3.39"
-        )
+        roles = extract_ip_roles("source IP 78.153.140.0 sent traffic to destination 10.10.3.39")
         assert roles is not None
         by_ip = {r.ip: r.role for r in roles}
         assert by_ip["78.153.140.0"] == "source"

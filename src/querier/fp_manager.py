@@ -13,10 +13,11 @@ import datetime
 import os
 import subprocess
 import sys
+
 import yaml
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 console = Console(file=sys.stderr)
 
@@ -44,9 +45,7 @@ def load_categories() -> dict:
 
 def save_categories(data: dict) -> None:
     with open(CATEGORIES_FILE, "w") as fh:
-        yaml.dump(
-            data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+        yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
 def _categories_dict(data: dict) -> dict:
@@ -85,14 +84,10 @@ def load_filter_file(path: str) -> dict:
 def write_filter_file(path: str, data: dict) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
-        yaml.dump(
-            data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+        yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
-def append_clauses_to_file(
-    path: str, new_clauses: list[dict], author: str = "analyst"
-) -> None:
+def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "analyst") -> None:
     """Append must_not clauses to an existing filter file, or create it."""
     if os.path.exists(path):
         existing = load_filter_file(path)
@@ -133,12 +128,8 @@ def sync_categories() -> list[str]:
             if not fname.endswith(".yaml") and not fname.endswith(".yml"):
                 continue
             subcategory = os.path.splitext(fname)[0]
-            if category not in cats or subcategory not in cats[category].get(
-                "subcategories", []
-            ):
-                warnings.append(
-                    f"  {category}/{fname} — not in categories.yaml registry"
-                )
+            if category not in cats or subcategory not in cats[category].get("subcategories", []):
+                warnings.append(f"  {category}/{fname} — not in categories.yaml registry")
 
     return warnings
 
@@ -172,9 +163,7 @@ def validate_all_filters() -> tuple[int, list[str]]:
                 }
                 missing = required - set(data.keys())
                 if missing:
-                    errors.append(
-                        f"{fpath}: missing keys: {', '.join(sorted(missing))}"
-                    )
+                    errors.append(f"{fpath}: missing keys: {', '.join(sorted(missing))}")
                     continue
                 if not isinstance(data["must_not"], list):
                     errors.append(f"{fpath}: 'must_not' must be a list")
@@ -243,9 +232,7 @@ def _infer_clauses_from_alert(alert: dict, category: str) -> list[dict]:
     if category == "ips" and alert.get("src_ip"):
         clauses.append({"term": {"src_ip": alert["src_ip"]}})
     elif category == "signatures" and alert.get("alert", {}).get("signature"):
-        clauses.append(
-            {"match_phrase": {"alert.signature": alert["alert"]["signature"]}}
-        )
+        clauses.append({"match_phrase": {"alert.signature": alert["alert"]["signature"]}})
     elif category == "ports" and alert.get("dest_port"):
         clauses.append({"term": {"dest_port": alert["dest_port"]}})
     return clauses
@@ -261,9 +248,7 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
     console.print(f"  notice.note: [cyan]{notice_note}[/cyan]")
 
     if not src_ip or not notice_note:
-        console.print(
-            "[red]Missing src_ip or notice_note — cannot create narrow filter.[/red]"
-        )
+        console.print("[red]Missing src_ip or notice_note — cannot create narrow filter.[/red]")
         return
 
     subcategory, _ = _prompt_subcategory("notices")
@@ -292,9 +277,7 @@ def create_notice_filter_interactive(record: dict, author: str = "analyst") -> N
     }
     console.print("\n[bold cyan]Preview:[/bold cyan]")
     console.print(
-        _yaml.dump(
-            preview, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
+        _yaml.dump(preview, default_flow_style=False, allow_unicode=True, sort_keys=False)
     )
 
     confirm = input("Write filter? [y/N]: ").strip().lower()
@@ -387,11 +370,7 @@ def create_filter_interactive(
         "must_not": clauses,
     }
     console.print("\n[bold cyan]Preview:[/bold cyan]")
-    console.print(
-        yaml.dump(
-            preview, default_flow_style=False, allow_unicode=True, sort_keys=False
-        )
-    )
+    console.print(yaml.dump(preview, default_flow_style=False, allow_unicode=True, sort_keys=False))
 
     confirm = input("Write filter? [y/N]: ").strip().lower()
     if confirm != "y":
@@ -459,29 +438,19 @@ def cmd_edit(subcategory_name: str) -> None:
     # Search all categories for this subcategory
     for root, _dirs, files in os.walk(FILTERS_DIR):
         for fname in files:
-            if os.path.splitext(fname)[0] == subcategory_name and fname.endswith(
-                ".yaml"
-            ):
+            if os.path.splitext(fname)[0] == subcategory_name and fname.endswith(".yaml"):
                 fpath = os.path.join(root, fname)
                 subprocess.run([editor, fpath])
                 return
-    console.print(
-        f"[red]No filter file found for subcategory '{subcategory_name}'[/red]"
-    )
+    console.print(f"[red]No filter file found for subcategory '{subcategory_name}'[/red]")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES FP Filter Manager")
     parser.add_argument("--list", action="store_true", help="List all current filters")
-    parser.add_argument(
-        "--validate", action="store_true", help="Validate all filter YAML files"
-    )
-    parser.add_argument(
-        "--edit", metavar="SUBCATEGORY", help="Open filter file in $EDITOR"
-    )
-    parser.add_argument(
-        "--new", action="store_true", help="Create a new FP filter interactively"
-    )
+    parser.add_argument("--validate", action="store_true", help="Validate all filter YAML files")
+    parser.add_argument("--edit", metavar="SUBCATEGORY", help="Open filter file in $EDITOR")
+    parser.add_argument("--new", action="store_true", help="Create a new FP filter interactively")
     args = parser.parse_args()
 
     if args.list:

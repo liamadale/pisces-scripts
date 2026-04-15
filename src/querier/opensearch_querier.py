@@ -20,12 +20,11 @@ import sys
 
 from dotenv import load_dotenv
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import (
+    FILTERS_DIR,
     TIME_RANGES,
     build_base_query,
     console,
@@ -36,7 +35,6 @@ from src.querier.zeek_modules.base import (
     load_with_remap,
     match_all_sample,
     run_query,
-    FILTERS_DIR,
 )
 from src.utils.banner import BANNER
 from src.utils.dns import setup_dns
@@ -55,8 +53,7 @@ def _build_parser(module) -> argparse.ArgumentParser:
     parser.add_argument(
         "--time-range",
         default="now-24h",
-        help="Date-math time range (default: now-24h). Available: "
-        + "  ".join(TIME_RANGES),
+        help="Date-math time range (default: now-24h). Available: " + "  ".join(TIME_RANGES),
     )
     parser.add_argument(
         "--sensor",
@@ -67,8 +64,7 @@ def _build_parser(module) -> argparse.ArgumentParser:
         "--log-type",
         default="conn",
         choices=_VALID_LOG_TYPES,
-        help="Zeek log type to query (default: conn). Options: "
-        + ", ".join(_VALID_LOG_TYPES),
+        help="Zeek log type to query (default: conn). Options: " + ", ".join(_VALID_LOG_TYPES),
     )
     parser.add_argument(
         "--limit",
@@ -209,7 +205,8 @@ def main() -> None:
     records = run_query(module, search_params)
     if not records:
         console.print(
-            "[yellow]No records returned. Filters may be too aggressive or data may be sparse.[/yellow]"
+            "[yellow]No records returned. Filters may be too aggressive"
+            " or data may be sparse.[/yellow]"
         )
         return
 

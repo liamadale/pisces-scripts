@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _import_data_with_empty_files():
     """Import apps.mantis_web.data with all file loading stubbed out."""
-    import importlib
 
     # Remove cached module so the patched version is freshly imported
     for key in list(sys.modules):

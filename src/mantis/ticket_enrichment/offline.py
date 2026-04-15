@@ -167,12 +167,8 @@ class OfflineEnrichmentProvider:
             base = data_dir
             self._blocklist_dir = os.path.join(base, "blocklists")
             self._cache_path = os.path.join(base, "enrichment_cache.json")
-            self._mal_path = os.path.join(
-                base, "tickets", "enriched", "malicious_ips.json"
-            )
-            self._fp_path = os.path.join(
-                base, "tickets", "enriched", "false_positive_ips.json"
-            )
+            self._mal_path = os.path.join(base, "tickets", "enriched", "malicious_ips.json")
+            self._fp_path = os.path.join(base, "tickets", "enriched", "false_positive_ips.json")
             self._asn_rep_path = os.path.join(base, "asn_reputation.yaml")
             self._maxmind_city_path = os.path.join(base, "GeoLite2-City.mmdb")
             self._maxmind_asn_path = os.path.join(base, "GeoLite2-ASN.mmdb")
@@ -268,9 +264,7 @@ class OfflineEnrichmentProvider:
             if gn_class is not None:
                 if greynoise_classification is None:
                     greynoise_classification = gn_class
-                elif _gn_rank.get(gn_class, -1) > _gn_rank.get(
-                    greynoise_classification, -1
-                ):
+                elif _gn_rank.get(gn_class, -1) > _gn_rank.get(greynoise_classification, -1):
                     greynoise_classification = gn_class
             if abuse_conf is not None:
                 if abuseipdb_confidence is None:
@@ -320,9 +314,7 @@ class OfflineEnrichmentProvider:
         entry = self._ecache.setdefault(ip, {})
         entry["fetched_at"] = datetime.now(tz=timezone.utc).isoformat()
         if greynoise is not None:
-            entry["greynoise"] = {
-                "classification": greynoise.get("classification", "not_found")
-            }
+            entry["greynoise"] = {"classification": greynoise.get("classification", "not_found")}
         if abuseipdb is not None and not abuseipdb.get("error"):
             entry["abuseipdb"] = {
                 "confidence": abuseipdb.get("score", 0),
@@ -378,9 +370,7 @@ class OfflineEnrichmentProvider:
             logger.info("Downloaded blocklist %s → %s", source, path)
         except Exception as exc:  # noqa: BLE001
             _print(f"  Warning: failed to download {source}: {exc}")
-            logger.warning(
-                "Failed to download blocklist %s from %s: %s", source, url, exc
-            )
+            logger.warning("Failed to download blocklist %s from %s: %s", source, url, exc)
 
     def _parse_blocklist(self, source: str, path: str, fmt: str) -> None:
         """Parse a downloaded blocklist file into the in-memory stores."""
@@ -436,8 +426,7 @@ class OfflineEnrichmentProvider:
 
         if self._mal_by_ip or self._fp_by_ip:
             _print(
-                f"  Local priors: {len(self._mal_by_ip):,} malicious, "
-                f"{len(self._fp_by_ip):,} FP"
+                f"  Local priors: {len(self._mal_by_ip):,} malicious, {len(self._fp_by_ip):,} FP"
             )
 
     def _load_asn_reputation(self) -> None:
@@ -452,9 +441,7 @@ class OfflineEnrichmentProvider:
         try:
             import pyasn  # type: ignore[import-untyped]  # noqa: PLC0415
 
-            bgp_path = os.path.join(
-                os.path.dirname(self._asn_rep_path), "asn_table.dat"
-            )
+            bgp_path = os.path.join(os.path.dirname(self._asn_rep_path), "asn_table.dat")
             if os.path.exists(bgp_path):
                 self._asndb = pyasn.pyasn(bgp_path)
                 logger.debug("pyasn BGP table loaded from %s", bgp_path)
@@ -474,10 +461,7 @@ class OfflineEnrichmentProvider:
         try:
             import geoip2.database  # type: ignore[import-untyped]  # noqa: PLC0415
         except ImportError:
-            _print(
-                "  MaxMind: geoip2 not installed"
-                " (uv add --optional offline-enrichment geoip2)"
-            )
+            _print("  MaxMind: geoip2 not installed (uv add --optional offline-enrichment geoip2)")
             return
 
         for attr, path, label in (
@@ -563,9 +547,7 @@ class OfflineEnrichmentProvider:
 
         if in_mal:
             mal_rec = self._mal_by_ip[ip]
-            ticket_count = mal_rec.get(
-                "ticket_count", len(mal_rec.get("ticket_ids", []))
-            )
+            ticket_count = mal_rec.get("ticket_count", len(mal_rec.get("ticket_ids", [])))
             if ticket_count >= 2:
                 return "malicious"
 

@@ -17,7 +17,6 @@ from src.mantis.mantis_search import (
     _normalize_issue,
 )
 
-
 # ---------------------------------------------------------------------------
 # _extract_ips
 # ---------------------------------------------------------------------------
@@ -143,10 +142,7 @@ _SAMPLE_ISSUE = {
     "id": 42,
     "summary": "ET SCAN Zmap",
     "description": (
-        "Source IP: 1.2.3.4\n"
-        "Source Port: 52807\n"
-        "Destination IP: 10.10.3.39\n"
-        "Destination Port: 80\n"
+        "Source IP: 1.2.3.4\nSource Port: 52807\nDestination IP: 10.10.3.39\nDestination Port: 80\n"
     ),
     "steps_to_reproduce": "",
     "additional_information": "",

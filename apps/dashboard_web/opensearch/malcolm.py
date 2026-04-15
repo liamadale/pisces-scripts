@@ -27,9 +27,7 @@ def _terms(field: str, time_range: str, datasets: list, size: int = 20) -> dict:
     body["size"] = 0
     body.pop("sort", None)
     body.pop("_source", None)
-    body["aggs"] = {
-        "r": {"terms": {"field": field, "size": size, "order": {"_count": "desc"}}}
-    }
+    body["aggs"] = {"r": {"terms": {"field": field, "size": size, "order": {"_count": "desc"}}}}
     raw = query_opensearch(body, params)
     buckets = raw.get("aggregations", {}).get("r", {}).get("buckets", []) if raw else []
     return {
@@ -110,9 +108,7 @@ def panels_ssl(time_range: str) -> dict:
         "versions": _terms("zeek.ssl.version", time_range, ["ssl"], size=10),
         "ciphers": _terms("zeek.ssl.cipher", time_range, ["ssl"], size=15),
         "top_sni": _terms("zeek.ssl.server_name", time_range, ["ssl"], size=25),
-        "validation": _terms(
-            "zeek.ssl.validation_status", time_range, ["ssl"], size=10
-        ),
+        "validation": _terms("zeek.ssl.validation_status", time_range, ["ssl"], size=10),
     }
 
 
@@ -125,9 +121,7 @@ def panels_conn(time_range: str) -> dict:
     return {
         "conn_states": _terms("zeek.conn.conn_state", time_range, ["conn"], size=15),
         "top_ports": _terms("destination.port", time_range, ["conn"], size=20),
-        "bytes_orig": _sum_terms(
-            "destination.port", "source.bytes", time_range, ["conn"], size=15
-        ),
+        "bytes_orig": _sum_terms("destination.port", "source.bytes", time_range, ["conn"], size=15),
         "bytes_resp": _sum_terms(
             "destination.port", "destination.bytes", time_range, ["conn"], size=15
         ),
@@ -150,9 +144,7 @@ def get_all_panels(time_range: str) -> dict:
     """Return {protocol: panels_dict} for all four protocols in parallel."""
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
-        futures = {
-            ex.submit(fn, time_range): proto for proto, fn in PROTOCOL_FETCHERS.items()
-        }
+        futures = {ex.submit(fn, time_range): proto for proto, fn in PROTOCOL_FETCHERS.items()}
         for future in concurrent.futures.as_completed(futures):
             proto = futures[future]
             try:

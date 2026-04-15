@@ -50,11 +50,7 @@ _raw_tickets = _load("indexed/tickets_index.json")
 _raw_malicious = [
     r for r in _load("enriched/malicious_ips.json") if r["ip"] not in _DNS_RESOLVER_IPS
 ]
-_raw_fp = [
-    r
-    for r in _load("enriched/false_positive_ips.json")
-    if r["ip"] not in _DNS_RESOLVER_IPS
-]
+_raw_fp = [r for r in _load("enriched/false_positive_ips.json") if r["ip"] not in _DNS_RESOLVER_IPS]
 _raw_infra = _load_optional("enriched/known_infra_ips.json")
 _raw_dns_resolvers = _load_optional("enriched/dns_resolver_ips.json")
 _raw_undetermined = _load_optional("enriched/undetermined_ips.json")
@@ -97,9 +93,7 @@ def fmt_attack(at: str) -> str:
 
 def days_between(first: str, last: str) -> int:
     try:
-        return (
-            datetime.strptime(last, "%Y-%m-%d") - datetime.strptime(first, "%Y-%m-%d")
-        ).days
+        return (datetime.strptime(last, "%Y-%m-%d") - datetime.strptime(first, "%Y-%m-%d")).days
     except Exception:
         return 0
 
@@ -254,9 +248,7 @@ def _undetermined_row(r: dict) -> dict:
 MALICIOUS_ROWS: list[dict] = [_malicious_row(r) for r in _raw_malicious]
 FP_ROWS: list[dict] = [_fp_row(r) for r in _raw_fp]
 INFRA_ROWS: list[dict] = [_infra_row(r) for r in _raw_infra]
-DNS_RESOLVER_ROWS: list[dict] = [
-    _dns_resolver_row(r) for r in DNS_RESOLVER_BY_IP.values()
-]
+DNS_RESOLVER_ROWS: list[dict] = [_dns_resolver_row(r) for r in DNS_RESOLVER_BY_IP.values()]
 UNDETERMINED_ROWS: list[dict] = [_undetermined_row(r) for r in _raw_undetermined]
 
 # ---------------------------------------------------------------------------
@@ -265,9 +257,7 @@ UNDETERMINED_ROWS: list[dict] = [_undetermined_row(r) for r in _raw_undetermined
 ALL_ATTACK_TYPES: list[str] = sorted(
     {at for r in _raw_malicious for at in r.get("attack_types", [])}
 )
-ALL_BLOCKLISTS: list[str] = sorted(
-    {bl for r in _raw_malicious for bl in r.get("blocklists", [])}
-)
+ALL_BLOCKLISTS: list[str] = sorted({bl for r in _raw_malicious for bl in r.get("blocklists", [])})
 ALL_FP_CATEGORIES: list[str] = sorted({_fp_category(r)[1] for r in _raw_fp})
 ALL_INFRA_CATEGORIES: list[str] = sorted(
     {r.get("org_category", "") for r in INFRA_ROWS if r.get("org_category")}
@@ -287,7 +277,7 @@ def get_tickets_for_ip(ip: str) -> list[dict]:
 
 
 def classify_ip(ip: str) -> str:
-    """Return 'malicious' | 'infra' | 'dns_resolver' | 'fp' | 'undetermined' | 'observed' | 'unknown'."""
+    """Return 'malicious'|'infra'|'dns_resolver'|'fp'|'undetermined'|'observed'|'unknown'."""
     if ip in MALICIOUS_BY_IP:
         return "malicious"
     if ip in INFRA_BY_IP:

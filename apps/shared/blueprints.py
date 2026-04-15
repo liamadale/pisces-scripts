@@ -33,9 +33,7 @@ def make_enrich_blueprint() -> Blueprint:
             "shodan": shodan.URL.format(ip=ip),
             "virustotal": virustotal.URL.format(ip=ip),
         }
-        return render_template(
-            "partials/enrich_card.html", ip=ip, result=result, urls=urls
-        )
+        return render_template("partials/enrich_card.html", ip=ip, result=result, urls=urls)
 
     return bp
 

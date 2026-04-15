@@ -6,11 +6,11 @@ Returns open ports, org, country, ISP, OS, hostnames, and known vulns.
 
 import os
 import sys
+
 import requests
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
-
 
 _BASE_URL = "https://api.shodan.io/shodan/host"
 URL = "https://www.shodan.io/search?query={ip}"

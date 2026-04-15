@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek dns log module — DNS query records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -31,9 +31,7 @@ class DnsModule(ZeekModule):
     def build_extra_must(self, search_params: dict) -> list:
         clauses = []
         if search_params.get("dns_query"):
-            clauses.append(
-                {"match_phrase": {"zeek.dns.query": search_params["dns_query"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.dns.query": search_params["dns_query"]}})
         if search_params.get("rcode"):
             clauses.append({"term": {"zeek.dns.rcode_name": search_params["rcode"]}})
         if search_params.get("qtype"):
@@ -91,9 +89,7 @@ class DnsModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]

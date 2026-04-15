@@ -40,4 +40,35 @@ dev = [
     "pyright>=1.1.408",
     "pytest>=9.0.2",
     "ruff>=0.15.6",
+    "bandit>=1.8.0",
+    "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# E402: module-import-not-at-top — intentional in CLI scripts that use sys.path.insert() before imports
+"src/mantis/mantis_index.py" = ["E402"]
+"src/mantis/mantis_search.py" = ["E402"]
+"src/mantis/mantis_threat_model.py" = ["E402"]
+"src/querier/opensearch_querier.py" = ["E402"]
+"src/enricher/threat_intel.py" = ["E402"]
+"run_all.py" = ["E402"]
+"*_web_run.py" = ["E402"]
+"tests/*" = ["E402"]
+"apps/*/run.py" = ["E402"]
+"mcp/*/server.py" = ["E402"]
+"src/utils/banner.py" = ["E501"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "data"]
+skips = ["B101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

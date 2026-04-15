@@ -3,17 +3,17 @@
 import collections
 import concurrent.futures
 
+from apps.dashboard_web.opensearch.aggregations import (
+    agg_opensearch_notice_count,
+    agg_opensearch_sensors,
+)
 from apps.mantis_web.data import (
-    MALICIOUS_ROWS,
+    FP_BY_IP,
     FP_ROWS,
+    MALICIOUS_BY_IP,
+    MALICIOUS_ROWS,
     TICKETS_BY_IP,
     _raw_tickets,
-    MALICIOUS_BY_IP,
-    FP_BY_IP,
-)
-from apps.dashboard_web.opensearch.aggregations import (
-    agg_opensearch_sensors,
-    agg_opensearch_notice_count,
 )
 
 
@@ -44,9 +44,7 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
     def _verdict(ip: str) -> tuple[str, str]:
         if ip in MALICIOUS_BY_IP:
             m = MALICIOUS_BY_IP[ip]
-            attack_str = ", ".join(
-                a.replace("_", " ").title() for a in m.get("attack_types", [])
-            )
+            attack_str = ", ".join(a.replace("_", " ").title() for a in m.get("attack_types", []))
             return "malicious", attack_str
         if ip in FP_BY_IP:
             return "fp", ""

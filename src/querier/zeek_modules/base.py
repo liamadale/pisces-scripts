@@ -16,12 +16,13 @@ from collections import defaultdict
 
 import requests
 import urllib3
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
+from src.utils.cache import cache_path as _cache_path_util
+from src.utils.cache import load_cache, save_cache
 from src.utils.format import fmt_bytes, fmt_dur
-from src.utils.cache import cache_path as _cache_path_util, save_cache, load_cache
 from src.utils.terminal import confirm_exit, prompt
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -42,9 +43,7 @@ FILTERS_DIR = os.path.join(_BASE, "filters")
 # Constants
 # ---------------------------------------------------------------------------
 
-OPENSEARCH_URL = os.environ.get(
-    "OPENSEARCH_URL", "https://pisces-opensearch.cyberrangepoulsbo.com"
-)
+OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "https://pisces-opensearch.cyberrangepoulsbo.com")
 INDEX = "arkime_sessions3-*"
 
 # Field name translation: existing YAML filter field → Malcolm/Zeek field
@@ -189,9 +188,7 @@ def _opensearch_session() -> tuple:
     password = os.environ.get("PISCES_PASSWORD", "")
 
     if not username or not password:
-        console.print(
-            "[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]"
-        )
+        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
         return None, None
 
     session = requests.Session()
@@ -229,9 +226,7 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
         return None
 
     if not resp.ok:
-        console.print(
-            f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]"
-        )
+        console.print(f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]")
         return None
 
     return resp.json()
@@ -291,9 +286,7 @@ def build_base_query(
         must_clauses.append({"term": {"network.direction": direction}})
 
     if min_risk_score:
-        must_clauses.append(
-            {"range": {"event.risk_score_norm": {"gte": min_risk_score}}}
-        )
+        must_clauses.append({"range": {"event.risk_score_norm": {"gte": min_risk_score}}})
 
     must_clauses.extend(extra_must)
 
@@ -363,9 +356,7 @@ def run_query(module, search_params: dict) -> list:
     """Execute a full query cycle: load filters, build query, fetch, parse, dedup."""
     if search_params.get("no_filters"):
         must_not: list = []
-        console.print(
-            "[yellow]--no-filters: all false positive filters disabled[/yellow]"
-        )
+        console.print("[yellow]--no-filters: all false positive filters disabled[/yellow]")
     else:
         must_not, fcount, errors = load_with_remap(FILTERS_DIR)
         console.print("[dim]Loading false positive filters...[/dim]")
@@ -409,14 +400,13 @@ def run_query(module, search_params: dict) -> list:
 
     if raw is None:
         console.print(
-            f"[dim]Querying OpenSearch / Malcolm ({search_params.get('time_range', 'now-24h')})...[/dim]"
+            f"[dim]Querying OpenSearch / Malcolm"
+            f" ({search_params.get('time_range', 'now-24h')})...[/dim]"
         )
         raw = query_opensearch(body, params)
         if raw is None:
             if search_params.get("raise_on_error"):
-                raise RuntimeError(
-                    "OpenSearch query failed — check credentials and OPENSEARCH_URL"
-                )
+                raise RuntimeError("OpenSearch query failed — check credentials and OPENSEARCH_URL")
             return []
         _save_cache(raw, cpath)
 
@@ -445,8 +435,12 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
 
     from src.enricher.threat_intel import enrich_ip
     from src.mantis.mantis_search import (
-        search as mantis_search,
         display_results as display_mantis,
+    )
+    from src.mantis.mantis_search import (
+        search as mantis_search,
+    )
+    from src.mantis.mantis_search import (
         sensor_to_project,
     )
 
@@ -459,7 +453,8 @@ def interactive_loop(records: list, search_params: dict, module, query_fn=None) 
             hint = module.describe_record(r)
             console.print(f"[dim]↩  Last: #{last_record['idx']} {hint}[/dim]")
         console.print(
-            "[bold cyan]Action[/bold cyan] — enter record # / \\[r]e-search / \\[p]rint (CTRL+C to exit):"
+            "[bold cyan]Action[/bold cyan] — enter record #"
+            " / \\[r]e-search / \\[p]rint (CTRL+C to exit):"
         )
         try:
             raw = prompt("  > ").strip().lower()
@@ -559,11 +554,12 @@ def _search_again_prompt(current: dict, module) -> dict:
             "Sensor (comma-sep or 'all')", current.get(module.SENSOR_PARAM, "all")
         )
 
-    pub_raw = _ask("Public only (y/n)", "y" if current.get("public_only") else "n")
-    new["public_only"] = pub_raw.lower() in ("y", "yes")
+    if module.SUPPORTS_IP_FILTER:
+        pub_raw = _ask("Public only (y/n)", "y" if current.get("public_only") else "n")
+        new["public_only"] = pub_raw.lower() in ("y", "yes")
 
-    src_raw = _ask("Src IP filter (blank to clear)", current.get("src_ip"))
-    new["src_ip"] = src_raw if src_raw else None
+        src_raw = _ask("Src IP filter (blank to clear)", current.get("src_ip"))
+        new["src_ip"] = src_raw if src_raw else None
 
     dir_raw = _ask(
         "Direction filter (inbound/outbound/internal/external/blank)",
@@ -699,7 +695,10 @@ def list_indices() -> None:
         resp = session.post(
             base_url + "/api/console/proxy",
             params={
-                "path": "_cat/indices?format=json&s=docs.count:desc&h=index,docs.count,store.size,health",
+                "path": (
+                    "_cat/indices?format=json&s=docs.count:desc"
+                    "&h=index,docs.count,store.size,health"
+                ),
                 "method": "GET",
             },
             timeout=30,
@@ -709,9 +708,7 @@ def list_indices() -> None:
         return
 
     if not resp.ok:
-        console.print(
-            f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]"
-        )
+        console.print(f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]")
         return
 
     indices = resp.json()
@@ -719,9 +716,7 @@ def list_indices() -> None:
         console.print("[yellow]No indices found.[/yellow]")
         return
 
-    table = Table(
-        title="OpenSearch indices (sorted by doc count)", box=box.SIMPLE_HEAVY
-    )
+    table = Table(title="OpenSearch indices (sorted by doc count)", box=box.SIMPLE_HEAVY)
     table.add_column("Index", style="cyan")
     table.add_column("Docs", justify="right")
     table.add_column("Size", justify="right")
@@ -729,9 +724,7 @@ def list_indices() -> None:
 
     for entry in indices:
         health = entry.get("health", "")
-        health_color = {"green": "green", "yellow": "yellow", "red": "red"}.get(
-            health, "white"
-        )
+        health_color = {"green": "green", "yellow": "yellow", "red": "red"}.get(health, "white")
         table.add_row(
             entry.get("index", ""),
             entry.get("docs.count", "—"),
@@ -750,17 +743,11 @@ def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
     body = {
         "size": limit,
         "sort": [{"@timestamp": {"order": "desc"}}],
-        "query": {
-            "bool": {
-                "must": [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]
-            }
-        },
+        "query": {"bool": {"must": [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]}},
     }
     params = {"path": f"{INDEX}/_search", "method": "POST"}
 
-    console.print(
-        f"[dim]match_all against '{INDEX}' ({time_range}, limit {limit})...[/dim]"
-    )
+    console.print(f"[dim]match_all against '{INDEX}' ({time_range}, limit {limit})...[/dim]")
     raw = query_opensearch(body, params)
     if raw is None:
         return
@@ -772,7 +759,8 @@ def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
     hits = raw.get("hits", {}).get("hits", [])
     if not hits:
         console.print(
-            "[yellow]No hits — index pattern may not match any indices, or no data in this time range.[/yellow]"
+            "[yellow]No hits — index pattern may not match any indices,"
+            " or no data in this time range.[/yellow]"
         )
         return
 
@@ -792,9 +780,8 @@ class ZeekModule:
     DATASETS: list = ["all"]
     SOURCE_FIELDS: list = []
     DETAIL_FIELDS: list = []  # List of (label: str, value_fn: Callable[[dict], str])
-    SENSOR_PARAM: str | None = (
-        "sensor"  # Set to None to skip the sensor prompt in re-search
-    )
+    SENSOR_PARAM: str | None = "sensor"  # Set to None to skip the sensor prompt in re-search
+    SUPPORTS_IP_FILTER: bool = True  # Set False for metadata-only modules (pe, capture_loss)
 
     def build_extra_must(self, search_params: dict) -> list:
         """Return protocol-specific must clauses built from search_params."""

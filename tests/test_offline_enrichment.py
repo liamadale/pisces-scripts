@@ -10,8 +10,7 @@ import ipaddress
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime, timezone
 
 # Allow imports from project root (same pattern as the CLI scripts)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,7 +23,6 @@ from src.mantis.ticket_enrichment.offline import (
     _parse_ip_txt,
     _parse_threatfox_json,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -249,9 +247,7 @@ def test_has_fresh_api_cache_false_missing(tmp_path: str) -> None:
 def test_enrich_ticket_aggregates_signals(tmp_path: str) -> None:
     """enrich_ticket() unions signals from multiple IPs in a ticket."""
     provider = _make_provider(tmp_path)
-    provider._cidr_prefixes["spamhaus_drop"] = [
-        ipaddress.IPv4Network("198.51.100.0/24")
-    ]
+    provider._cidr_prefixes["spamhaus_drop"] = [ipaddress.IPv4Network("198.51.100.0/24")]
     provider._mal_by_ip["203.0.113.1"] = {
         "ticket_count": 3,
         "ticket_ids": ["1", "2", "3"],

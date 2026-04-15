@@ -3,9 +3,9 @@
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from apps.opensearch_web import cache as wcache
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query
-from apps.opensearch_web import cache as wcache
 
 # Protocol-specific search_params keys forwarded from HTTP request
 MODULE_PARAM_KEYS: dict = {
@@ -27,15 +27,11 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
     params = {
         "time_range": request.values.get("time_range", "now-24h"),
         "sensor": request.values.get("sensor", "all"),
-        "limit": int(v)
-        if (v := request.values.get("limit", "").strip()) and v.isdigit()
-        else 500,
+        "limit": int(v) if (v := request.values.get("limit", "").strip()) and v.isdigit() else 500,
         "public_only": request.values.get("public_only") in ("on", "true", "1"),
         "src_ip": request.values.get("src_ip") or None,
         "direction": request.values.get("direction") or None,
-        "min_risk_score": int(v)
-        if (v := request.values.get("min_risk", "").strip())
-        else None,
+        "min_risk_score": int(v) if (v := request.values.get("min_risk", "").strip()) else None,
         "no_filters": False,
         "use_cache": False,
     }
@@ -66,9 +62,7 @@ def run_cross_protocol_query(search_params: dict) -> list:
             except Exception:
                 results_by_type[lt] = []
 
-    ip_data: dict = defaultdict(
-        lambda: {"per_protocol": {lt: 0 for lt in MODULES}, "total": 0}
-    )
+    ip_data: dict = defaultdict(lambda: {"per_protocol": {lt: 0 for lt in MODULES}, "total": 0})
     for lt, records in results_by_type.items():
         for rec in records:
             ip = rec.get("src_ip", "")

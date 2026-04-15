@@ -46,9 +46,7 @@ def generate_infra_registry(
     skipped_malicious = 0
     skipped_no_actor = 0
 
-    console.print(
-        f"[dim]  Infra registry: processing {len(tickets):,} tickets...[/dim]"
-    )
+    console.print(f"[dim]  Infra registry: processing {len(tickets):,} tickets...[/dim]")
     for ticket in tickets:
         if ticket.get("status", "").lower() not in resolved_statuses:
             continue
@@ -177,9 +175,7 @@ def generate_infra_registry(
                     "org": "internal",
                     "actor": "internal_infrastructure",
                     "first_seen": ticket.get("created_at", ""),
-                    "last_seen": (
-                        ticket.get("updated_at") or ticket.get("last_updated") or ""
-                    ),
+                    "last_seen": (ticket.get("updated_at") or ticket.get("last_updated") or ""),
                     "ticket_ids": [],
                     "protocols_seen": [],
                     "attacks_against": [],
@@ -199,7 +195,8 @@ def generate_infra_registry(
         )
     if skipped_no_actor:
         console.print(
-            f"[dim]  Skipped {skipped_no_actor} public IP occurrences with no actor attribution[/dim]"
+            f"[dim]  Skipped {skipped_no_actor} public IP occurrences"
+            " with no actor attribution[/dim]"
         )
 
     for rec in ip_records.values():

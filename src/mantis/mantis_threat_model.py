@@ -17,9 +17,7 @@ import sys
 
 from dotenv import load_dotenv
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.mantis.threat_model import (
     enrich_undetermined_ips,
@@ -58,14 +56,10 @@ def _print_classify_stats(
     method_counts: Counter = Counter()
     undetermined_with_notes = 0
 
-    console.print(
-        f"[dim]  Classify stats: processing {len(tickets):,} tickets...[/dim]"
-    )
+    console.print(f"[dim]  Classify stats: processing {len(tickets):,} tickets...[/dim]")
     for i, ticket in enumerate(tickets, 1):
         if i % _PROGRESS_INTERVAL == 0:
-            console.print(
-                f"[dim]  classify-stats: {i:,}/{len(tickets):,} tickets[/dim]"
-            )
+            console.print(f"[dim]  classify-stats: {i:,}/{len(tickets):,} tickets[/dim]")
 
         result = classify_rules(ticket, provider.enrich_ticket(ticket))
         disposition_counts[result.disposition.value] += 1
@@ -87,9 +81,7 @@ def _print_classify_stats(
         pct = count / total * 100
         console.print(f"[dim]    {count:5d} ({pct:5.1f}%)  {disp}[/dim]")
 
-    console.print(
-        f"\n[dim]  Undetermined with admin notes: {undetermined_with_notes}[/dim]"
-    )
+    console.print(f"\n[dim]  Undetermined with admin notes: {undetermined_with_notes}[/dim]")
 
     console.print("\n[dim]  Threat type breakdown (true_positive tickets):[/dim]")
     for tt, count in threat_type_counts.most_common():
@@ -184,8 +176,7 @@ def _resolve_registry_conflicts(
                     "score": 50,
                     "signals": ["registry_conflict"],
                     "ticket_ids": sorted(
-                        set(mal_rec.get("ticket_ids", []))
-                        | set(fp_rec.get("ticket_ids", []))
+                        set(mal_rec.get("ticket_ids", [])) | set(fp_rec.get("ticket_ids", []))
                     ),
                 }
             )
@@ -231,18 +222,14 @@ def _resolve_registry_conflicts(
         return
 
     if total_conflicts:
-        console.print(
-            f"[yellow]Registry conflicts resolved: {total_conflicts} mal∩FP IPs[/yellow]"
-        )
+        console.print(f"[yellow]Registry conflicts resolved: {total_conflicts} mal∩FP IPs[/yellow]")
     if resolved_to_fp:
         console.print(
-            f"[dim]  → kept in FP only (conflict_resolved_fp):"
-            f" {len(resolved_to_fp)}[/dim]"
+            f"[dim]  → kept in FP only (conflict_resolved_fp): {len(resolved_to_fp)}[/dim]"
         )
     if resolved_to_mal:
         console.print(
-            f"[dim]  → kept in malicious only (conflict_resolved_tp):"
-            f" {len(resolved_to_mal)}[/dim]"
+            f"[dim]  → kept in malicious only (conflict_resolved_tp): {len(resolved_to_mal)}[/dim]"
         )
     if moved_to_undetermined:
         console.print(
@@ -271,37 +258,27 @@ def main() -> None:
     )
     parser.add_argument(
         "--fp-output",
-        default=os.path.join(
-            _BASE, "data", "tickets", "enriched", "false_positive_ips.json"
-        ),
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "false_positive_ips.json"),
         help="Output path for FP candidate IPs (JSON)",
     )
     parser.add_argument(
         "--threat-output",
-        default=os.path.join(
-            _BASE, "data", "tickets", "enriched", "malicious_ips.json"
-        ),
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "malicious_ips.json"),
         help="Output path for malicious IPs threat database",
     )
     parser.add_argument(
         "--infra-output",
-        default=os.path.join(
-            _BASE, "data", "tickets", "enriched", "known_infra_ips.json"
-        ),
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "known_infra_ips.json"),
         help="Output path for infrastructure IP registry",
     )
     parser.add_argument(
         "--dns-output",
-        default=os.path.join(
-            _BASE, "data", "tickets", "enriched", "dns_resolver_ips.json"
-        ),
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "dns_resolver_ips.json"),
         help="Output path for known public DNS resolver IPs",
     )
     parser.add_argument(
         "--undetermined-output",
-        default=os.path.join(
-            _BASE, "data", "tickets", "enriched", "undetermined_ips.json"
-        ),
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "undetermined_ips.json"),
         help="Output path for IPs from tickets the classifier could not resolve",
     )
     parser.add_argument(
@@ -359,9 +336,7 @@ def main() -> None:
     if args.enrich:
         console.print("\n[bold cyan]API enrichment pass (--enrich)[/bold cyan]")
         enrich_undetermined_ips(args.undetermined_output, provider)
-        console.print(
-            "[dim]Re-running registry generators with enriched signals...[/dim]"
-        )
+        console.print("[dim]Re-running registry generators with enriched signals...[/dim]")
         generate_fp_candidates(tickets, args.fp_output, provider)
         generate_threat_db(tickets, args.threat_output, provider)
         generate_infra_registry(
@@ -373,9 +348,7 @@ def main() -> None:
         generate_dns_resolver_registry(tickets, args.dns_output)
         generate_undetermined_registry(tickets, args.undetermined_output, provider)
 
-    _resolve_registry_conflicts(
-        args.threat_output, args.fp_output, args.undetermined_output
-    )
+    _resolve_registry_conflicts(args.threat_output, args.fp_output, args.undetermined_output)
 
 
 if __name__ == "__main__":

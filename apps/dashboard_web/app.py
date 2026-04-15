@@ -41,9 +41,9 @@ def create_app() -> Flask:
         dcache.invalidate()
         return "", 204
 
-    from apps.dashboard_web.overview import bp as overview_bp
-    from apps.dashboard_web.opensearch import bp as opensearch_bp
     from apps.dashboard_web.mantis import bp as mantis_bp
+    from apps.dashboard_web.opensearch import bp as opensearch_bp
+    from apps.dashboard_web.overview import bp as overview_bp
 
     for bp in [overview_bp, opensearch_bp, mantis_bp]:
         app.register_blueprint(bp)

@@ -24,11 +24,9 @@ from rich.console import Console
 from rich.table import Table
 
 # Allow running as script from project root
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.enricher import greynoise, abuseipdb, shodan, virustotal
+from src.enricher import abuseipdb, greynoise, shodan, virustotal
 from src.utils.dns import setup_dns
 
 console = Console(file=sys.stderr)

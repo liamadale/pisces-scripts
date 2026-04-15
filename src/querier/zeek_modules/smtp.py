@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek smtp log module — SMTP email session records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -34,20 +34,12 @@ class SmtpModule(ZeekModule):
         clauses = []
         if search_params.get("smtp_mail_from"):
             clauses.append(
-                {
-                    "match_phrase": {
-                        "zeek.smtp.mailfrom": search_params["smtp_mail_from"]
-                    }
-                }
+                {"match_phrase": {"zeek.smtp.mailfrom": search_params["smtp_mail_from"]}}
             )
         if search_params.get("smtp_rcpt_to"):
-            clauses.append(
-                {"match_phrase": {"zeek.smtp.rcptto": search_params["smtp_rcpt_to"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.smtp.rcptto": search_params["smtp_rcpt_to"]}})
         if search_params.get("smtp_subject"):
-            clauses.append(
-                {"match_phrase": {"zeek.smtp.subject": search_params["smtp_subject"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.smtp.subject": search_params["smtp_subject"]}})
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
@@ -97,9 +89,7 @@ class SmtpModule(ZeekModule):
         (
             "TLS",
             lambda r: (
-                "✓"
-                if r.get("smtp_tls") is True
-                else ("✗" if r.get("smtp_tls") is False else "—")
+                "✓" if r.get("smtp_tls") is True else ("✗" if r.get("smtp_tls") is False else "—")
             ),
         ),
         ("Last Reply", lambda r: r.get("smtp_last_reply", "—") or "—"),
@@ -111,9 +101,7 @@ class SmtpModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -121,7 +109,8 @@ class SmtpModule(ZeekModule):
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
-            f"\n[bold]Found {len(records)} unique SMTP session(s) across {total} raw record(s)[/bold] "
+            f"\n[bold]Found {len(records)} unique SMTP session(s)"
+            f" across {total} raw record(s)[/bold] "
             f"(sorted by frequency)\n"
         )
 
@@ -129,9 +118,7 @@ class SmtpModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
         table.add_column("Subject", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("TLS", justify="center", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)

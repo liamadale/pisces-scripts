@@ -14,7 +14,6 @@ from src.querier.zeek_modules.base import (
     is_private,
 )
 
-
 # ---------------------------------------------------------------------------
 # is_private
 # ---------------------------------------------------------------------------
@@ -132,9 +131,7 @@ def test_build_base_query_dataset_filter() -> None:
         datasets=["dns"],
     )
     must = body["query"]["bool"]["must"]
-    dataset_clause = next(
-        (c for c in must if "terms" in c and "event.dataset" in c["terms"]), None
-    )
+    dataset_clause = next((c for c in must if "terms" in c and "event.dataset" in c["terms"]), None)
     assert dataset_clause is not None
     assert dataset_clause["terms"]["event.dataset"] == ["dns"]
 
@@ -164,9 +161,7 @@ def test_build_base_query_sensor_filter() -> None:
         datasets=["conn"],
     )
     must = body["query"]["bool"]["must"]
-    sensor_clause = next(
-        (c for c in must if "terms" in c and "host.name" in c["terms"]), None
-    )
+    sensor_clause = next((c for c in must if "terms" in c and "host.name" in c["terms"]), None)
     assert sensor_clause is not None
     assert "hedgehog-bonney-lake" in sensor_clause["terms"]["host.name"]
 
@@ -183,9 +178,7 @@ def test_build_base_query_src_ip_filter() -> None:
         src_ip_filter="198.51.100.1",
     )
     must = body["query"]["bool"]["must"]
-    ip_clause = next(
-        (c for c in must if "term" in c and "source.ip" in c["term"]), None
-    )
+    ip_clause = next((c for c in must if "term" in c and "source.ip" in c["term"]), None)
     assert ip_clause is not None
     assert ip_clause["term"]["source.ip"] == "198.51.100.1"
 

@@ -11,7 +11,7 @@ import ipaddress
 import re
 from dataclasses import dataclass, field
 
-from .categories import ET_CATEGORY_MAP, Disposition, ThreatType, Actor
+from .categories import ET_CATEGORY_MAP, Actor, Disposition, ThreatType
 from .offline import OfflineEnrichment
 
 # ---------------------------------------------------------------------------
@@ -492,14 +492,11 @@ def _score_admin_notes(
     if structured_abuse is None:
         if enrichment_text.get("abuseipdb_confidence", 0) >= 80:
             delta -= 22  # 50 - 22 = 28
-            signals.append(
-                f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence"
-            )
+            signals.append(f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence")
         elif enrichment_text.get("abuseipdb_confidence", 100) <= 10:
             delta += 15  # 50 + 15 = 65
             signals.append(
-                f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence"
-                " (low)"
+                f"abuseipdb: {enrichment_text['abuseipdb_confidence']}% confidence (low)"
             )
 
     return delta, signals
@@ -802,10 +799,7 @@ def classify_rules(
             None,
             rep,
             "rule",
-            [
-                f"et_category: {prefix}"
-                + ("" if admin_note_texts else " (no admin note)")
-            ],
+            [f"et_category: {prefix}" + ("" if admin_note_texts else " (no admin note)")],
         )
 
     # --- Score accumulation for ambiguous tickets (base reputation = 50) ---
@@ -851,14 +845,10 @@ def classify_rules(
             _structured_abuse = enrichment.abuseipdb_confidence
             if enrichment.abuseipdb_confidence >= 80:
                 reputation = max(0, min(100, reputation - 22))
-                signals.append(
-                    f"abuseipdb_structured: {enrichment.abuseipdb_confidence}%"
-                )
+                signals.append(f"abuseipdb_structured: {enrichment.abuseipdb_confidence}%")
             elif enrichment.abuseipdb_confidence <= 10:
                 reputation = max(0, min(100, reputation + 15))
-                signals.append(
-                    f"abuseipdb_structured: {enrichment.abuseipdb_confidence}% (low)"
-                )
+                signals.append(f"abuseipdb_structured: {enrichment.abuseipdb_confidence}% (low)")
         # IP role: explicit source/dest labelling adjusts confidence.
         if enrichment.ip_role == "source":
             reputation = max(0, min(100, reputation - 8))
@@ -872,9 +862,7 @@ def classify_rules(
             signals.append(f"country: {enrichment.country}")
 
     # Admin note scoring (Layer 1b) — returns a signed delta from 50
-    note_delta, note_signals = _score_admin_notes(
-        notes, _structured_gn, _structured_abuse
-    )
+    note_delta, note_signals = _score_admin_notes(notes, _structured_gn, _structured_abuse)
     reputation = max(0, min(100, reputation + note_delta))
     signals.extend(note_signals)
     if reputation >= REPUTATION_FP_THRESHOLD:
@@ -884,9 +872,7 @@ def classify_rules(
         threat_type = ThreatType.UNKNOWN
 
     # Infrastructure signals from notes
-    if disposition == Disposition.UNDETERMINED and any(
-        kw in all_note_lower for kw in _INFRA_NOTE
-    ):
+    if disposition == Disposition.UNDETERMINED and any(kw in all_note_lower for kw in _INFRA_NOTE):
         if reputation > 50:
             disposition = Disposition.BENIGN_TRUE_POSITIVE
 
@@ -918,9 +904,7 @@ def classify_rules(
         reputation = 10
         disposition = Disposition.TRUE_POSITIVE
         threat_type = ThreatType.BLOCKLIST_HIT
-        signals.append(
-            f"abuseipdb_confidence: {enrichment_data['abuseipdb_confidence']}%"
-        )
+        signals.append(f"abuseipdb_confidence: {enrichment_data['abuseipdb_confidence']}%")
     elif _structured_gn is None and (
         enrichment_data.get("greynoise_classification") == "benign"
         and disposition == Disposition.UNDETERMINED
@@ -929,9 +913,7 @@ def classify_rules(
         disposition = Disposition.FALSE_POSITIVE
         signals.append("greynoise_benign_in_description")
 
-    return ClassificationResult(
-        disposition, threat_type, None, reputation, "rule", signals
-    )
+    return ClassificationResult(disposition, threat_type, None, reputation, "rule", signals)
 
 
 def classify(

@@ -32,9 +32,7 @@ def generate_undetermined_registry(
     ip_data: dict[str, dict] = {}
     processed = 0
 
-    console.print(
-        f"[dim]  Undetermined registry: processing {len(tickets):,} tickets...[/dim]"
-    )
+    console.print(f"[dim]  Undetermined registry: processing {len(tickets):,} tickets...[/dim]")
     for ticket in tickets:
         if ticket.get("status", "").lower() not in resolved_statuses:
             continue
@@ -80,9 +78,7 @@ def generate_undetermined_registry(
     dump_json(records, tmp)
     os.rename(tmp, output_path)
 
-    console.print(
-        f"[green]Undetermined registry: {len(records)} IPs → {output_path}[/green]"
-    )
+    console.print(f"[green]Undetermined registry: {len(records)} IPs → {output_path}[/green]")
 
 
 def enrich_undetermined_ips(
@@ -100,9 +96,7 @@ def enrich_undetermined_ips(
     Skips gracefully if no undetermined file exists yet.
     """
     if not os.path.exists(undetermined_path):
-        console.print(
-            "[dim]  No undetermined registry found — skipping API enrichment.[/dim]"
-        )
+        console.print("[dim]  No undetermined registry found — skipping API enrichment.[/dim]")
         return
 
     undetermined: list[dict] = load_json(undetermined_path)  # type: ignore[assignment]
@@ -118,12 +112,7 @@ def enrich_undetermined_ips(
         # Skip non-public addresses (matches _is_public logic in _shared.py)
         try:
             addr = ipaddress.ip_address(ip)
-            if (
-                addr.is_private
-                or addr.is_loopback
-                or addr.is_reserved
-                or addr.is_multicast
-            ):
+            if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast:
                 continue
         except ValueError:
             continue
@@ -133,9 +122,7 @@ def enrich_undetermined_ips(
         ips_to_enrich.append(ip)
 
     if not ips_to_enrich:
-        console.print(
-            "[dim]  All undetermined IPs already have fresh cache entries.[/dim]"
-        )
+        console.print("[dim]  All undetermined IPs already have fresh cache entries.[/dim]")
         return
 
     console.print(
@@ -143,8 +130,8 @@ def enrich_undetermined_ips(
     )
 
     # Import here to avoid circular dependency and ensure .env is loaded
-    from src.enricher import greynoise as _gn  # noqa: PLC0415
     from src.enricher import abuseipdb as _ab  # noqa: PLC0415
+    from src.enricher import greynoise as _gn  # noqa: PLC0415
 
     for i, ip in enumerate(ips_to_enrich, 1):
         console.print(f"[dim]  [{i}/{len(ips_to_enrich)}] {ip}...[/dim]", end="")
@@ -167,6 +154,4 @@ def enrich_undetermined_ips(
         ab_str = f"{ab_score}%" if ab_score is not None else "—"
         console.print(f" GN={gn_class} AbuseIPDB={ab_str}")
 
-    console.print(
-        f"[green]  API enrichment complete ({len(ips_to_enrich)} IPs).[/green]"
-    )
+    console.print(f"[green]  API enrichment complete ({len(ips_to_enrich)} IPs).[/green]")

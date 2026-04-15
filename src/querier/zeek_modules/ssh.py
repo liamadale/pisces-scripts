@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek ssh log module — SSH connection and authentication records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -80,9 +80,7 @@ class SshModule(ZeekModule):
         ),
         (
             "SSH Version",
-            lambda r: (
-                str(r["ssh_version"]) if r.get("ssh_version") is not None else "—"
-            ),
+            lambda r: str(r["ssh_version"]) if r.get("ssh_version") is not None else "—",
         ),
         (
             "Auth",
@@ -95,9 +93,7 @@ class SshModule(ZeekModule):
         (
             "Attempts",
             lambda r: (
-                str(r["ssh_auth_attempts"])
-                if r.get("ssh_auth_attempts") is not None
-                else "—"
+                str(r["ssh_auth_attempts"]) if r.get("ssh_auth_attempts") is not None else "—"
             ),
         ),
         ("Client", lambda r: r.get("ssh_client", "—") or "—"),
@@ -109,9 +105,7 @@ class SshModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -127,18 +121,14 @@ class SshModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis")
         table.add_column("Auth", justify="center", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
         for idx, rec in enumerate(records, 1):
             auth = rec.get("ssh_auth_success")
             auth_str = (
-                "[green]✓[/green]"
-                if auth is True
-                else ("[red]✗[/red]" if auth is False else "—")
+                "[green]✓[/green]" if auth is True else ("[red]✗[/red]" if auth is False else "—")
             )
             src_ip = rec.get("src_ip", "")
             dest_ip = rec.get("dest_ip", "")
@@ -173,7 +163,8 @@ class SshModule(ZeekModule):
         auth = record.get("ssh_auth_success")
         result = "success" if auth is True else ("failed" if auth is False else "?")
         return (
-            f"ssh {record.get('src_ip', '?')} → {record.get('dest_ip', '?')}:{record.get('dest_port', '?')}"
+            f"ssh {record.get('src_ip', '?')} → "
+            f"{record.get('dest_ip', '?')}:{record.get('dest_port', '?')}"
             f" [{result}]"
         )
 
@@ -184,7 +175,5 @@ class SshModule(ZeekModule):
         raw = _ask("Failed only (y/n)", "y" if new.get("ssh_failed_only") else "n")
         new["ssh_failed_only"] = raw.lower() in ("y", "yes")
         if not new["ssh_failed_only"]:
-            val = _ask(
-                "Auth result filter (true/false/blank)", new.get("ssh_auth_result")
-            )
+            val = _ask("Auth result filter (true/false/blank)", new.get("ssh_auth_result"))
             new["ssh_auth_result"] = val if val in ("true", "false") else None

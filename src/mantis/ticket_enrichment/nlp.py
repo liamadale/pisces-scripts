@@ -76,9 +76,7 @@ _SEMANTIC_NEGATORS: frozenset[str] = frozenset(
 
 # Tokens that negate when they appear as a sibling modifier
 # (e.g. "non malicious" where "non" is nmod of the same head).
-_NEG_PREFIXES: frozenset[str] = frozenset(
-    {"non", "no", "not", "never", "without", "unlikely"}
-)
+_NEG_PREFIXES: frozenset[str] = frozenset({"non", "no", "not", "never", "without", "unlikely"})
 
 
 def _token_has_neg_child(token) -> bool:  # type: ignore[no-untyped-def]
@@ -181,9 +179,7 @@ _IPV4_RE = re.compile(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b")
 
 # Prepositions/verbs that indicate directionality.
 _SOURCE_PREPS: frozenset[str] = frozenset({"from", "by"})
-_DEST_PREPS: frozenset[str] = frozenset(
-    {"to", "toward", "towards", "targeting", "against"}
-)
+_DEST_PREPS: frozenset[str] = frozenset({"to", "toward", "towards", "targeting", "against"})
 _ATTACK_VERBS: frozenset[str] = frozenset(
     {
         "attack",
@@ -203,12 +199,8 @@ _ATTACK_VERBS: frozenset[str] = frozenset(
 )
 
 # Token text that labels an adjacent IP as source or dest.
-_SOURCE_LABELS: frozenset[str] = frozenset(
-    {"source", "src", "attacker", "sender", "origin"}
-)
-_DEST_LABELS: frozenset[str] = frozenset(
-    {"destination", "dest", "target", "victim", "receiver"}
-)
+_SOURCE_LABELS: frozenset[str] = frozenset({"source", "src", "attacker", "sender", "origin"})
+_DEST_LABELS: frozenset[str] = frozenset({"destination", "dest", "target", "victim", "receiver"})
 
 
 @dataclass
@@ -360,9 +352,7 @@ def extract_ip_roles(text: str) -> list[IpRole] | None:
 _CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.I)
 
 # spaCy NER labels that tend to produce noise on security text.
-_NER_NOISE: frozenset[str] = frozenset(
-    {"ET", "CINS", "DROP", "SCAN", "INFO", "TOR", "P2P", "DNS"}
-)
+_NER_NOISE: frozenset[str] = frozenset({"ET", "CINS", "DROP", "SCAN", "INFO", "TOR", "P2P", "DNS"})
 
 
 def extract_entities(
@@ -384,11 +374,7 @@ def extract_entities(
     for ent in doc.ents:
         if ent.label_ == "ORG":
             name = ent.text.strip()
-            if (
-                name.upper() not in _NER_NOISE
-                and len(name) > 1
-                and not _CVE_RE.search(name)
-            ):
+            if name.upper() not in _NER_NOISE and len(name) > 1 and not _CVE_RE.search(name):
                 orgs.append(name)
         elif ent.label_ == "GPE":
             countries.append(ent.text.strip())

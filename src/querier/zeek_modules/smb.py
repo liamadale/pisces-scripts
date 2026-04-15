@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek smb module — combined smb_files + smb_mapping records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -36,25 +36,15 @@ class SmbModule(ZeekModule):
                 {
                     "bool": {
                         "should": [
-                            {
-                                "match_phrase": {
-                                    "zeek.smb_mapping.path": search_params["smb_share"]
-                                }
-                            },
-                            {
-                                "match_phrase": {
-                                    "zeek.smb_files.path": search_params["smb_share"]
-                                }
-                            },
+                            {"match_phrase": {"zeek.smb_mapping.path": search_params["smb_share"]}},
+                            {"match_phrase": {"zeek.smb_files.path": search_params["smb_share"]}},
                         ],
                         "minimum_should_match": 1,
                     }
                 }
             )
         if search_params.get("smb_action"):
-            clauses.append(
-                {"term": {"zeek.smb_files.action": search_params["smb_action"]}}
-            )
+            clauses.append({"term": {"zeek.smb_files.action": search_params["smb_action"]}})
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
@@ -119,9 +109,7 @@ class SmbModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -137,9 +125,7 @@ class SmbModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=32, overflow="ellipsis")
         table.add_column("Path", no_wrap=True, max_width=30, overflow="ellipsis")
         table.add_column("Freq", justify="right", no_wrap=True)
 

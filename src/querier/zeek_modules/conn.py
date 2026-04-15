@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek conn log module — TCP/UDP/ICMP connection records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _first, _fmt_bytes, _fmt_dur, _sensor_str, console
 
@@ -90,9 +90,7 @@ class ConnModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -108,9 +106,7 @@ class ConnModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=40, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=40, overflow="ellipsis")
         table.add_column("App/State", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
 
@@ -123,11 +119,7 @@ class ConnModule(ZeekModule):
             app_proto = rec.get("app_proto") or ""
             proto = rec.get("proto") or ""
             conn_state = rec.get("conn_state") or ""
-            app_state = (
-                f"{app_proto or proto}/{conn_state}"
-                if (app_proto or proto)
-                else conn_state
-            )
+            app_state = f"{app_proto or proto}/{conn_state}" if (app_proto or proto) else conn_state
             table.add_row(
                 str(idx),
                 rec["timestamp"][5:16].replace("T", " "),

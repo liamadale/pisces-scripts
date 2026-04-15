@@ -5,8 +5,8 @@ Overrides fp_action to offer broad (IP-wide) or narrow (IP + notice.note)
 suppression scope.
 """
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -89,9 +89,7 @@ class NoticeModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -142,9 +140,7 @@ class NoticeModule(ZeekModule):
         console.print(
             "  [b]road  — suppress this IP across all tools → filters/ips/ (existing flow)"
         )
-        console.print(
-            "  [n]arrow — suppress this notice type from this IP → filters/notices/"
-        )
+        console.print("  [n]arrow — suppress this notice type from this IP → filters/notices/")
 
         try:
             choice = input("  Choice [b/n]: ").strip().lower()
@@ -174,7 +170,5 @@ class NoticeModule(ZeekModule):
             console.print("[dim]Skipped.[/dim]")
 
     def add_search_params_prompt(self, new: dict, _ask) -> None:
-        val = _ask(
-            "Notice note filter (e.g. SSH::Password_Guessing)", new.get("notice_note")
-        )
+        val = _ask("Notice note filter (e.g. SSH::Password_Guessing)", new.get("notice_note"))
         new["notice_note"] = val if val else None

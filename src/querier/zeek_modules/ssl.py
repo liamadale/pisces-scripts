@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Zeek ssl log module — TLS/SSL handshake records."""
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
 from .base import ZeekModule, _sensor_str, console
 
@@ -33,14 +33,10 @@ class SslModule(ZeekModule):
     def build_extra_must(self, search_params: dict) -> list:
         clauses = []
         if search_params.get("ssl_sni"):
-            clauses.append(
-                {"match_phrase": {"zeek.ssl.server_name": search_params["ssl_sni"]}}
-            )
+            clauses.append({"match_phrase": {"zeek.ssl.server_name": search_params["ssl_sni"]}})
         if search_params.get("ssl_invalid_only"):
             # Exclude records where validation is "ok" (invalid = anything else)
-            clauses.append(
-                {"bool": {"must_not": [{"term": {"zeek.ssl.validation_status": "ok"}}]}}
-            )
+            clauses.append({"bool": {"must_not": [{"term": {"zeek.ssl.validation_status": "ok"}}]}})
         return clauses
 
     def parse_hit(self, src: dict) -> dict:
@@ -106,9 +102,7 @@ class SslModule(ZeekModule):
         ),
         (
             "Risk Score Norm",
-            lambda r: (
-                str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—"
-            ),
+            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
         ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
@@ -116,7 +110,8 @@ class SslModule(ZeekModule):
     def display(self, records: list) -> None:
         total = sum(r["freq"] for r in records)
         console.print(
-            f"\n[bold]Found {len(records)} unique SSL/TLS flow(s) across {total} raw record(s)[/bold] "
+            f"\n[bold]Found {len(records)} unique SSL/TLS flow(s)"
+            f" across {total} raw record(s)[/bold] "
             f"(sorted by frequency)\n"
         )
 
@@ -124,9 +119,7 @@ class SslModule(ZeekModule):
         table.add_column("#", style="dim", width=3, no_wrap=True)
         table.add_column("HH:MM", style="dim", no_wrap=True)
         table.add_column("Sensor", style="cyan", no_wrap=True)
-        table.add_column(
-            "Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis"
-        )
+        table.add_column("Flow", style="yellow", no_wrap=True, max_width=38, overflow="ellipsis")
         table.add_column("SNI", no_wrap=True, max_width=30, overflow="ellipsis")
         table.add_column("Est", justify="center", no_wrap=True)
         table.add_column("Freq", justify="right", no_wrap=True)
@@ -173,7 +166,5 @@ class SslModule(ZeekModule):
     def add_search_params_prompt(self, new: dict, _ask) -> None:
         val = _ask("SNI filter", new.get("ssl_sni"))
         new["ssl_sni"] = val if val else None
-        raw = _ask(
-            "Invalid certs only (y/n)", "y" if new.get("ssl_invalid_only") else "n"
-        )
+        raw = _ask("Invalid certs only (y/n)", "y" if new.get("ssl_invalid_only") else "n")
         new["ssl_invalid_only"] = raw.lower() in ("y", "yes")

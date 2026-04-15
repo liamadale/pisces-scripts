@@ -16,8 +16,8 @@ Connect via client config:
 """
 
 import json
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -31,8 +31,8 @@ from src.utils.dns import setup_dns
 setup_dns()
 
 from mcp.server.fastmcp import FastMCP
+from src.enricher import abuseipdb, greynoise, shodan, virustotal
 from src.enricher.threat_intel import enrich_ip as _enrich_ip
-from src.enricher import greynoise, abuseipdb, shodan, virustotal
 from src.utils.ip_org import lookup_org
 
 mcp = FastMCP("enrichment")

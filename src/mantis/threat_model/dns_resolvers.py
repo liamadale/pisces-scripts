@@ -42,11 +42,7 @@ def generate_dns_resolver_registry(tickets: list[dict], output_path: str) -> Non
             rec = ip_records[ip]
             if ticket_id not in rec["ticket_ids"]:
                 rec["ticket_ids"].append(ticket_id)
-            if (
-                summary
-                and summary not in rec["summaries"]
-                and len(rec["summaries"]) < 5
-            ):
+            if summary and summary not in rec["summaries"] and len(rec["summaries"]) < 5:
                 rec["summaries"].append(summary)
 
     for rec in ip_records.values():
@@ -59,6 +55,4 @@ def generate_dns_resolver_registry(tickets: list[dict], output_path: str) -> Non
     dump_json(records, tmp)
     os.rename(tmp, output_path)
 
-    console.print(
-        f"[green]DNS resolver registry: {len(records)} IPs → {output_path}[/green]"
-    )
+    console.print(f"[green]DNS resolver registry: {len(records)} IPs → {output_path}[/green]")

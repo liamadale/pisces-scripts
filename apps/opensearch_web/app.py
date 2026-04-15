@@ -1,10 +1,7 @@
 """Flask application factory and route definitions for PISCES Web UI."""
 
-from flask import Flask, render_template, request, abort
+from flask import Flask, abort, render_template, request
 
-from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import TIME_RANGES
-from src.utils.format import fmt_dur
 from apps.opensearch_web import cache as wcache
 from apps.opensearch_web.queries import (
     MODULE_PARAM_KEYS,
@@ -18,6 +15,9 @@ from apps.shared.blueprints import (
     make_mantis_blueprint,
 )
 from apps.shared.jinja_globals import register_shared_helpers
+from src.querier.zeek_modules import MODULES
+from src.querier.zeek_modules.base import TIME_RANGES
+from src.utils.format import fmt_dur
 
 
 def _resolve_city(request):  # type: ignore[no-untyped-def]
@@ -236,10 +236,10 @@ def create_app() -> Flask:
     @app.route("/api/notice/summary")
     def api_notice_summary():
         from src.querier.zeek_modules.base import (
+            FILTERS_DIR,
             build_base_query,
             load_with_remap,
             query_opensearch,
-            FILTERS_DIR,
         )
 
         mod = MODULES["notice"]
@@ -282,9 +282,7 @@ def create_app() -> Flask:
         raw = query_opensearch(body, params)
         buckets = []
         if raw:
-            buckets = (
-                raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
-            )
+            buckets = raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
 
         return render_template("partials/notice_summary.html", buckets=buckets)
 

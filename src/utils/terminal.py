@@ -1,6 +1,7 @@
 """Interactive terminal helpers shared across queriers."""
 
 import sys
+
 from rich.console import Console
 
 console = Console(file=sys.stderr)
@@ -9,7 +10,8 @@ console = Console(file=sys.stderr)
 def confirm_exit() -> bool:
     """Ask the analyst to confirm exit via CTRL+C. Returns True if confirmed."""
     console.print(
-        "\n  [bold red]CTRL+C[/bold red] again to exit / [bold green]Enter[/bold green] to continue",
+        "\n  [bold red]CTRL+C[/bold red] again to exit"
+        " / [bold green]Enter[/bold green] to continue",
         end=" ",
     )
     try:

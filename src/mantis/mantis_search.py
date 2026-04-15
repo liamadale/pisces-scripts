@@ -21,14 +21,12 @@ import sys
 import requests
 import urllib3
 from dotenv import load_dotenv
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 from rich.text import Text
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.utils.dns import setup_dns
 
@@ -59,9 +57,7 @@ _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 TICKETS_INDEX = os.path.join(_BASE, "data", "tickets", "indexed", "tickets_index.json")
 
 # Regex patterns
-_IP_RE = re.compile(
-    r"\b(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})\b"
-)
+_IP_RE = re.compile(r"\b(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})[\.\[\]]+(\d{1,3})\b")
 _URL_RE = re.compile(r'https?://[^\s\'"<>]+')
 
 # Source/destination IP label patterns — used at index time to classify IP roles.
@@ -110,10 +106,7 @@ def _extract_ips(texts: list[str]) -> list[str]:
             try:
                 addr = ipaddress.ip_address(ip_str)
                 if not (
-                    addr.is_loopback
-                    or addr.is_link_local
-                    or addr.is_multicast
-                    or addr.is_reserved
+                    addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_reserved
                 ):
                     result.append(ip_str)
             except ValueError:
@@ -192,9 +185,7 @@ def _normalize_issue(
 
     handler_raw = issue.get("handler")
     handler = (
-        {"id": handler_raw["id"], "name": handler_raw.get("name", "")}
-        if handler_raw
-        else None
+        {"id": handler_raw["id"], "name": handler_raw.get("name", "")} if handler_raw else None
     )
     handler_id = handler_raw["id"] if handler_raw else None
 
@@ -332,9 +323,7 @@ def search_offline(query: str, city: str | None = None) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def search_via_api(
-    query: str, city: str | None = None, max_pages: int = 10
-) -> list[dict]:
+def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> list[dict]:
     """Fetch issues from MantisBT REST API and filter client-side for query string."""
     api_url = os.environ.get("MANTIS_API_URL", "").rstrip("/")
     api_token = os.environ.get("MANTIS_API_TOKEN", "")
@@ -487,9 +476,7 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
                 if a.text.strip().isdigit() and not issue_id:
                     issue_id = a.text.strip()
                     ticket_url = (
-                        href
-                        if href.startswith("http")
-                        else base_url + "/" + href.lstrip("/")
+                        href if href.startswith("http") else base_url + "/" + href.lstrip("/")
                     )
                 elif len(a.text.strip()) > 6:
                     summary = a.text.strip()
@@ -600,9 +587,7 @@ def display_results(results: list[dict]) -> None:
 
     for t in results:
         handler_name = t.get("handler", {}) or {}
-        handler_str = (
-            handler_name.get("name", "—") if isinstance(handler_name, dict) else "—"
-        )
+        handler_str = handler_name.get("name", "—") if isinstance(handler_name, dict) else "—"
         note_count = t.get("note_count", 0)
         admin_count = t.get("admin_note_count", 0)
         notes_str = f"{note_count}" + (f" ({admin_count}★)" if admin_count else "")
@@ -636,9 +621,7 @@ def display_results(results: list[dict]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="PISCES Mantis Ticket Search")
-    parser.add_argument(
-        "--query", required=True, help="Search term (IP, keyword, etc.)"
-    )
+    parser.add_argument("--query", required=True, help="Search term (IP, keyword, etc.)")
     parser.add_argument("--city", help="Municipality filter")
     args = parser.parse_args()
 

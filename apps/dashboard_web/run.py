@@ -23,9 +23,7 @@ app = create_app()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PISCES Dashboard")
-    parser.add_argument(
-        "--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)"
-    )
+    parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=5004, help="Port (default: 5004)")
     parser.add_argument(
         "--debug", action="store_true", default=False, help="Enable Flask debug mode"

@@ -102,8 +102,7 @@ def generate_threat_db(
     monitored = _build_monitored_assets(tickets)
     if monitored:
         console.print(
-            f"[dim]  Monitored assets excluded from threat DB:"
-            f" {len(monitored)} IPs[/dim]"
+            f"[dim]  Monitored assets excluded from threat DB: {len(monitored)} IPs[/dim]"
         )
 
     # ip → aggregated threat record
@@ -251,11 +250,7 @@ def generate_threat_db(
 
             # Keep up to 3 unique summaries
             summary = ticket.get("summary", "")
-            if (
-                summary
-                and summary not in rec["summaries"]
-                and len(rec["summaries"]) < 3
-            ):
+            if summary and summary not in rec["summaries"] and len(rec["summaries"]) < 3:
                 rec["summaries"].append(summary)
 
     _progress("Threat DB done", processed, len(tickets))
@@ -272,9 +267,7 @@ def generate_threat_db(
     ip_records = {
         ip: rec
         for ip, rec in ip_records.items()
-        if rec["ticket_count"] > 1
-        or rec.get("blocklists")
-        or rec.get("role") == "source"
+        if rec["ticket_count"] > 1 or rec.get("blocklists") or rec.get("role") == "source"
     }
     thin_dropped = thin_before - len(ip_records)
     if thin_dropped:
@@ -299,9 +292,7 @@ def generate_threat_db(
 
     attack_dist = Counter(a for r in records for a in r["attack_types"])
 
-    console.print(
-        f"[green]Threat DB: {total_ips} malicious IPs → {output_path}[/green]"
-    )
+    console.print(f"[green]Threat DB: {total_ips} malicious IPs → {output_path}[/green]")
     console.print(
         f"[dim]  {with_country} with country  |  "
         f"{with_isp} with ISP  |  {multi_ticket} seen in 2+ tickets[/dim]"

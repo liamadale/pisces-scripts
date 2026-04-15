@@ -9,11 +9,11 @@ Public API:
 """
 
 from . import nlp
-from .categories import Disposition, ThreatType, Actor
+from .categories import Actor, Disposition, ThreatType
 from .classifier import (
+    ClassificationResult,
     classify,
     classify_rules,
-    ClassificationResult,
     is_known_dns_resolver,
 )
 from .offline import OfflineEnrichment, OfflineEnrichmentProvider
