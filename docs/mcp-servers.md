@@ -6,10 +6,9 @@ duplicated from the source modules.
 
 | Server | Path | Tools | Purpose |
 |---|---|---|---|
-| `opensearch` | `mcp/opensearch/` | 16 | Zeek/OpenSearch protocol logs, Suricata alerts, pivot tools, utilities |
-| `kibana` | `mcp/kibana/` | 4 | Suricata/Kibana alerts with full parameter surface + aggregation tools |
+| `opensearch` | `mcp/opensearch/` | 16 | Zeek/OpenSearch protocol logs, pivot tools, utilities |
 | `mantis` | `mcp/mantis/` | 2 | MantisBT ticket search |
-| `enrichment` | `mcp/enrichment/` | 2 | IP threat intelligence and org lookup — no OpenSearch or Kibana required |
+| `enrichment` | `mcp/enrichment/` | 2 | IP threat intelligence and org lookup — no OpenSearch required |
 
 ---
 
@@ -30,10 +29,9 @@ Credentials required by each server:
 
 | Variable | Required by | Purpose |
 |---|---|---|
-| `PISCES_USERNAME` | opensearch, kibana | OpenSearch / Kibana HTTP basic auth |
-| `PISCES_PASSWORD` | opensearch, kibana | OpenSearch / Kibana HTTP basic auth |
+| `PISCES_USERNAME` | opensearch | OpenSearch HTTP basic auth |
+| `PISCES_PASSWORD` | opensearch | OpenSearch HTTP basic auth |
 | `OPENSEARCH_URL` | opensearch | Malcolm/OpenSearch base URL (e.g. `https://opensearch.example.com`) |
-| `KIBANA_URL` | kibana | Kibana base URL (e.g. `https://kibana.example.com`) |
 | `MANTIS_API_URL` | mantis | MantisBT instance base URL |
 | `MANTIS_API_TOKEN` | mantis | MantisBT REST API token |
 | `GREYNOISE_API_KEY` | opensearch, enrichment (optional) | GreyNoise enrichment |
@@ -41,7 +39,7 @@ Credentials required by each server:
 | `SHODAN_API_KEY` | opensearch, enrichment (optional) | Shodan enrichment |
 | `VIRUSTOTAL_API_KEY` | opensearch, enrichment (optional) | VirusTotal enrichment |
 
-The `/api/console/proxy` endpoint path is appended automatically by the code — set only the base URL for `OPENSEARCH_URL` and `KIBANA_URL`.
+The `/api/console/proxy` endpoint path is appended automatically by the code — set only the base URL for `OPENSEARCH_URL`.
 
 ---
 
@@ -51,11 +49,8 @@ The Inspector is a browser-based UI for calling tools interactively — useful f
 wiring up a client.
 
 ```bash
-# OpenSearch server (18 tools)
+# OpenSearch server (16 tools)
 PISCES_USERNAME=x PISCES_PASSWORD=y OPENSEARCH_URL=https://... mcp dev mcp/opensearch/server.py
-
-# Kibana server (4 tools)
-PISCES_USERNAME=x PISCES_PASSWORD=y KIBANA_URL=https://... mcp dev mcp/kibana/server.py
 
 # Mantis server (2 tools)
 MANTIS_API_URL=https://mantis.local MANTIS_API_TOKEN=tok mcp dev mcp/mantis/server.py
@@ -91,16 +86,6 @@ All servers use the project virtualenv directly — no Docker required.
         "PISCES_USERNAME": "your-username",
         "PISCES_PASSWORD": "your-password",
         "OPENSEARCH_URL": "https://your-opensearch-host"
-      }
-    },
-    "kibana": {
-      "command": "/path/to/pisces-scripts/.venv/bin/python",
-      "args": ["mcp/kibana/server.py"],
-      "cwd": "/path/to/pisces-scripts",
-      "env": {
-        "PISCES_USERNAME": "your-username",
-        "PISCES_PASSWORD": "your-password",
-        "KIBANA_URL": "https://your-kibana-host"
       }
     },
     "mantis": {
@@ -155,7 +140,7 @@ All servers use the project virtualenv directly — no Docker required.
 |---|---|
 | `pivot_ip` | Run all 10 Zeek queries in parallel for a single IP |
 | `pivot_alerts` | Check whether an IP has triggered Suricata alerts |
-| `search_alerts` | Search Suricata alerts (no `cities` parameter — use the kibana server for that) |
+| `search_alerts` | Search Suricata alerts by time range, severity, and filters |
 
 **Utilities:**
 
@@ -164,32 +149,6 @@ All servers use the project virtualenv directly — no Docker required.
 | `list_sensors` | List Malcolm/Zeek sensors active in the given time window |
 | `get_notice_summary` | Top Zeek Notice types by frequency |
 | `raw_opensearch_search` | Send a raw ES DSL query to OpenSearch |
-
----
-
-### kibana (4 tools)
-
-Exposes the full Kibana/Suricata parameter surface including `cities` filtering and aggregation
-endpoints not available in the opensearch server.
-
-| Tool | Description |
-|---|---|
-| `search_alerts` | Search deduplicated Suricata alerts — supports `cities`, `dest_ip`, all severity/signature filters |
-| `list_cities` | Terms aggregation on `clientID` — returns city names and alert counts |
-| `get_signature_summary` | Top Suricata signatures by frequency for a given time window and severity |
-| `raw_kibana_search` | Send a raw ES DSL query body directly to Kibana |
-
-Key parameters for `search_alerts`:
-
-| Parameter | Default | Notes |
-|---|---|---|
-| `time_range` | `now-24h` | Elasticsearch date math |
-| `severity` | `3` | Max severity to include (1=critical, 3=low) |
-| `cities` | `"all"` | Comma-separated `clientID` values, or `"all"` |
-| `src_ip` | — | Post-filter by source IP |
-| `dest_ip` | — | Post-filter by destination IP |
-| `signature` | — | Substring match on `alert.signature` |
-| `public_only` | `false` | Exclude RFC-1918 source IPs |
 
 ---
 
@@ -204,7 +163,7 @@ Key parameters for `search_alerts`:
 
 ### enrichment (2 tools)
 
-Standalone threat intelligence server — requires no OpenSearch or Kibana connection.
+Standalone threat intelligence server — requires no OpenSearch connection.
 All API keys are optional; missing keys simply skip that service.
 
 | Tool | Description |

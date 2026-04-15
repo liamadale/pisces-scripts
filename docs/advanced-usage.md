@@ -16,19 +16,6 @@ uv run src/querier/opensearch_querier.py --log-type dns --dns-query malware.exam
 uv run src/querier/opensearch_querier.py --log-type http --sensor hedgehog-1 --time-range now-6h
 ```
 
-## Query Kibana Alerts (Suricata)
-
-```bash
-# Basic query (last 24 hours, all severities)
-uv run src/querier/kibana_querier.py
-
-# Custom time range and severity
-uv run src/querier/kibana_querier.py --time-range now-7d --severity 2
-
-# Filter to a specific signature pattern
-uv run src/querier/kibana_querier.py --signature "ET SCAN" --public-only
-```
-
 ## Web UIs
 
 Run all apps together via the hub portal (recommended):
@@ -43,7 +30,6 @@ Or run each app standalone:
 
 ```bash
 uv run opensearch_web_run.py    # http://0.0.0.0:5001
-uv run kibana_web_run.py        # http://0.0.0.0:5002
 uv run mantis_web_run.py        # http://0.0.0.0:5003
 uv run dashboard_web_run.py     # http://0.0.0.0:5004
 ```

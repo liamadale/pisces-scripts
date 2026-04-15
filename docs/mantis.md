@@ -87,7 +87,7 @@ Every ticket in the index follows this structure:
     "handler": {"id": 42,  "name": "s.lead"},
     "summary": "Reconnaissance Campaign from 198.51.100.22",
     "description": "...",
-    "steps_to_reproduce": "https://kibana.example.internal/goto/...",
+    "steps_to_reproduce": "https://opensearch.example.internal/goto/...",
     "additional_information": "https://viz.greynoise.io/ip/198.51.100.22\n...",
     "notes": [
         {
@@ -99,7 +99,7 @@ Every ticket in the index follows this structure:
         }
     ],
     "ips": ["198.51.100.22", "203.0.113.5"],
-    "kibana_links": ["https://kibana.example.internal/goto/..."],
+    "dashboard_links": ["https://opensearch.example.internal/goto/..."],
     "ti_links": ["https://viz.greynoise.io/ip/198.51.100.22"],
     "note_count": 3,
     "admin_note_count": 1
@@ -508,7 +508,7 @@ Mantis lookup is available in the record detail panel (the right-side drawer). C
 - Handler name (the assigned SOC lead)
 - Note count with admin note count highlighted
 - Admin note callouts — full text up to 300 characters
-- Link pills to Kibana saved searches and threat intel services referenced in the ticket
+- Link pills to dashboard saved searches and threat intel services referenced in the ticket
 
 The sensor from the expanded record is automatically forwarded to the search, so results are always scoped to the correct project.
 

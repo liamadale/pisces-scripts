@@ -5,7 +5,6 @@ pisces-scripts/
 ├── run_web.py                          # Web UI server entrypoint (in development)
 ├── src/
 │   ├── querier/                        # Query engines and filter management
-│   │   ├── kibana_querier.py           # Kibana/Suricata entry point — query, display, interactive loop
 │   │   ├── opensearch_querier.py       # Malcolm/Zeek entry point — thin dispatcher, delegates to zeek_modules/
 │   │   ├── filter_loader.py            # Loads and merges YAML filter files into ES must_not clauses
 │   │   ├── fp_manager.py               # Interactive false positive filter creator
@@ -66,15 +65,12 @@ pisces-scripts/
 │   └── notices/                        # Narrow Zeek notice suppression rules (src_ip + notice.note)
 │
 ├── data/
-│   ├── cache/                          # OpenSearch/Kibana response cache — gitignored
+│   ├── cache/                          # OpenSearch response cache — gitignored
 │   └── tickets/                        # Mantis ticket index
 │
 ├── mcp/                                # MCP servers (AI assistant integration)
 │   ├── requirements.txt                # MCP-only deps — pip install -r requirements.txt -r mcp/requirements.txt
 │   ├── opensearch/                     # 18-tool server: Zeek logs, alerts, enrichment
-│   │   ├── server.py
-│   │   └── requirements.txt
-│   ├── kibana/                         # 4-tool server: Suricata alerts + aggregations
 │   │   ├── server.py
 │   │   └── requirements.txt
 │   ├── mantis/                         # 2-tool server: ticket search
@@ -102,16 +98,9 @@ pisces-scripts/
 Malcolm/Zeek analyst tool targeting the OpenSearch instance. On launch it:
 1. Pre-parses `--log-type` and loads the matching protocol module from `zeek_modules/`
 2. Builds a combined argparse parser (shared args + module-specific args)
-3. Loads and merges all enabled YAML filters, remapping Kibana field names to Malcolm field names
+3. Loads and merges all enabled YAML filters, remapping field names to Malcolm field names
 4. Queries Malcolm's `arkime_sessions3-*` index, parses and deduplicates hits using module logic
 5. Displays a protocol-specific Rich table, then enters an interactive loop
-
-### `src/querier/kibana_querier.py`
-Kibana/Suricata analyst tool. On launch it:
-1. Loads and merges all enabled YAML filters into Elasticsearch `must_not` clauses
-2. Queries Kibana with the analyst's time/severity/city parameters
-3. Deduplicates hits by `(src_ip, signature)` and displays a Rich table
-4. Enters an interactive loop — analyst selects an alert number then chooses an action
 
 ### `src/querier/zeek_modules/`
 Per-protocol Zeek modules. Each module implements the `ZeekModule` interface defined in `base.py`:

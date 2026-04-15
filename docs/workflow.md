@@ -1,6 +1,6 @@
 # Analyst Workflow
 
-A typical session from launch to resolution. Two querier workflows are documented below: the Malcolm/Zeek OpenSearch querier (primary) and the Kibana/Suricata querier.
+A typical session from launch to resolution using the Malcolm/Zeek OpenSearch querier.
 
 ---
 
@@ -23,41 +23,7 @@ Common flags:
 | `--src-ip` | — | Filter to a specific source IP |
 | `--limit` | `100` | Max raw hits before deduplication |
 
-The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table. The interactive loop actions (`[e]nrich`, `[f]alse positive`, `[m]antis search`) are identical to the Kibana workflow below.
-
----
-
-## Kibana/Suricata Workflow (`kibana_querier.py`)
-
-### 1. Launch the querier
-
-```bash
-.venv/bin/python src/querier/kibana_querier.py --time-range now-24h --severity 2 --public-only
-```
-
-Common flags:
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--time-range` | `now-24h` | Kibana date-math range |
-| `--severity` | `3` | Max severity to include (1=high, 3=low) |
-| `--cities` | `all` | Comma-separated city/clientID filter |
-| `--public-only` | off | Exclude RFC 1918 source IPs |
-| `--signature` | — | Filter to alerts matching a phrase |
-| `--limit` | `50` | Max raw ES hits before deduplication |
-
-The tool loads all enabled YAML filters, queries Kibana, deduplicates by `(src_ip, signature)`, and prints a table:
-
-```
-Found 23 unique alert(s) across 50 raw event(s) (sorted by frequency)
-
- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  #   Timestamp         City          Signature                    Sev  Freq  Src IP
- ────────────────────────────────────────────────────────────────────────────────────
-  1   2026-02-22 14:31  <city>        ET SCAN Zmap User-Agent      2    14    185.220.101.45
-  2   2026-02-22 13:55  <city>        ET TROJAN Meterpreter         1    8     103.14.8.22
-  3   2026-02-22 12:10  <city>        ET SCAN Nmap Scripting        2    3     45.33.32.156
-```
+The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table.
 
 ---
 
@@ -145,8 +111,8 @@ No action taken. Returns to the prompt. The last-alert hint will not update.
 | Input | Effect |
 |---|---|
 | `<number>` | Select alert by row number |
-| `r` | Re-search Kibana with new or modified parameters (reloads filters from disk) |
-| `p` | Reprint the alert table without querying Kibana |
+| `r` | Re-search with new or modified parameters (reloads filters from disk) |
+| `p` | Reprint the table without re-querying |
 | `CTRL+C` | Confirm-exit prompt (press again to quit, Enter to continue) |
 
 The dim hint above each prompt shows the last alert you acted on:
