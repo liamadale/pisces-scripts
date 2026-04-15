@@ -1,6 +1,5 @@
 """Generate the infrastructure IP registry from ticket data."""
 
-import json
 import os
 
 from src.mantis.threat_model._shared import (
@@ -17,6 +16,7 @@ from src.mantis.ticket_enrichment import (
     OfflineEnrichmentProvider,
     classify_rules,
 )
+from src.utils.cache import dump_json
 from src.utils.ip_org import lookup_org
 
 
@@ -209,8 +209,7 @@ def generate_infra_registry(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     tmp = output_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(records, fh, indent=2)
+    dump_json(records, tmp)
     os.rename(tmp, output_path)
 
     console.print(f"[green]Infra registry: {len(records)} IPs → {output_path}[/green]")

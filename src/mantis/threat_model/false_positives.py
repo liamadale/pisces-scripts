@@ -1,6 +1,5 @@
 """Generate the false positive candidate IP registry from ticket data."""
 
-import json
 import os
 
 from src.mantis.threat_model._shared import (
@@ -16,6 +15,7 @@ from src.mantis.ticket_enrichment import (
     OfflineEnrichmentProvider,
     classify_rules,
 )
+from src.utils.cache import dump_json
 from src.utils.ip_org import lookup_org
 
 # Signal prefixes that originate from previous-run artefacts rather than
@@ -146,8 +146,7 @@ def generate_fp_candidates(
         }
         for ip, d in sorted(ip_data.items())
     ]
-    with open(fp_output, "w") as fh:
-        json.dump(detail, fh, indent=2)
+    dump_json(detail, fp_output)
 
     console.print(f"[green]FP candidates: {len(ip_data)} IPs → {fp_output}[/green]")
     console.print("[dim]  Ticket disposition breakdown:[/dim]")

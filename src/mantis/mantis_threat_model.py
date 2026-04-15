@@ -12,7 +12,6 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import sys
 
@@ -36,6 +35,7 @@ from src.mantis.ticket_enrichment import (
     OfflineEnrichmentProvider,
     classify_rules,
 )
+from src.utils.cache import dump_json, load_json
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -114,8 +114,7 @@ def _load_ip_set(path: str) -> frozenset[str]:
     """
     if not os.path.exists(path):
         return frozenset()
-    with open(path) as fh:
-        records: list[dict] = json.load(fh)
+    records: list[dict] = load_json(path)  # type: ignore[assignment]
     return frozenset(r["ip"] for r in records if "ip" in r)
 
 
@@ -146,10 +145,8 @@ def _resolve_registry_conflicts(
     if not (os.path.exists(threat_path) and os.path.exists(fp_path)):
         return
 
-    with open(threat_path) as fh:
-        malicious: list[dict] = json.load(fh)
-    with open(fp_path) as fh:
-        fp_list: list[dict] = json.load(fh)
+    malicious: list[dict] = load_json(threat_path)  # type: ignore[assignment]
+    fp_list: list[dict] = load_json(fp_path)  # type: ignore[assignment]
 
     mal_by_ip = {r["ip"]: r for r in malicious}
     fp_by_ip = {r["ip"]: r for r in fp_list}
@@ -197,8 +194,7 @@ def _resolve_registry_conflicts(
     # Load undetermined (may have been written by generate_undetermined_registry).
     existing_undetermined: list[dict] = []
     if os.path.exists(undetermined_path):
-        with open(undetermined_path) as fh:
-            existing_undetermined = json.load(fh)
+        existing_undetermined = load_json(undetermined_path)  # type: ignore[assignment]
 
     existing_by_ip: dict[str, dict] = {r["ip"]: r for r in existing_undetermined}
 
@@ -215,21 +211,18 @@ def _resolve_registry_conflicts(
     # Rewrite undetermined.
     undetermined_sorted = sorted(existing_by_ip.values(), key=lambda r: r["ip"])
     tmp = undetermined_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(undetermined_sorted, fh, indent=2)
+    dump_json(undetermined_sorted, tmp)
     os.rename(tmp, undetermined_path)
 
     # --- Rewrite malicious and FP without resolved conflicts ---
     new_malicious = sorted(mal_by_ip.values(), key=lambda r: -r.get("ticket_count", 0))
     tmp = threat_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(new_malicious, fh, indent=2)
+    dump_json(new_malicious, tmp)
     os.rename(tmp, threat_path)
 
     new_fp = sorted(fp_by_ip.values(), key=lambda r: r["ip"])
     tmp = fp_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(new_fp, fh, indent=2)
+    dump_json(new_fp, tmp)
     os.rename(tmp, fp_path)
 
     total_conflicts = len(conflicted_ips)
@@ -338,8 +331,7 @@ def main() -> None:
     load_dotenv()
 
     console.print(f"[dim]Loading index from {args.input}...[/dim]")
-    with open(args.input) as fh:
-        tickets = json.load(fh)
+    tickets = load_json(args.input)
     console.print(f"[dim]Loaded {len(tickets):,} tickets.[/dim]")
 
     console.print("[dim]Initialising offline enrichment provider...[/dim]")

@@ -1,6 +1,5 @@
 """Generate the malicious IP threat database from ticket data."""
 
-import json
 import os
 from collections import Counter, defaultdict
 
@@ -24,6 +23,7 @@ from src.mantis.ticket_enrichment import (
     OfflineEnrichmentProvider,
     classify_rules,
 )
+from src.utils.cache import dump_json
 from src.utils.ip_org import lookup_org
 
 # Thresholds for classifying a public IP as a monitored asset (defended
@@ -288,8 +288,7 @@ def generate_threat_db(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     tmp = output_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(records, fh, indent=2)
+    dump_json(records, tmp)
     os.rename(tmp, output_path)
 
     # Summary stats

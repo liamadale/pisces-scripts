@@ -1,10 +1,10 @@
 """Generate the DNS resolver IP registry from ticket data."""
 
-import json
 import os
 
 from src.mantis.threat_model._shared import console
 from src.mantis.ticket_enrichment import Actor, is_known_dns_resolver
+from src.utils.cache import dump_json
 from src.utils.ip_org import lookup_org
 
 
@@ -56,8 +56,7 @@ def generate_dns_resolver_registry(tickets: list[dict], output_path: str) -> Non
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     tmp = output_path + ".tmp"
-    with open(tmp, "w") as fh:
-        json.dump(records, fh, indent=2)
+    dump_json(records, tmp)
     os.rename(tmp, output_path)
 
     console.print(

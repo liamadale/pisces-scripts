@@ -28,6 +28,8 @@ from typing import Any
 import requests
 import yaml
 
+from src.utils.cache import dump_json, load_json
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -412,10 +414,9 @@ class OfflineEnrichmentProvider:
             _print("  Enrichment cache: empty (first run)")
             return
         try:
-            with open(self._cache_path, encoding="utf-8") as fh:
-                self._ecache = json.load(fh)
+            self._ecache = load_json(self._cache_path)  # type: ignore[assignment]
             _print(f"  Enrichment cache: {len(self._ecache):,} IPs cached")
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
             logger.warning("Cannot load enrichment cache %s: %s", self._cache_path, exc)
             self._ecache = {}
 
@@ -428,10 +429,9 @@ class OfflineEnrichmentProvider:
             if not os.path.exists(path):
                 continue
             try:
-                with open(path, encoding="utf-8") as fh:
-                    records: list[dict[str, Any]] = json.load(fh)
+                records: list[dict[str, Any]] = load_json(path)  # type: ignore[assignment]
                 setattr(self, store, {r["ip"]: r for r in records if "ip" in r})
-            except (OSError, json.JSONDecodeError) as exc:
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
                 logger.warning("Cannot load registry %s: %s", path, exc)
 
         if self._mal_by_ip or self._fp_by_ip:
@@ -497,8 +497,7 @@ class OfflineEnrichmentProvider:
         """Write the enrichment cache to disk atomically."""
         tmp = self._cache_path + ".tmp"
         try:
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(self._ecache, fh, indent=2)
+            dump_json(self._ecache, tmp)
             os.replace(tmp, self._cache_path)
         except OSError as exc:
             logger.warning("Cannot flush enrichment cache: %s", exc)
