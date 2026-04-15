@@ -19,8 +19,22 @@
       <tr>
         <th class="sortable">IP Address</th>
         <th class="sortable">Org</th>
-        {% for lt in log_types %}
-        <th class="sortable num">{{ lt }}</th>
+        {% for cat in category_order %}
+        {% if ip_modules_by_category.get(cat) %}
+        <th class="col-group-toggle{% if cat != 'core' %} active{% endif %}"
+            data-category="{{ cat }}"
+            title="{{ category_labels[cat] }}">
+          <i class="fa-solid {{ category_icons[cat] }}"></i>
+          <span class="sidebar-label">{{ category_labels[cat] }}</span>
+          <i class="fa-solid fa-chevron-right toggle-icon"></i>
+        </th>
+        {% for lt in ip_modules_by_category[cat] %}
+        <th class="sortable num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %}"
+            data-col="{{ lt }}">
+          <i class="fa-solid {{ proto_icons.get(lt, 'fa-file-lines') }}"></i> {{ lt }}
+        </th>
+        {% endfor %}
+        {% endif %}
         {% endfor %}
         <th class="sortable num">TOTAL</th>
       </tr>
@@ -35,9 +49,12 @@
           {%- set _oorg = lookup_org(row.src_ip) %}
           {%- if _oorg %}<i class="{{ _oorg.icon }} org-icon org-{{ _oorg.category }}" title="{{ _oorg.name }}"></i> {{ _oorg.name }}{% else %}—{% endif %}
         </td>
-        {% for lt in log_types %}
-        {% set count = row.per_protocol[lt] %}
-        <td class="num {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
+        {% for cat in category_order %}
+        {% if ip_modules_by_category.get(cat) %}
+        <td class="col-group-divider"></td>
+        {% for lt in ip_modules_by_category[cat] %}
+        {% set count = row.per_protocol.get(lt, 0) %}
+        <td class="num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %} {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
           {% if count > 0 %}
           <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
             {{ count }}
@@ -46,6 +63,8 @@
           0
           {% endif %}
         </td>
+        {% endfor %}
+        {% endif %}
         {% endfor %}
         <td class="num" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
       </tr>
@@ -56,4 +75,26 @@
 {% else %}
 <p class="empty-note">No results for the selected search parameters. Try expanding the time range or removing filters.</p>
 {% endif %}
+
+<script>
+(function() {
+  document.querySelectorAll('.col-group-toggle').forEach(function(toggle) {
+    var cat = toggle.dataset.category;
+    var stored = localStorage.getItem('col-group-' + cat);
+    // Default: core expanded, all others collapsed
+    var collapsed = stored !== null ? stored !== 'false' : cat !== 'core';
+    document.querySelectorAll('.col-group-' + cat)
+            .forEach(function(el) { el.classList.toggle('col-collapsed', collapsed); });
+    toggle.classList.toggle('active', !collapsed);
+
+    toggle.addEventListener('click', function() {
+      var cells = document.querySelectorAll('.col-group-' + cat);
+      var isCollapsed = cells[0].classList.contains('col-collapsed');
+      cells.forEach(function(el) { el.classList.toggle('col-collapsed', !isCollapsed); });
+      toggle.classList.toggle('active', isCollapsed);
+      localStorage.setItem('col-group-' + cat, isCollapsed ? 'false' : 'true');
+    });
+  });
+})();
+</script>
 {% endblock %}

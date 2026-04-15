@@ -30,7 +30,14 @@ class HttpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Method", lambda r: r.get("http_method", "—") or "—"),
+        ("URI", lambda r: (r.get("http_uri", "") or "")[:60] or "—"),
+        ("Status", lambda r: str(r["http_status"]) if r.get("http_status") is not None else "—"),
+        ("↑ Bytes", lambda r: _fmt_bytes(r.get("http_resp_bytes"))),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("http_method"):
             clauses.append({"term": {"zeek.http.method": search_params["http_method"]}})
@@ -40,7 +47,7 @@ class HttpModule(ZeekModule):
             clauses.append({"term": {"zeek.http.status_code": search_params["status_code"]}})
         if search_params.get("http_uri"):
             clauses.append({"match_phrase": {"zeek.http.uri": search_params["http_uri"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         http = src.get("zeek", {}).get("http", {})

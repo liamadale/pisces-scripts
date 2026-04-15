@@ -63,7 +63,7 @@ select = ["E", "F", "W", "I"]
 "*_web_run.py" = ["E402"]
 "tests/*" = ["E402"]
 "apps/*/run.py" = ["E402"]
-"mcp/*/server.py" = ["E402"]
+"mcp/*/server.py" = ["E402", "I001"]
 "src/utils/banner.py" = ["E501"]
 
 [tool.bandit]

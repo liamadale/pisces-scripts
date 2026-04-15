@@ -28,7 +28,12 @@ class DnsModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Query", lambda r: r.get("query", "—") or "—"),
+        ("RCode", lambda r: r.get("rcode", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("dns_query"):
             clauses.append({"match_phrase": {"zeek.dns.query": search_params["dns_query"]}})
@@ -36,7 +41,7 @@ class DnsModule(ZeekModule):
             clauses.append({"term": {"zeek.dns.rcode_name": search_params["rcode"]}})
         if search_params.get("qtype"):
             clauses.append({"term": {"zeek.dns.qtype_name": search_params["qtype"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         dns = src.get("zeek", {}).get("dns", {})

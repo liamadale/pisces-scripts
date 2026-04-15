@@ -30,13 +30,18 @@ class RdpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
+    WEB_COLUMNS = [
+        ("Cookie", lambda r: r.get("rdp_cookie", "—") or "—"),
+        ("Result", lambda r: r.get("rdp_result", "—") or "—"),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("rdp_result"):
             clauses.append({"term": {"zeek.rdp.result": search_params["rdp_result"]}})
         if search_params.get("rdp_cookie"):
             clauses.append({"match_phrase": {"zeek.rdp.cookie": search_params["rdp_cookie"]}})
-        return clauses
+        return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
         rdp = src.get("zeek", {}).get("rdp", {})

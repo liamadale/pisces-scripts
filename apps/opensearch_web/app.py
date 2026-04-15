@@ -15,7 +15,12 @@ from apps.shared.blueprints import (
     make_mantis_blueprint,
 )
 from apps.shared.jinja_globals import register_shared_helpers
-from src.querier.zeek_modules import MODULES
+from src.querier.zeek_modules import (
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    MODULES,
+    MODULES_BY_CATEGORY,
+)
 from src.querier.zeek_modules.base import TIME_RANGES
 from src.utils.format import fmt_dur
 
@@ -39,13 +44,56 @@ def create_app() -> Flask:
     app.register_blueprint(make_mantis_blueprint(_resolve_city))
     app.register_blueprint(make_cache_blueprint(wcache))
 
-    # Make TIME_RANGES and MODULES available to all templates
+    # Make TIME_RANGES, MODULES, and nav data available to all templates
     @app.context_processor
-    def inject_globals():
+    def inject_globals() -> dict:
         return {
             "TIME_RANGES": TIME_RANGES,
-            "MODULES": list(MODULES.keys()),
+            "MODULES": MODULES,
             "script_name": request.environ.get("SCRIPT_NAME", ""),
+        }
+
+    @app.context_processor
+    def inject_nav_data() -> dict:
+        return {
+            "proto_icons": {
+                "conn": "fa-network-wired",
+                "dns": "fa-server",
+                "http": "fa-globe",
+                "ssl": "fa-lock",
+                "smtp": "fa-envelope",
+                "rdp": "fa-desktop",
+                "smb": "fa-folder-open",
+                "ssh": "fa-terminal",
+                "notice": "fa-bell",
+                "weird": "fa-triangle-exclamation",
+                "files": "fa-file",
+                "x509": "fa-certificate",
+                "pe": "fa-file-code",
+                "kerberos": "fa-key",
+                "ntlm": "fa-user-lock",
+                "dhcp": "fa-address-card",
+                "ftp": "fa-file-arrow-up",
+                "radius": "fa-wifi",
+                "sip": "fa-phone",
+                "tunnel": "fa-circle-nodes",
+                "ntp": "fa-clock",
+                "modbus": "fa-microchip",
+                "dnp3": "fa-bolt",
+                "capture_loss": "fa-gauge",
+                "dpd": "fa-circle-question",
+            },
+            "category_icons": {
+                "core": "fa-layer-group",
+                "files": "fa-folder",
+                "auth": "fa-shield-halved",
+                "infrastructure": "fa-sitemap",
+                "ot": "fa-industry",
+                "diagnostic": "fa-stethoscope",
+            },
+            "category_order": CATEGORY_ORDER,
+            "category_labels": CATEGORY_LABELS,
+            "modules_by_category": MODULES_BY_CATEGORY,
         }
 
     # ------------------------------------------------------------------
@@ -55,11 +103,16 @@ def create_app() -> Flask:
     def overview():
         search_params = build_search_params_from_request(request)
         rows = run_cross_protocol_query(search_params)
+        # Build per-category module lists, excluding non-IP modules (pe, capture_loss)
+        ip_modules_by_category = {
+            cat: [lt for lt in lts if MODULES[lt].SUPPORTS_IP_FILTER]
+            for cat, lts in MODULES_BY_CATEGORY.items()
+        }
         return render_template(
             "overview.html",
             rows=rows,
             search_params=search_params,
-            log_types=list(MODULES.keys()),
+            ip_modules_by_category=ip_modules_by_category,
         )
 
     # ------------------------------------------------------------------
@@ -71,7 +124,9 @@ def create_app() -> Flask:
         search_params["src_ip"] = ip
 
         results: dict = {}
-        for lt in MODULES:
+        for lt, mod in MODULES.items():
+            if not mod.SUPPORTS_IP_FILTER:
+                continue  # pe, capture_loss have no src_ip to pivot on
             sp = dict(search_params)
             results[lt] = cached_run_query(lt, sp)
 
@@ -80,7 +135,6 @@ def create_app() -> Flask:
             ip=ip,
             results=results,
             search_params=search_params,
-            log_types=list(MODULES.keys()),
             MODULE_PARAM_KEYS=MODULE_PARAM_KEYS,
         )
 
@@ -102,6 +156,7 @@ def create_app() -> Flask:
             search_params=search_params,
             extra_keys=extra_keys,
             detail_fields=mod.DETAIL_FIELDS,
+            web_columns=mod.WEB_COLUMNS,
         )
 
     # ------------------------------------------------------------------
@@ -120,6 +175,7 @@ def create_app() -> Flask:
             log_type=log_type,
             records=records,
             detail_fields=mod.DETAIL_FIELDS,
+            web_columns=mod.WEB_COLUMNS,
         )
 
     # ------------------------------------------------------------------
@@ -142,6 +198,7 @@ def create_app() -> Flask:
             detail_fields=mod.DETAIL_FIELDS,
             idx=i,
             log_type=log_type,
+            supports_fp=mod.SUPPORTS_FP,
         )
 
     # ------------------------------------------------------------------

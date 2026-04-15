@@ -9,6 +9,7 @@ from src.querier.zeek_modules.base import run_query
 
 # Protocol-specific search_params keys forwarded from HTTP request
 MODULE_PARAM_KEYS: dict = {
+    # Core
     "conn": [],
     "dns": ["dns_query", "rcode", "qtype"],
     "http": ["http_method", "http_host", "http_uri", "status_code"],
@@ -19,6 +20,26 @@ MODULE_PARAM_KEYS: dict = {
     "ssh": ["ssh_failed_only", "ssh_auth_result"],
     "notice": ["notice_note"],
     "weird": ["weird_name"],
+    # Files & Certs
+    "files": ["mime", "hash", "source_proto", "extracted_only", "dest_ip"],
+    "x509": ["subject", "issuer", "san", "self_signed", "expired"],
+    "pe": ["no_aslr", "no_dep", "only_32bit"],
+    # Authentication
+    "kerberos": ["client", "service", "request_type", "cipher", "failed_only"],
+    "ntlm": ["username", "domain", "failed_only"],
+    "radius": ["username", "mac", "failed_only"],
+    # Infrastructure
+    "dhcp": ["hostname", "mac", "assigned_ip"],
+    "ftp": ["user", "command", "reply_code", "anon_only"],
+    "sip": ["method", "status_code", "user_agent"],
+    "ntp": ["mode", "version"],
+    "tunnel": ["tunnel_type"],
+    # OT / SCADA
+    "modbus": ["function", "exceptions_only"],
+    "dnp3": ["function"],
+    # Diagnostic
+    "capture_loss": [],
+    "dpd": ["analyzer"],
 }
 
 
@@ -51,10 +72,15 @@ def cached_run_query(log_type: str, search_params: dict) -> list:
 
 
 def run_cross_protocol_query(search_params: dict) -> list:
-    """Query all log types in parallel, aggregate by src_ip, sort by total freq."""
+    """Query all IP-capable log types in parallel, aggregate by src_ip, sort by total freq.
+
+    Modules with SUPPORTS_IP_FILTER=False (pe, capture_loss) are excluded — they have no
+    src_ip to aggregate on.
+    """
+    ip_modules = {lt: mod for lt, mod in MODULES.items() if mod.SUPPORTS_IP_FILTER}
     results_by_type: dict = {}
-    with ThreadPoolExecutor(max_workers=len(MODULES)) as ex:
-        futures = {ex.submit(cached_run_query, lt, search_params): lt for lt in MODULES}
+    with ThreadPoolExecutor(max_workers=len(ip_modules)) as ex:
+        futures = {ex.submit(cached_run_query, lt, search_params): lt for lt in ip_modules}
         for f in as_completed(futures):
             lt = futures[f]
             try:
@@ -62,7 +88,7 @@ def run_cross_protocol_query(search_params: dict) -> list:
             except Exception:
                 results_by_type[lt] = []
 
-    ip_data: dict = defaultdict(lambda: {"per_protocol": {lt: 0 for lt in MODULES}, "total": 0})
+    ip_data: dict = defaultdict(lambda: {"per_protocol": {lt: 0 for lt in ip_modules}, "total": 0})
     for lt, records in results_by_type.items():
         for rec in records:
             ip = rec.get("src_ip", "")

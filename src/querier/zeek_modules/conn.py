@@ -29,8 +29,14 @@ class ConnModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    def build_extra_must(self, search_params: dict) -> list:
-        return []
+    WEB_COLUMNS = [
+        ("App", lambda r: r.get("app_proto") or "—"),
+        ("↑ Bytes", lambda r: _fmt_bytes(r.get("bytes_orig"))),
+        ("↓ Bytes", lambda r: _fmt_bytes(r.get("bytes_resp"))),
+    ]
+
+    def build_extra_must(self, search_params: dict) -> tuple:
+        return [], []
 
     def parse_hit(self, src: dict) -> dict:
         net = src.get("network", {})

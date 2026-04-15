@@ -21,8 +21,9 @@
 
 <div id="enrich-panel"></div>
 
-{% for lt in log_types %}
-{% set records = results[lt] %}
+{% for lt, records in results.items() %}
+{% set mod = MODULES[lt] %}
+{% set web_columns = mod.WEB_COLUMNS %}
 <div class="pivot-section">
   <div class="pivot-section-header">
     <span class="proto-tag">{{ lt }}</span>
@@ -38,10 +39,7 @@
       <colgroup>
         <col class="col-num"><col class="col-time"><col class="col-sensor">
         <col class="col-ip"><col class="col-port">
-        <col class="col-info">
-        {% if lt in ('conn', 'http') %}
-        <col class="col-bytes"><col class="col-bytes">
-        {% endif %}
+        {% for _ in web_columns %}<col class="col-info">{% endfor %}
         <col class="col-risk">
         <col class="col-freq">
       </colgroup>
@@ -52,31 +50,9 @@
           <th class="sortable">Sensor</th>
           <th class="sortable">Dst IP</th>
           <th class="sortable num">Dst Port</th>
-          {% if lt == 'conn' %}
-          <th class="sortable">App</th>
-          <th class="sortable num">↑ Bytes</th>
-          <th class="sortable num">↓ Bytes</th>
-          {% elif lt == 'dns' %}
-          <th class="sortable">Query</th>
-          {% elif lt == 'http' %}
-          <th class="sortable">URI</th>
-          <th class="sortable num">↑ Bytes</th>
-          <th class="sortable num">↓ Bytes</th>
-          {% elif lt == 'notice' %}
-          <th class="sortable">Note</th>
-          {% elif lt == 'ssh' %}
-          <th class="sortable">Client</th>
-          {% elif lt == 'rdp' %}
-          <th class="sortable">Cookie</th>
-          {% elif lt == 'smtp' %}
-          <th class="sortable">Subject</th>
-          {% elif lt == 'ssl' %}
-          <th class="sortable">SNI</th>
-          {% elif lt == 'smb' %}
-          <th class="sortable">Path</th>
-          {% elif lt == 'weird' %}
-          <th class="sortable">Name</th>
-          {% endif %}
+          {% for header, _ in web_columns %}
+          <th class="sortable">{{ header }}</th>
+          {% endfor %}
           <th class="sortable num">Risk</th>
           <th class="sortable num">Freq</th>
         </tr>
@@ -98,31 +74,9 @@
           </td>
           <td title="{{ rec.get('dest_ip','') }}">{{ rec.get('dest_ip', '—') }}</td>
           <td class="num">{{ rec.get('dest_port', '—') }}</td>
-          {% if lt == 'conn' %}
-          <td>{{ rec.get('app_proto', '—') }}</td>
-          <td class="num" data-val="{{ rec.get('bytes_orig') or 0 }}">{{ rec.get('bytes_orig') | fmt_bytes }}</td>
-          <td class="num" data-val="{{ rec.get('bytes_resp') or 0 }}">{{ rec.get('bytes_resp') | fmt_bytes }}</td>
-          {% elif lt == 'dns' %}
-          <td title="{{ rec.get('query','') }}">{{ rec.get('query', '—') }}</td>
-          {% elif lt == 'http' %}
-          <td title="{{ rec.get('http_uri','') }}">{{ rec.get('http_uri', '—') }}</td>
-          <td class="num" data-val="{{ rec.get('http_req_bytes') or 0 }}">{{ rec.get('http_req_bytes') | fmt_bytes }}</td>
-          <td class="num" data-val="{{ rec.get('http_resp_bytes') or 0 }}">{{ rec.get('http_resp_bytes') | fmt_bytes }}</td>
-          {% elif lt == 'notice' %}
-          <td title="{{ rec.get('notice_note','') }}">{{ rec.get('notice_note', '—') }}</td>
-          {% elif lt == 'ssh' %}
-          <td>{{ rec.get('ssh_client', '—') }}</td>
-          {% elif lt == 'rdp' %}
-          <td>{{ rec.get('rdp_cookie', '—') }}</td>
-          {% elif lt == 'smtp' %}
-          <td title="{{ rec.get('smtp_subject','') }}">{{ rec.get('smtp_subject', '—') }}</td>
-          {% elif lt == 'ssl' %}
-          <td>{{ rec.get('ssl_server_name', '—') }}</td>
-          {% elif lt == 'smb' %}
-          <td>{{ rec.get('smb_path', '—') }}</td>
-          {% elif lt == 'weird' %}
-          <td>{{ rec.get('weird_name', '—') }}</td>
-          {% endif %}
+          {% for _, fn in web_columns %}
+          <td>{{ fn(rec) }}</td>
+          {% endfor %}
           <td class="num" data-val="{{ rec.get('risk_score_norm') or 0 }}">{{ risk_bars(rec) }}</td>
           <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
         </tr>
