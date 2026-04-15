@@ -49,14 +49,14 @@
     {% endif %}
     {% endfor %}
 
-    {# Link pills: Kibana + TI services #}
-    {% set kibana = t.kibana_links[:2] %}
+    {# Link pills: dashboard + TI services #}
+    {% set dashboard = t.dashboard_links[:2] %}
     {% set ti = t.ti_links[:4] %}
-    {% if kibana or ti %}
+    {% if dashboard or ti %}
     <div class="mantis-ticket-links">
-      {% for url in kibana %}
+      {% for url in dashboard %}
       <a class="mantis-link" href="{{ url }}" target="_blank" rel="noopener">
-        <i class="fa-solid fa-chart-line"></i> Kibana
+        <i class="fa-solid fa-chart-line"></i> Dashboard
       </a>
       {% endfor %}
       {% for url in ti %}

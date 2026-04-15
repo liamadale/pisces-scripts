@@ -81,7 +81,7 @@ _DEST_IP_RE = re.compile(
 # Fields that carry structured source/dest labels (not free-form notes)
 _LABEL_FIELDS = ("description", "steps_to_reproduce", "additional_information")
 
-_KIBANA_DOMAINS = {"kibana", "opensearch", "elastic"}
+_DASHBOARD_DOMAINS = {"kibana", "opensearch", "elastic"}
 _TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
 
 
@@ -155,16 +155,16 @@ def _classify_ip_roles(
 
 
 def _extract_links(text: str) -> tuple[list[str], list[str]]:
-    """Extract URLs from text, classify into (kibana_links, ti_links)."""
-    kibana: list[str] = []
+    """Extract URLs from text, classify into (dashboard_links, ti_links)."""
+    dashboard: list[str] = []
     ti: list[str] = []
     for url in _URL_RE.findall(text or ""):
         lower = url.lower()
-        if any(d in lower for d in _KIBANA_DOMAINS):
-            kibana.append(url)
+        if any(d in lower for d in _DASHBOARD_DOMAINS):
+            dashboard.append(url)
         elif any(d in lower for d in _TI_DOMAINS):
             ti.append(url)
-    return kibana, ti
+    return dashboard, ti
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ def _normalize_issue(
         ips,
     )
 
-    kibana_links, _ = _extract_links(steps)
+    dashboard_links, _ = _extract_links(steps)
     _, ti_links = _extract_links(additional)
 
     admin_note_count = sum(1 for n in notes if n["is_admin_note"])
@@ -275,7 +275,7 @@ def _normalize_issue(
         "ip_src": ip_src,
         "ip_dest": ip_dest,
         "ip_unknown": ip_unknown,
-        "kibana_links": kibana_links,
+        "dashboard_links": dashboard_links,
         "ti_links": ti_links,
         "note_count": len(notes),
         "admin_note_count": admin_note_count,
@@ -541,7 +541,7 @@ def _parse_scrape_results(html: str, base_url: str, query: str = "") -> list[dic
                 "additional_information": "",
                 "notes": [],
                 "ips": [],
-                "kibana_links": [],
+                "dashboard_links": [],
                 "ti_links": [],
                 "note_count": 0,
                 "admin_note_count": 0,

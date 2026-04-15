@@ -138,14 +138,14 @@
 {% endif %}
 
 {# External links #}
-{% set all_links = ((t.kibana_links or []) + (t.ti_links or [])) %}
+{% set all_links = ((t.dashboard_links or []) + (t.ti_links or [])) %}
 {% if all_links %}
 <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
   <span style="font-size:0.75rem;color:var(--on-surface-dim);font-family:var(--sans)">Links:</span>
   {% for url in all_links %}
   <a class="ticket-mantis-link" href="{{ url }}" target="_blank" rel="noopener">
-    {% if 'kibana' in url|lower or 'elastic' in url|lower %}
-      <i class="fa-solid fa-chart-line"></i> Kibana
+    {% if 'kibana' in url|lower or 'elastic' in url|lower or 'opensearch' in url|lower %}
+      <i class="fa-solid fa-chart-line"></i> Dashboard
     {% elif 'virustotal' in url|lower %}
       <i class="fa-solid fa-virus"></i> VirusTotal
     {% else %}
