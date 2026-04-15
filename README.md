@@ -1,5 +1,7 @@
 ![](https://pisces-intl.org/wp-content/uploads/2025/03/PISCES-white.png)
 
+[![CI](https://github.com/liamadale/pisces-scripts/actions/workflows/ci.yml/badge.svg)](https://github.com/liamadale/pisces-scripts/actions/workflows/ci.yml)
+
 # PISCES SOC Analyst Toolkit
 
 A Python-based security operations toolkit for querying, filtering, enriching, and triaging network log data from the PISCES program dataset. Targets **Malcolm** (Zeek + Suricata + Arkime) via OpenSearch. Built to reduce false positive noise through analyst-maintained YAML filters and structured threat intelligence enrichment.
