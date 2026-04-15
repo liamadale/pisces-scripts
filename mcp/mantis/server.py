@@ -71,22 +71,18 @@ def _mantis_session() -> requests.Session:
 def search_tickets(
     query: str,
     city: Optional[str] = None,
-    live: bool = False,
 ) -> str:
     """Search MantisBT tickets for an IP address, keyword, or phrase.
 
     Args:
         query: IP address, keyword, or phrase to search for.
         city: Optional municipality/project name filter.
-        live: If True, also query the REST API and scrape the web UI for full-text
-              results (slower, requires network access to MantisBT). If False, only
-              the local offline ticket index is searched (fast, no network).
 
     Returns a deduplicated list of ticket dicts sorted by ID descending.
     Each ticket has: id, summary, status, last_updated, url.
     """
     try:
-        results = search(query, city=city, live=live)
+        results = search(query, city=city)
         return _ok({"count": len(results), "tickets": results})
     except Exception as exc:
         return _err(str(exc))
