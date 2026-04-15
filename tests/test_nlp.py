@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import sys
 
+import pytest
+
 # Allow imports from project root (same pattern as the CLI scripts).
 sys.path.insert(
     0,
@@ -18,6 +20,12 @@ from src.mantis.ticket_enrichment.nlp import (
     is_negated,
 )
 
+# All tests below require spaCy + en_core_web_sm to be installed.
+# Skip the whole module if unavailable rather than failing with misleading errors.
+pytestmark = pytest.mark.skipif(
+    not is_available(), reason="spaCy + en_core_web_sm not installed"
+)
+
 
 # ------------------------------------------------------------------
 # Availability
@@ -25,7 +33,8 @@ from src.mantis.ticket_enrichment.nlp import (
 
 
 def test_spacy_available() -> None:
-    assert is_available() is True
+    """Documents whether spaCy is available in this environment."""
+    assert isinstance(is_available(), bool)
 
 
 # ------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Tests for the OfflineEnrichmentProvider and OfflineEnrichment dataclass.
 
-Exercises blocklist lookup, Shodan InternetDB cache, local registry priors,
+Exercises blocklist lookup, MaxMind country/ASN lookup, local registry priors,
 and paid API cache integration.
 """
 
@@ -93,7 +93,6 @@ def test_parse_threatfox_json_ip_port() -> None:
 
 def test_blocklist_lookup_cidr_hit(tmp_path: str) -> None:
     provider = _make_provider(tmp_path)
-    # Inject a CIDR for testing
     provider._cidr_prefixes["test_list"] = [ipaddress.IPv4Network("198.51.100.0/24")]
     assert "test_list" in provider._lookup_blocklists("198.51.100.42")
 
@@ -112,90 +111,54 @@ def test_blocklist_lookup_miss(tmp_path: str) -> None:
 def test_blocklist_lookup_invalid_ip(tmp_path: str) -> None:
     provider = _make_provider(tmp_path)
     provider._cidr_prefixes["test"] = [ipaddress.IPv4Network("0.0.0.0/0")]
-    # Should not raise; just returns []
     result = provider._lookup_blocklists("not-an-ip")
     assert result == []
 
 
 # ---------------------------------------------------------------------------
-# Shodan InternetDB cache
+# MaxMind / get_country / get_asn
 # ---------------------------------------------------------------------------
 
 
-def test_shodan_cache_hit(tmp_path: str) -> None:
-    """A cached entry within TTL should return without an HTTP call."""
+def test_get_country_from_api_cache(tmp_path: str) -> None:
+    """get_country() should return the country from the paid API cache."""
     provider = _make_provider(tmp_path)
     provider._ecache["1.2.3.4"] = {
         "fetched_at": datetime.now(tz=timezone.utc).isoformat(),
-        "shodan_internetdb": {"tags": ["scanner"], "vulns": ["CVE-2021-44228"]},
+        "abuseipdb": {"confidence": 80, "country": "DE"},
     }
-
-    with patch("requests.get") as mock_get:
-        tags, vulns = provider._lookup_shodan_internetdb("1.2.3.4")
-        mock_get.assert_not_called()
-
-    assert tags == ["scanner"]
-    assert vulns == ["CVE-2021-44228"]
+    assert provider.get_country("1.2.3.4") == "DE"
 
 
-def test_shodan_cache_miss_calls_api(tmp_path: str) -> None:
-    """Cold-path should call the InternetDB URL and cache the result."""
+def test_get_country_missing_returns_none(tmp_path: str) -> None:
+    """get_country() returns None when neither API cache nor MaxMind has data."""
     provider = _make_provider(tmp_path)
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.ok = True
-    mock_resp.json.return_value = {
-        "tags": ["honeypot"],
-        "vulns": [],
-        "ports": [22, 80],
-    }
-
-    _patch = "src.mantis.ticket_enrichment.offline.requests.get"
-    # Use a genuinely global IP (Python 3.11+ marks 198.51.100.x as private)
-    with patch(_patch, return_value=mock_resp) as mock_get:
-        tags, vulns = provider._lookup_shodan_internetdb("45.33.32.156")
-        mock_get.assert_called_once()
-
-    assert "honeypot" in tags
-    assert "45.33.32.156" in provider._ecache
+    # No MaxMind DB in tmp_path, no API cache entry
+    assert provider.get_country("1.2.3.4") is None
 
 
-def test_shodan_404_caches_empty(tmp_path: str) -> None:
-    """A 404 from InternetDB should cache an empty entry."""
+def test_get_asn_without_maxmind_returns_none(tmp_path: str) -> None:
+    """get_asn() returns None gracefully when GeoLite2-ASN.mmdb is absent."""
     provider = _make_provider(tmp_path)
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 404
-
-    _patch = "src.mantis.ticket_enrichment.offline.requests.get"
-    with patch(_patch, return_value=mock_resp):
-        tags, vulns = provider._lookup_shodan_internetdb("5.9.64.10")
-
-    assert tags == []
-    assert "5.9.64.10" in provider._ecache
+    assert provider.get_asn("8.8.8.8") is None
 
 
-def test_shodan_stale_cache_refetches(tmp_path: str) -> None:
-    """An entry older than 30 days should trigger a re-fetch."""
+def test_lookup_maxmind_private_ip_returns_none(tmp_path: str) -> None:
+    """_lookup_maxmind() skips private/loopback IPs without raising."""
     provider = _make_provider(tmp_path)
-    old_ts = (datetime.now(tz=timezone.utc) - timedelta(days=31)).isoformat()
-    provider._ecache["1.2.3.4"] = {
-        "fetched_at": old_ts,
-        "shodan_internetdb": {"tags": ["old_tag"], "vulns": []},
-    }
+    country, asn, isp = provider._lookup_maxmind("10.0.0.1")
+    assert country is None
+    assert asn is None
+    assert isp is None
 
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.ok = True
-    mock_resp.json.return_value = {"tags": ["scanner"], "vulns": []}
 
-    _patch = "src.mantis.ticket_enrichment.offline.requests.get"
-    with patch(_patch, return_value=mock_resp) as mock_get:
-        tags, _ = provider._lookup_shodan_internetdb("1.2.3.4")
-        mock_get.assert_called_once()
-
-    assert "scanner" in tags
+def test_lookup_maxmind_invalid_ip_returns_none(tmp_path: str) -> None:
+    """_lookup_maxmind() returns (None, None, None) for non-IP strings."""
+    provider = _make_provider(tmp_path)
+    country, asn, isp = provider._lookup_maxmind("not-an-ip")
+    assert country is None
+    assert asn is None
+    assert isp is None
 
 
 # ---------------------------------------------------------------------------
@@ -294,13 +257,8 @@ def test_enrich_ticket_aggregates_signals(tmp_path: str) -> None:
         "ticket_ids": ["1", "2", "3"],
     }
 
-    _patch = "src.mantis.ticket_enrichment.offline.requests.get"
-    mock_resp = MagicMock()
-    mock_resp.status_code = 404
-
     ticket = {"ips": ["198.51.100.5", "203.0.113.1"]}
-    with patch(_patch, return_value=mock_resp):
-        result = provider.enrich_ticket(ticket)
+    result = provider.enrich_ticket(ticket)
 
     assert "spamhaus_drop" in result.blocklist_hits
     assert result.local_prior == "malicious"
@@ -309,22 +267,15 @@ def test_enrich_ticket_aggregates_signals(tmp_path: str) -> None:
 def test_enrich_ticket_most_severe_prior_wins(tmp_path: str) -> None:
     """When multiple IPs have different priors, most-severe wins."""
     provider = _make_provider(tmp_path)
-    # IP1: false_positive
     provider._fp_by_ip["198.51.100.1"] = {"ticket_ids": ["a", "b", "c"]}
-    # IP2: both → conflicted (highest severity)
     provider._mal_by_ip["198.51.100.2"] = {
         "ticket_count": 2,
         "ticket_ids": ["x", "y"],
     }
     provider._fp_by_ip["198.51.100.2"] = {"ticket_ids": ["z", "z2", "z3"]}
 
-    _patch = "src.mantis.ticket_enrichment.offline.requests.get"
-    mock_resp = MagicMock()
-    mock_resp.status_code = 404
-
     ticket = {"ips": ["198.51.100.1", "198.51.100.2"]}
-    with patch(_patch, return_value=mock_resp):
-        result = provider.enrich_ticket(ticket)
+    result = provider.enrich_ticket(ticket)
     assert result.local_prior == "conflicted"
 
 
@@ -334,18 +285,24 @@ def test_enrich_ticket_most_severe_greynoise_wins(tmp_path: str) -> None:
     now = datetime.now(tz=timezone.utc).isoformat()
     provider._ecache["198.51.100.10"] = {
         "fetched_at": now,
-        "shodan_internetdb": {"tags": [], "vulns": []},
         "greynoise": {"classification": "benign"},
     }
     provider._ecache["198.51.100.11"] = {
         "fetched_at": now,
-        "shodan_internetdb": {"tags": [], "vulns": []},
         "greynoise": {"classification": "malicious"},
     }
 
     ticket = {"ips": ["198.51.100.10", "198.51.100.11"]}
     result = provider.enrich_ticket(ticket)
     assert result.greynoise_classification == "malicious"
+
+
+def test_enrich_ticket_ip_role_passed_through(tmp_path: str) -> None:
+    """ip_role argument is stored verbatim on the returned OfflineEnrichment."""
+    provider = _make_provider(tmp_path)
+    ticket = {"ips": ["198.51.100.1"]}
+    result = provider.enrich_ticket(ticket, ip_role="source")
+    assert result.ip_role == "source"
 
 
 # ---------------------------------------------------------------------------
@@ -387,9 +344,9 @@ def test_missing_registries_do_not_crash(tmp_path: str) -> None:
 def test_offline_enrichment_defaults() -> None:
     oe = OfflineEnrichment()
     assert oe.blocklist_hits == []
-    assert oe.shodan_tags == []
-    assert oe.shodan_vulns == []
     assert oe.asn_tier is None
     assert oe.local_prior is None
     assert oe.greynoise_classification is None
     assert oe.abuseipdb_confidence is None
+    assert oe.ip_role is None
+    assert oe.country is None
