@@ -35,6 +35,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from mcp.server.fastmcp import FastMCP
+
 from src.mantis.mantis_search import search
 
 mcp = FastMCP("mantis")
