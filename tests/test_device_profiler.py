@@ -10,8 +10,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.profiler.device_profiler import (
     DeviceProfile,
+    _extract_share_names,
+    _parse_dns,
+    _parse_http,
     _parse_inbound,
     _parse_outbound,
+    _parse_rdp,
+    _parse_smb_inbound,
+    _parse_smb_outbound,
+    _parse_ssh,
+    _parse_ssl,
+    extract_hostname_from_unc,
     profile_device,
 )
 
@@ -253,28 +262,14 @@ class TestProfileDevice:
 
     @patch("src.profiler.device_profiler.query_opensearch")
     def test_query_bodies_correct(self, mock_qs: object) -> None:
-        """Verify the actual query bodies sent to OpenSearch."""
+        """Verify all 9 queries are sent with correct sensor and time range."""
         mock_qs.return_value = {"aggregations": {}}
         profile_device("10.0.0.50", time_range="now-3d", sensor="hedgehog-test")
-        assert mock_qs.call_count == 2
+        assert mock_qs.call_count == 9
         calls = mock_qs.call_args_list
         bodies = [c[0][0] for c in calls]
 
-        # One query should have source.ip, the other destination.ip
-        src_queries = [
-            b
-            for b in bodies
-            if any("source.ip" in c.get("term", {}) for c in b["query"]["bool"]["must"])
-        ]
-        dst_queries = [
-            b
-            for b in bodies
-            if any("destination.ip" in c.get("term", {}) for c in b["query"]["bool"]["must"])
-        ]
-        assert len(src_queries) == 1
-        assert len(dst_queries) == 1
-
-        # Verify sensor and time range in both
+        # Verify sensor and time range in all queries
         for body in bodies:
             must = body["query"]["bool"]["must"]
             sensors = [
@@ -283,3 +278,240 @@ class TestProfileDevice:
             assert sensors == ["hedgehog-test"]
             time_ranges = [c["range"]["@timestamp"]["gte"] for c in must if "range" in c]
             assert time_ranges == ["now-3d"]
+            time_ranges = [c["range"]["@timestamp"]["gte"] for c in must if "range" in c]
+            assert time_ranges == ["now-3d"]
+
+
+# ---------------------------------------------------------------------------
+# Hostname extraction tests
+# ---------------------------------------------------------------------------
+
+
+class TestExtractHostnameFromUnc:
+    def test_fqdn_path(self) -> None:
+        hostname, domain = extract_hostname_from_unc(["\\\\SERVER1.corp.example.com\\IPC$"])
+        assert hostname == "SERVER1"
+        assert domain == "corp.example.com"
+
+    def test_short_name(self) -> None:
+        hostname, domain = extract_hostname_from_unc(["\\\\FILESVR\\Data"])
+        assert hostname == "FILESVR"
+        assert domain is None
+
+    def test_most_common_wins(self) -> None:
+        paths = [
+            "\\\\DC1.corp.example.com\\IPC$",
+            "\\\\DC1.corp.example.com\\SYSVOL",
+            "\\\\DC1.corp.example.com\\NETLOGON",
+            "\\\\OTHER.corp.example.com\\IPC$",
+        ]
+        hostname, domain = extract_hostname_from_unc(paths)
+        assert hostname == "DC1"
+        assert domain == "corp.example.com"
+
+    def test_empty_list(self) -> None:
+        hostname, domain = extract_hostname_from_unc([])
+        assert hostname is None
+        assert domain is None
+
+    def test_case_normalized(self) -> None:
+        hostname, _ = extract_hostname_from_unc(["\\\\server1.example.com\\share"])
+        assert hostname == "SERVER1"
+
+
+class TestExtractShareNames:
+    def test_basic(self) -> None:
+        shares = _extract_share_names(["\\\\SRV\\IPC$", "\\\\SRV\\Data"])
+        assert shares == ["Data", "IPC$"]
+
+    def test_empty(self) -> None:
+        assert _extract_share_names([]) == []
+
+    def test_no_share_part(self) -> None:
+        assert _extract_share_names(["\\\\SRV"]) == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_dns tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseDns:
+    def test_basic(self) -> None:
+        aggs = {
+            "top_domains": {
+                "buckets": [
+                    {"key": "example.com", "doc_count": 50},
+                    {"key": "test.local", "doc_count": 10},
+                ]
+            },
+            "qtypes": {"buckets": [{"key": "A", "doc_count": 55}]},
+            "resolvers": {"buckets": [{"key": "10.0.0.1", "doc_count": 60}]},
+        }
+        result = _parse_dns(aggs)
+        assert len(result["dns_top_domains"]) == 2
+        assert result["dns_top_domains"][0]["domain"] == "example.com"
+        assert result["dns_qtypes"][0]["qtype"] == "A"
+        assert result["dns_resolvers"] == ["10.0.0.1"]
+
+    def test_empty(self) -> None:
+        result = _parse_dns({})
+        assert result["dns_top_domains"] == []
+        assert result["dns_resolvers"] == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_ssl tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseSsl:
+    def test_basic(self) -> None:
+        aggs = {
+            "ja4_hashes": {"buckets": [{"key": "t13d1516h2_abc", "doc_count": 300}]},
+            "sni_values": {"buckets": [{"key": "www.example.com", "doc_count": 200}]},
+            "tls_versions": {"buckets": [{"key": "TLSv1.3", "doc_count": 300}]},
+        }
+        result = _parse_ssl(aggs)
+        assert result["ja4_fingerprints"][0]["hash"] == "t13d1516h2_abc"
+        assert result["ssl_sni_values"] == ["www.example.com"]
+        assert result["tls_versions"][0]["version"] == "TLSv1.3"
+
+    def test_empty(self) -> None:
+        result = _parse_ssl({})
+        assert result["ja4_fingerprints"] == []
+        assert result["ssl_sni_values"] == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_http tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseHttp:
+    def test_basic(self) -> None:
+        aggs = {
+            "user_agents": {"buckets": [{"key": "Mozilla/5.0", "doc_count": 100}]},
+            "ua_os_names": {"buckets": [{"key": "Windows 10", "doc_count": 100}]},
+            "top_hosts": {"buckets": [{"key": "api.example.com", "doc_count": 50}]},
+            "ja4h_fingerprints": {"buckets": [{"key": "ge11cn020000_abc", "doc_count": 80}]},
+            "proxy_connects": {"doc_count": 3},
+        }
+        result = _parse_http(aggs)
+        assert result["user_agents"] == ["Mozilla/5.0"]
+        assert result["user_agent_os"] == ["Windows 10"]
+        assert result["http_top_hosts"][0]["host"] == "api.example.com"
+        assert result["ja4h_fingerprints"][0]["hash"] == "ge11cn020000_abc"
+        assert result["http_proxy_count"] == 3
+
+    def test_empty(self) -> None:
+        result = _parse_http({})
+        assert result["user_agents"] == []
+        assert result["http_proxy_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# _parse_smb tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseSmbOutbound:
+    def test_basic(self) -> None:
+        aggs = {
+            "remote_paths": {
+                "buckets": [
+                    {"key": "\\\\FILESVR\\Data", "doc_count": 10},
+                    {"key": "\\\\FILESVR\\IPC$", "doc_count": 5},
+                ]
+            }
+        }
+        result = _parse_smb_outbound(aggs)
+        assert "Data" in result["smb_shares_accessed"]
+        assert "IPC$" in result["smb_shares_accessed"]
+
+    def test_empty(self) -> None:
+        assert _parse_smb_outbound({})["smb_shares_accessed"] == []
+
+
+class TestParseSmbInbound:
+    def test_hostname_extraction(self) -> None:
+        aggs = {
+            "unc_paths": {
+                "buckets": [
+                    {"key": "\\\\DC1.corp.example.com\\IPC$", "doc_count": 20},
+                    {"key": "\\\\DC1.corp.example.com\\SYSVOL", "doc_count": 10},
+                ]
+            }
+        }
+        result = _parse_smb_inbound(aggs)
+        assert result["hostname"] == "DC1"
+        assert result["ad_domain"] == "corp.example.com"
+        assert "IPC$" in result["smb_shares_hosted"]
+        assert "SYSVOL" in result["smb_shares_hosted"]
+
+    def test_empty(self) -> None:
+        result = _parse_smb_inbound({})
+        assert result["hostname"] is None
+        assert result["smb_shares_hosted"] == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_rdp tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseRdp:
+    def test_inbound_and_outbound(self) -> None:
+        aggs = {
+            "inbound": {
+                "doc_count": 5,
+                "cookies": {"buckets": [{"key": "admin", "doc_count": 5}]},
+            },
+            "outbound": {
+                "doc_count": 2,
+                "targets": {"buckets": [{"key": "10.0.0.20", "doc_count": 2}]},
+            },
+        }
+        result = _parse_rdp(aggs)
+        assert result["rdp_inbound"] is True
+        assert result["rdp_usernames"] == ["admin"]
+        assert result["admin_targets"] == ["10.0.0.20"]
+
+    def test_no_rdp(self) -> None:
+        result = _parse_rdp({})
+        assert result["rdp_inbound"] is False
+        assert result["rdp_usernames"] == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_ssh tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseSsh:
+    def test_inbound_and_outbound(self) -> None:
+        aggs = {
+            "inbound": {
+                "doc_count": 10,
+                "hassh_server": {"buckets": [{"key": "abc123", "doc_count": 10}]},
+                "server_versions": {"buckets": [{"key": "SSH-2.0-OpenSSH_9.7", "doc_count": 10}]},
+            },
+            "outbound": {
+                "doc_count": 3,
+                "targets": {"buckets": [{"key": "10.0.0.30", "doc_count": 3}]},
+                "hassh_client": {"buckets": [{"key": "def456", "doc_count": 3}]},
+                "client_versions": {"buckets": [{"key": "SSH-2.0-PuTTY", "doc_count": 3}]},
+            },
+        }
+        result = _parse_ssh(aggs)
+        assert result["ssh_inbound"] is True
+        assert result["hassh_server_fingerprints"][0]["hash"] == "abc123"
+        assert result["ssh_server_versions"] == ["SSH-2.0-OpenSSH_9.7"]
+        assert result["hassh_fingerprints"][0]["hash"] == "def456"
+        assert result["ssh_client_versions"] == ["SSH-2.0-PuTTY"]
+        assert result["ssh_admin_targets"] == ["10.0.0.30"]
+
+    def test_no_ssh(self) -> None:
+        result = _parse_ssh({})
+        assert result["ssh_inbound"] is False
+        assert result["hassh_fingerprints"] == []
