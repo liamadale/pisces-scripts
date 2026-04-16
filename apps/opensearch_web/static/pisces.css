@@ -344,22 +344,9 @@ a:hover { text-decoration: underline; }
   transform: translateY(-50%);
 }
 
-/* ── Overview matrix: collapsible column groups ──────── */
-.col-collapsed { display: none; }
+/* ── Overview matrix: two-row grouped header ─────────── */
 
-/* Invisible spacer cell — occupies grid slot but renders empty */
-.col-spacer {
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  overflow: hidden;
-  font-size: 0;
-  color: transparent;
-}
-
-/* Two-row header structure */
+/* Row 1: category label headers */
 .thead-groups th {
   background: var(--surface-container-highest);
   border-bottom: none;
@@ -372,6 +359,8 @@ a:hover { text-decoration: underline; }
   border-bottom: 2px solid var(--outline);
   z-index: 7;
 }
+
+/* Row 2: protocol sub-headers */
 .thead-protocols th {
   font-size: 0.72rem;
   background: var(--surface-container-high);
@@ -380,14 +369,12 @@ a:hover { text-decoration: underline; }
   color: var(--on-surface-dim);
   font-weight: 500;
   padding: 4px 8px;
-  top: 33px; /* sits below row 1 group headers (~33px tall) */
+  top: 33px;
   z-index: 5;
 }
 
-/* Category toggle headers */
-.col-group-toggle {
-  cursor: pointer;
-  user-select: none;
+/* Category label headers — display only, not interactive */
+.col-group-label {
   white-space: nowrap;
   font-family: var(--sans);
   font-size: 0.73rem;
@@ -397,35 +384,21 @@ a:hover { text-decoration: underline; }
   padding: 7px 10px;
   text-align: center;
   vertical-align: middle;
-  transition: background 0.12s, color 0.12s;
-}
-.col-group-toggle:hover { filter: brightness(1.12); }
-.col-group-toggle .toggle-icon { transition: transform 0.15s; margin-left: 5px; font-size: 0.65rem; }
-.col-group-toggle .cat-count { font-size: 0.68rem; opacity: 0.7; margin-left: 3px; }
-
-/* Expanded: chevron points down */
-.col-group-toggle:not(.col-group-collapsed) .toggle-icon { transform: rotate(90deg); }
-
-/* Collapsed: narrow, icon + count only */
-.col-group-toggle.col-group-collapsed {
-  padding: 7px 4px;
-}
-.col-group-toggle.col-group-collapsed .cat-label {
-  display: none;
+  user-select: none;
 }
 
 /* Per-category color accents */
-.col-group-toggle.cat-alerts      { color: var(--red);            border-bottom: 2px solid var(--red);            }
-.col-group-toggle.cat-network     { color: var(--primary);        border-bottom: 2px solid var(--primary);        }
-.col-group-toggle.cat-web         { color: var(--secondary);      border-bottom: 2px solid var(--secondary);      }
-.col-group-toggle.cat-remote      { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
-.col-group-toggle.cat-auth        { color: var(--yellow);         border-bottom: 2px solid var(--yellow);         }
-.col-group-toggle.cat-messaging   { color: var(--purple);         border-bottom: 2px solid var(--purple);         }
-.col-group-toggle.cat-files       { color: var(--green);          border-bottom: 2px solid var(--green);          }
-.col-group-toggle.cat-ot          { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
-.col-group-toggle.cat-diagnostic  { color: var(--on-surface-dim); border-bottom: 2px solid var(--on-surface-dim); }
+.col-group-label.cat-alerts      { color: var(--red);            border-bottom: 2px solid var(--red);            }
+.col-group-label.cat-network     { color: var(--primary);        border-bottom: 2px solid var(--primary);        }
+.col-group-label.cat-web         { color: var(--secondary);      border-bottom: 2px solid var(--secondary);      }
+.col-group-label.cat-remote      { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
+.col-group-label.cat-auth        { color: var(--yellow);         border-bottom: 2px solid var(--yellow);         }
+.col-group-label.cat-messaging   { color: var(--purple);         border-bottom: 2px solid var(--purple);         }
+.col-group-label.cat-files       { color: var(--green);          border-bottom: 2px solid var(--green);          }
+.col-group-label.cat-ot          { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
+.col-group-label.cat-diagnostic  { color: var(--on-surface-dim); border-bottom: 2px solid var(--on-surface-dim); }
 
-/* Protocol sub-header accent line matches category */
+/* Protocol sub-header top accent matches its category */
 .thead-protocols .col-group-alerts      { border-top: 2px solid var(--red);            }
 .thead-protocols .col-group-network     { border-top: 2px solid var(--primary);        }
 .thead-protocols .col-group-web         { border-top: 2px solid var(--secondary);      }

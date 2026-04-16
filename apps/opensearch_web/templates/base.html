@@ -300,6 +300,7 @@
 
   /* ── Resizable columns ──────────────────────────────── */
   function initResizableColumns(table) {
+    if (table.classList.contains("no-resize")) return;
     var cols = Array.from(table.querySelectorAll("col"));
     // Only use the last thead row so multi-row headers don't add duplicate handles
     var headRows = Array.from(table.querySelectorAll("thead tr"));

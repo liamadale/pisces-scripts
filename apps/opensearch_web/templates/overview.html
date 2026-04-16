@@ -14,10 +14,9 @@
 
 {% if rows %}
 <div class="table-wrap">
-  <table id="overview-table">
+  <table id="overview-table" class="no-resize">
     <thead>
-      {# Row 1: fixed anchor cols + category group toggle headers #}
-      {# Compute column indices for data-sort-col on rowspan=2 headers #}
+      {# Row 1: fixed anchor cols + category group label headers #}
       {% set ns = namespace(col_idx=2) %}
       <tr class="thead-groups">
         <th rowspan="2" class="sortable" data-sort-col="0">IP Address</th>
@@ -25,15 +24,10 @@
         {% for cat in category_order %}
         {% if ip_modules_by_category.get(cat) %}
         {% set cat_count = ip_modules_by_category[cat]|length %}
-        <th class="col-group-toggle cat-{{ cat }}"
-            data-category="{{ cat }}"
-            data-col-count="{{ cat_count }}"
-            colspan="{{ cat_count }}"
-            title="{{ category_labels[cat] }}">
+        <th class="col-group-label cat-{{ cat }}"
+            colspan="{{ cat_count }}">
           <i class="fa-solid {{ category_icons[cat] }}"></i>
-          <span class="cat-label">{{ category_labels[cat] }}</span>
-          <span class="cat-count"></span>
-          <i class="fa-solid fa-chevron-right toggle-icon"></i>
+          {{ category_labels[cat] }}
         </th>
         {% set ns.col_idx = ns.col_idx + cat_count %}
         {% endif %}
@@ -47,7 +41,7 @@
         {% for cat in category_order %}
         {% if ip_modules_by_category.get(cat) %}
         {% for lt in ip_modules_by_category[cat] %}
-        <th class="sortable num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %}"
+        <th class="sortable num col-group-{{ cat }}"
             data-col="{{ lt }}"
             data-sort-col="{{ ns2.col_idx }}">
           <i class="fa-solid {{ proto_icons.get(lt, 'fa-file-lines') }}"></i> {{ lt }}
@@ -72,11 +66,9 @@
         {% if ip_modules_by_category.get(cat) %}
         {% for lt in ip_modules_by_category[cat] %}
         {% set count = row.per_protocol.get(lt, 0) %}
-        <td class="num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %} {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
+        <td class="num col-group-{{ cat }} {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
           {% if count > 0 %}
-          <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
-            {{ count }}
-          </a>
+          <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">{{ count }}</a>
           {% else %}—{% endif %}
         </td>
         {% endfor %}
@@ -91,68 +83,4 @@
 {% else %}
 <p class="empty-note">No results for the selected search parameters. Try expanding the time range or removing filters.</p>
 {% endif %}
-
-<script>
-(function() {
-  document.querySelectorAll('.col-group-toggle').forEach(function(toggle) {
-    var cat      = toggle.dataset.category;
-    var colCount = parseInt(toggle.dataset.colCount, 10);
-    var stored   = localStorage.getItem('col-group-' + cat);
-    // Default: core expanded, all others collapsed
-    var collapsed = stored !== null ? stored === 'true' : cat !== 'core';
-
-    function applyState(isCollapsed) {
-      toggle.classList.toggle('col-group-collapsed', isCollapsed);
-      toggle.setAttribute('colspan', isCollapsed ? 1 : colCount);
-
-      // Protocol sub-headers in row 2
-      var protoThs = Array.from(document.querySelectorAll('th.col-group-' + cat));
-      protoThs.forEach(function(th, i) {
-        if (isCollapsed) {
-          if (i === 0) {
-            th.classList.remove('col-collapsed');
-            th.classList.add('col-spacer');
-          } else {
-            th.classList.remove('col-spacer');
-            th.classList.add('col-collapsed');
-          }
-        } else {
-          th.classList.remove('col-collapsed', 'col-spacer');
-        }
-      });
-
-      // Tbody cells — identify per-row using modulo on colCount
-      var tds = Array.from(document.querySelectorAll('td.col-group-' + cat));
-      tds.forEach(function(td, i) {
-        var colIdx = i % colCount;
-        if (isCollapsed) {
-          if (colIdx === 0) {
-            td.classList.remove('col-collapsed');
-            td.classList.add('col-spacer');
-          } else {
-            td.classList.remove('col-spacer');
-            td.classList.add('col-collapsed');
-          }
-        } else {
-          td.classList.remove('col-collapsed', 'col-spacer');
-        }
-      });
-
-      // Update count badge on toggle label
-      var countEl = toggle.querySelector('.cat-count');
-      if (countEl) {
-        countEl.textContent = isCollapsed ? '(' + colCount + ')' : '';
-      }
-    }
-
-    applyState(collapsed);
-
-    toggle.addEventListener('click', function() {
-      var isCollapsed = !toggle.classList.contains('col-group-collapsed');
-      applyState(isCollapsed);
-      localStorage.setItem('col-group-' + cat, isCollapsed ? 'true' : 'false');
-    });
-  });
-})();
-</script>
 {% endblock %}
