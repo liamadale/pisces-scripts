@@ -84,7 +84,7 @@
       </div>
       {% if is_private(src_ip) %}
       <button class="btn btn-sm"
-              hx-post="{{ script_name }}/api/profile/{{ src_ip }}?{{ request.query_string.decode() }}&compact=1"
+              hx-post="/api/profile/{{ src_ip }}?{{ request.query_string.decode() }}&compact=1"
               hx-target="#enrich-src-{{ idx }}"
               hx-swap="innerHTML"
               hx-indicator="#profile-src-spinner-{{ idx }}">
@@ -112,7 +112,7 @@
       </div>
       {% if is_private(dest_ip) %}
       <button class="btn btn-sm"
-              hx-post="{{ script_name }}/api/profile/{{ dest_ip }}?{{ request.query_string.decode() }}&compact=1"
+              hx-post="/api/profile/{{ dest_ip }}?{{ request.query_string.decode() }}&compact=1"
               hx-target="#enrich-dst-{{ idx }}"
               hx-swap="innerHTML"
               hx-indicator="#profile-dst-spinner-{{ idx }}">

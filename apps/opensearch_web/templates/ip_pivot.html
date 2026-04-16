@@ -7,7 +7,7 @@
   <h1>IP Pivot: {{ ip }}</h1>
   {% if is_private(ip) %}
   <button class="btn"
-          hx-post="{{ script_name }}/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
+          hx-post="/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
           hx-target="#enrich-panel"
           hx-swap="innerHTML"
           hx-indicator="#profile-spinner">
