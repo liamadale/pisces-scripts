@@ -368,7 +368,7 @@ a:hover { text-decoration: underline; }
   border-bottom: 2px solid var(--outline);
   color: var(--on-surface-dim);
   font-weight: 500;
-  padding: 4px 8px;
+  padding: 0 8px 4px;
   top: 33px;
   z-index: 5;
 }
@@ -381,7 +381,7 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 7px 10px;
+  padding: 7px 10px 4px;
   text-align: center;
   vertical-align: middle;
   user-select: none;
@@ -416,15 +416,18 @@ a:hover { text-decoration: underline; }
   position: sticky;
   right: 0;
   z-index: 4;
-  border-left: 2px solid var(--outline) !important;
   background: var(--surface);
+  /* box-shadow instead of border-left: renders above scrolled content,
+     eliminates the subpixel gap a real border leaves */
+  box-shadow: -2px 0 0 var(--outline);
 }
 thead .col-total {
   background: var(--surface-container-high);
+  box-shadow: -2px 0 0 var(--outline);
   z-index: 8;
 }
-tbody tr:hover .col-total         { background: var(--surface-container-highest); }
-tbody tr.row-selected .col-total  { background: var(--surface-container-highest); }
+tbody tr:hover .col-total        { background: var(--surface-container-highest); }
+tbody tr.row-selected .col-total { background: var(--surface-container-highest); }
 
 /* Search bar */
 .search-bar {
