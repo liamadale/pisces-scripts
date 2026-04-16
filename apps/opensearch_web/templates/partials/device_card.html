@@ -84,10 +84,10 @@
     <details class="device-card-section" {{ open_attr }}>
       <summary><i class="fa-solid fa-fingerprint"></i> TLS Fingerprints ({{ profile.ja4_fingerprints | length }})</summary>
       <table class="mini-table">
-        <thead><tr><th>JA4</th><th>#</th></tr></thead>
+        <thead><tr><th>JA4</th><th>Decoded</th><th>#</th></tr></thead>
         <tbody>
           {% for fp in profile.ja4_fingerprints %}
-          <tr><td class="mono">{{ fp.hash[:24] }}…</td><td>{{ fp.count }}</td></tr>
+          <tr><td class="mono">{{ fp.hash[:24] }}…</td><td>{{ decode_ja4(fp.hash) }}</td><td>{{ fp.count }}</td></tr>
           {% endfor %}
         </tbody>
       </table>

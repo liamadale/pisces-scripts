@@ -574,3 +574,39 @@ class TestParseKerberosNtlm:
         from src.profiler.device_profiler import _parse_kerberos_ntlm
 
         assert _parse_kerberos_ntlm({})["users"] == []
+
+
+# ---------------------------------------------------------------------------
+# JA4 decoder tests
+# ---------------------------------------------------------------------------
+
+
+class TestDecodeJa4:
+    def test_tls13_h2(self) -> None:
+        from src.profiler.ja4_decoder import decode_ja4
+
+        result = decode_ja4("t13d1516h2_8daaf6152771_d8a2da3f94cd")
+        assert "TCP" in result
+        assert "TLS 1.3" in result
+        assert "HTTP/2" in result
+        assert "15c" in result
+        assert "16e" in result
+
+    def test_tls12_h1(self) -> None:
+        from src.profiler.ja4_decoder import decode_ja4
+
+        result = decode_ja4("t12d2808h1_d943125447b4_4cccce2e0d64")
+        assert "TLS 1.2" in result
+        assert "HTTP/1.1" in result
+
+    def test_quic(self) -> None:
+        from src.profiler.ja4_decoder import decode_ja4
+
+        result = decode_ja4("q13d1516h2_abc")
+        assert "QUIC" in result
+
+    def test_empty(self) -> None:
+        from src.profiler.ja4_decoder import decode_ja4
+
+        assert decode_ja4("") == ""
+        assert decode_ja4("short") == "short"
