@@ -620,6 +620,18 @@ main.table-fill > .table-wrap {
 .btn-theme:hover::before { background: var(--state-hover); }
 .btn-theme:hover { color: var(--primary); }
 
+/* When btn-theme is used as a sidebar-link, restore full-width link behaviour */
+.sidebar-link.btn-theme {
+  width: calc(100% - 8px);
+  height: auto;
+  overflow: visible;
+  padding: 7px 12px;
+  font-size: 0.875rem;
+}
+.sidebar-link.btn-theme::before {
+  border-radius: 4px; /* match sidebar-link border-radius, not a circle */
+}
+
 
 /* ── 5. Tables ────────────────────────────────────────── */
 
