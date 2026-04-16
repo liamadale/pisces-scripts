@@ -32,6 +32,7 @@
         {% set ns.col_idx = ns.col_idx + cat_count %}
         {% endif %}
         {% endfor %}
+        <th rowspan="2" class="sortable num col-total" data-sort-col="{{ ns.col_idx }}">TOTAL</th>
       </tr>
 
       {# Row 2: per-protocol sub-headers #}
@@ -73,6 +74,7 @@
         {% endfor %}
         {% endif %}
         {% endfor %}
+        <td class="num col-total" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
