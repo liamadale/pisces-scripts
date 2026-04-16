@@ -1360,6 +1360,7 @@ tr.detail-row td {
 .device-card-section summary { margin: 0 0 .5rem; font-size: .8rem; color: var(--on-surface-dim); text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
 .device-card-section h4 { cursor: default; }
 .device-card-footer { padding: .5rem 1rem; font-size: .75rem; color: var(--on-surface-dim); border-top: 1px solid var(--border); }
+.device-card-users { padding: 0 1rem .5rem; font-size: .8rem; color: var(--on-surface-dim); border-bottom: 1px solid var(--border); }
 .role-badge { padding: 2px 8px; border-radius: 4px; font-size: .8rem; font-weight: 600; }
 .role-domain_controller { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
 .role-file_server { background: color-mix(in srgb, var(--yellow) 15%, transparent); color: var(--yellow); }

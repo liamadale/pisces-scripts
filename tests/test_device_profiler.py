@@ -265,7 +265,7 @@ class TestProfileDevice:
         """Verify all 9 queries are sent with correct sensor and time range."""
         mock_qs.return_value = {"aggregations": {}}
         profile_device("10.0.0.50", time_range="now-3d", sensor="hedgehog-test")
-        assert mock_qs.call_count == 9
+        assert mock_qs.call_count == 11
         calls = mock_qs.call_args_list
         bodies = [c[0][0] for c in calls]
 
@@ -515,3 +515,62 @@ class TestParseSsh:
         result = _parse_ssh({})
         assert result["ssh_inbound"] is False
         assert result["hassh_fingerprints"] == []
+
+
+# ---------------------------------------------------------------------------
+# _parse_dhcp tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseDhcp:
+    def test_basic(self) -> None:
+        from src.profiler.device_profiler import _parse_dhcp
+
+        aggs = {
+            "mac": {"buckets": [{"key": "aa:bb:cc:dd:ee:ff", "doc_count": 10}]},
+            "hostname": {"buckets": [{"key": "WORKSTATION1", "doc_count": 10}]},
+        }
+        result = _parse_dhcp(aggs)
+        assert result["mac"] == "aa:bb:cc:dd:ee:ff"
+        assert result["dhcp_hostname"] == "WORKSTATION1"
+
+    def test_empty(self) -> None:
+        from src.profiler.device_profiler import _parse_dhcp
+
+        result = _parse_dhcp({})
+        assert result["mac"] is None
+        assert result["dhcp_hostname"] is None
+
+
+# ---------------------------------------------------------------------------
+# _parse_kerberos_ntlm tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseKerberosNtlm:
+    def test_combined(self) -> None:
+        from src.profiler.device_profiler import _parse_kerberos_ntlm
+
+        aggs = {
+            "krb_clients": {
+                "buckets": [
+                    {"key": "admin@CORP.LOCAL", "doc_count": 50},
+                    {"key": "svc_backup@CORP.LOCAL", "doc_count": 10},
+                ]
+            },
+            "ntlm_users": {
+                "buckets": [
+                    {"key": "admin", "doc_count": 30},
+                    {"key": "jsmith", "doc_count": 5},
+                ]
+            },
+        }
+        result = _parse_kerberos_ntlm(aggs)
+        assert "admin@CORP.LOCAL" in result["users"]
+        assert "jsmith" in result["users"]
+        assert len(result["users"]) == 4
+
+    def test_empty(self) -> None:
+        from src.profiler.device_profiler import _parse_kerberos_ntlm
+
+        assert _parse_kerberos_ntlm({})["users"] == []

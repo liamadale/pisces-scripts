@@ -98,6 +98,13 @@ class DeviceProfile:
     ssh_server_versions: list[str] = field(default_factory=list)
     ssh_admin_targets: list[str] = field(default_factory=list)
 
+    # DHCP
+    mac: str | None = None
+    dhcp_hostname: str | None = None
+
+    # Users (from Kerberos/NTLM)
+    users: list[str] = field(default_factory=list)
+
     # Timestamps
     first_seen: str = ""
     last_seen: str = ""
@@ -290,6 +297,44 @@ def _ssh_query(ip: str, time_range: str, sensor: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Query builders — DHCP (#10), Kerberos/NTLM (#11)
+# ---------------------------------------------------------------------------
+
+
+def _dhcp_query(ip: str, time_range: str, sensor: str) -> dict:
+    """Query #10: DHCP lease lookup by assigned IP → MAC + hostname."""
+    return {
+        "size": 0,
+        "query": {
+            "bool": {"must": _base_must("zeek.dhcp.assigned_ip", ip, "dhcp", time_range, sensor)}
+        },
+        "aggs": {
+            "mac": {"terms": {"field": "zeek.dhcp.mac", "size": 5}},
+            "hostname": {"terms": {"field": "zeek.dhcp.host_name", "size": 5}},
+        },
+    }
+
+
+def _kerberos_ntlm_query(ip: str, time_range: str, sensor: str) -> dict:
+    """Query #11: Kerberos client + NTLM username from this IP."""
+    must_base: list = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"term": {"source.ip": ip}},
+        {"terms": {"event.dataset": ["kerberos", "ntlm"]}},
+    ]
+    if sensor and sensor.lower() != "all":
+        must_base.append({"term": {"host.name": sensor}})
+    return {
+        "size": 0,
+        "query": {"bool": {"must": must_base}},
+        "aggs": {
+            "krb_clients": {"terms": {"field": "zeek.kerberos.client", "size": 10}},
+            "ntlm_users": {"terms": {"field": "zeek.ntlm.username", "size": 10}},
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Hostname extraction from UNC paths
 # ---------------------------------------------------------------------------
 
@@ -469,6 +514,26 @@ def _parse_ssh(aggs: dict) -> dict:
     }
 
 
+def _parse_dhcp(aggs: dict) -> dict:
+    """Extract MAC and DHCP hostname."""
+    macs = _buckets(aggs, "mac")
+    hostnames = _buckets(aggs, "hostname")
+    return {
+        "mac": macs[0]["key"] if macs else None,
+        "dhcp_hostname": hostnames[0]["key"] if hostnames else None,
+    }
+
+
+def _parse_kerberos_ntlm(aggs: dict) -> dict:
+    """Extract unique usernames from Kerberos client + NTLM username."""
+    users: set[str] = set()
+    for b in _buckets(aggs, "krb_clients"):
+        users.add(b["key"])
+    for b in _buckets(aggs, "ntlm_users"):
+        users.add(b["key"])
+    return {"users": sorted(users)}
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -506,6 +571,8 @@ def profile_device(
         "smb_in": _smb_inbound_query(ip, time_range, sensor),
         "rdp": _rdp_query(ip, time_range, sensor),
         "ssh": _ssh_query(ip, time_range, sensor),
+        "dhcp": _dhcp_query(ip, time_range, sensor),
+        "krb_ntlm": _kerberos_ntlm_query(ip, time_range, sensor),
     }
 
     results: dict[str, dict] = {}
@@ -527,6 +594,8 @@ def profile_device(
     smb_in = _parse_smb_inbound(results.get("smb_in", {}))
     rdp = _parse_rdp(results.get("rdp", {}))
     ssh = _parse_ssh(results.get("ssh", {}))
+    dhcp = _parse_dhcp(results.get("dhcp", {}))
+    krb_ntlm = _parse_kerberos_ntlm(results.get("krb_ntlm", {}))
 
     # Merge timestamps — take the earliest first_seen and latest last_seen.
     first_seen = min((t for t in [out["first_seen"], inb["first_seen"]] if t), default="")
@@ -536,7 +605,7 @@ def profile_device(
         ip=ip,
         sensor=sensor,
         time_range=time_range,
-        hostname=smb_in["hostname"],
+        hostname=dhcp["dhcp_hostname"] or smb_in["hostname"],
         ad_domain=smb_in["ad_domain"],
         dest_port_distribution=out["dest_port_distribution"],
         protocol_mix=out["protocol_mix"],
@@ -568,6 +637,9 @@ def profile_device(
         ssh_client_versions=ssh["ssh_client_versions"],
         ssh_server_versions=ssh["ssh_server_versions"],
         ssh_admin_targets=ssh["ssh_admin_targets"],
+        mac=dhcp["mac"],
+        dhcp_hostname=dhcp["dhcp_hostname"],
+        users=krb_ntlm["users"],
         first_seen=first_seen,
         last_seen=last_seen,
     )
@@ -614,6 +686,10 @@ def _display_profile(profile: DeviceProfile) -> None:
     )
     if profile.software:
         console.print(f"[bold]Software:[/bold] {', '.join(profile.software)}")
+    if profile.mac:
+        console.print(f"[bold]MAC:[/bold] {profile.mac}")
+    if profile.users:
+        console.print(f"[bold]Users:[/bold] {', '.join(profile.users)}")
     if profile.first_seen:
         console.print(
             f"[dim]First seen: {profile.first_seen[:19]}  Last seen: {profile.last_seen[:19]}[/dim]"

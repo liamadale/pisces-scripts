@@ -19,7 +19,15 @@
       {% if profile.os_family %}
         <span class="os-badge">{{ profile.os_family | title }}</span>
       {% endif %}
+      {% if profile.mac %}
+        <span class="os-badge" title="MAC address">{{ profile.mac }}</span>
+      {% endif %}
     </div>
+    {% if profile.users %}
+    <div class="device-card-users">
+      <i class="fa-solid fa-user"></i> {{ profile.users | join(', ') }}
+    </div>
+    {% endif %}
   </div>
 
   {# Signal grid #}
