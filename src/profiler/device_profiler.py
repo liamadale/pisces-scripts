@@ -755,10 +755,18 @@ def main() -> None:
     parser.add_argument(
         "--time-range", default="now-7d", help="ES date-math range (default: now-7d)"
     )
+    parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
     args = parser.parse_args()
 
     profile = profile_device(args.ip, time_range=args.time_range, sensor=args.sensor)
-    _display_profile(profile)
+
+    if args.json_output:
+        import json
+        from dataclasses import asdict
+
+        print(json.dumps(asdict(profile), indent=2, default=str))
+    else:
+        _display_profile(profile)
 
 
 if __name__ == "__main__":
