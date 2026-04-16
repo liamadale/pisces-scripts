@@ -387,32 +387,44 @@ a:hover { text-decoration: underline; }
   user-select: none;
 }
 
-/* Per-category color accents */
-.col-group-label.cat-alerts      { color: var(--red);            border-bottom: 2px solid var(--red);            }
-.col-group-label.cat-network     { color: var(--primary);        border-bottom: 2px solid var(--primary);        }
-.col-group-label.cat-web         { color: var(--secondary);      border-bottom: 2px solid var(--secondary);      }
-.col-group-label.cat-remote      { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
-.col-group-label.cat-auth        { color: var(--yellow);         border-bottom: 2px solid var(--yellow);         }
-.col-group-label.cat-messaging   { color: var(--purple);         border-bottom: 2px solid var(--purple);         }
-.col-group-label.cat-files       { color: var(--green);          border-bottom: 2px solid var(--green);          }
-.col-group-label.cat-ot          { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
-.col-group-label.cat-diagnostic  { color: var(--on-surface-dim); border-bottom: 2px solid var(--on-surface-dim); }
+/* Per-category color accents — thick bar at the BOTTOM of each label cell
+   (sticky because the cell itself is sticky; fills the gap to the row below) */
+.col-group-label.cat-alerts      { color: var(--red);            border-bottom: 3px solid var(--red);            }
+.col-group-label.cat-network     { color: var(--primary);        border-bottom: 3px solid var(--primary);        }
+.col-group-label.cat-web         { color: var(--secondary);      border-bottom: 3px solid var(--secondary);      }
+.col-group-label.cat-remote      { color: var(--orange);         border-bottom: 3px solid var(--orange);         }
+.col-group-label.cat-auth        { color: var(--yellow);         border-bottom: 3px solid var(--yellow);         }
+.col-group-label.cat-messaging   { color: var(--purple);         border-bottom: 3px solid var(--purple);         }
+.col-group-label.cat-files       { color: var(--green);          border-bottom: 3px solid var(--green);          }
+.col-group-label.cat-ot          { color: var(--orange);         border-bottom: 3px solid var(--orange);         }
+.col-group-label.cat-diagnostic  { color: var(--on-surface-dim); border-bottom: 3px solid var(--on-surface-dim); }
 
-/* Protocol sub-header top accent matches its category */
-.thead-protocols .col-group-alerts      { border-top: 2px solid var(--red);            }
-.thead-protocols .col-group-network     { border-top: 2px solid var(--primary);        }
-.thead-protocols .col-group-web         { border-top: 2px solid var(--secondary);      }
-.thead-protocols .col-group-remote      { border-top: 2px solid var(--orange);         }
-.thead-protocols .col-group-auth        { border-top: 2px solid var(--yellow);         }
-.thead-protocols .col-group-messaging   { border-top: 2px solid var(--purple);         }
-.thead-protocols .col-group-files       { border-top: 2px solid var(--green);          }
-.thead-protocols .col-group-ot          { border-top: 2px solid var(--orange);         }
-.thead-protocols .col-group-diagnostic  { border-top: 2px solid var(--on-surface-dim); }
+/* Protocol sub-header bottom accent — replaces the outline bottom border,
+   creates a second colored bar at the base of the sticky header section */
+.thead-protocols .col-group-alerts      { border-bottom: 3px solid var(--red);            }
+.thead-protocols .col-group-network     { border-bottom: 3px solid var(--primary);        }
+.thead-protocols .col-group-web         { border-bottom: 3px solid var(--secondary);      }
+.thead-protocols .col-group-remote      { border-bottom: 3px solid var(--orange);         }
+.thead-protocols .col-group-auth        { border-bottom: 3px solid var(--yellow);         }
+.thead-protocols .col-group-messaging   { border-bottom: 3px solid var(--purple);         }
+.thead-protocols .col-group-files       { border-bottom: 3px solid var(--green);          }
+.thead-protocols .col-group-ot          { border-bottom: 3px solid var(--orange);         }
+.thead-protocols .col-group-diagnostic  { border-bottom: 3px solid var(--on-surface-dim); }
 
-/* TOTAL column */
+/* TOTAL column — sticky to the right edge */
 .col-total {
+  position: sticky;
+  right: 0;
+  z-index: 4;
   border-left: 2px solid var(--outline) !important;
+  background: var(--surface);
 }
+thead .col-total {
+  background: var(--surface-container-high);
+  z-index: 8;
+}
+tbody tr:hover .col-total         { background: var(--surface-container-highest); }
+tbody tr.row-selected .col-total  { background: var(--surface-container-highest); }
 
 /* Search bar */
 .search-bar {
