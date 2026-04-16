@@ -8,6 +8,7 @@ from .base import ZeekModule, _fmt_bytes, _sensor_str, console
 
 
 class HttpModule(ZeekModule):
+    WEB_CATEGORY = "web"
     DATASETS = ["http"]
     SOURCE_FIELDS = [
         "@timestamp",

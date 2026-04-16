@@ -8,6 +8,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class WeirdModule(ZeekModule):
+    WEB_CATEGORY = "alerts"
     DATASETS = ["weird"]
     SOURCE_FIELDS = [
         "@timestamp",

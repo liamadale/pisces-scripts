@@ -31,7 +31,7 @@ class DhcpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    WEB_CATEGORY = "infrastructure"
+    WEB_CATEGORY = "network"
     WEB_COLUMNS = [
         ("MAC", lambda r: r.get("mac", "—") or "—"),
         ("Hostname", lambda r: r.get("hostname", "—") or "—"),

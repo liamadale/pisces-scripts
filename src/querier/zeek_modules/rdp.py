@@ -8,6 +8,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class RdpModule(ZeekModule):
+    WEB_CATEGORY = "remote"
     DATASETS = ["rdp"]
     SOURCE_FIELDS = [
         "@timestamp",

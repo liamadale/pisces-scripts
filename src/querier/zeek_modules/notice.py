@@ -12,6 +12,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class NoticeModule(ZeekModule):
+    WEB_CATEGORY = "alerts"
     DATASETS = ["notice"]
     SOURCE_FIELDS = [
         "@timestamp",

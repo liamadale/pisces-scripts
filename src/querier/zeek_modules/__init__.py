@@ -65,20 +65,26 @@ MODULES: dict = {
 # ---------------------------------------------------------------------------
 
 CATEGORY_ORDER: list[str] = [
-    "core",
-    "files",
+    "alerts",
+    "network",
+    "web",
+    "remote",
     "auth",
-    "infrastructure",
+    "messaging",
+    "files",
     "ot",
     "diagnostic",
 ]
 
 CATEGORY_LABELS: dict[str, str] = {
-    "core": "Core",
-    "files": "Files & Certs",
-    "auth": "Authentication",
-    "infrastructure": "Infrastructure",
-    "ot": "OT / SCADA",
+    "alerts": "Alerts",
+    "network": "Network",
+    "web": "Web & TLS",
+    "remote": "Remote Access",
+    "auth": "Auth & Identity",
+    "messaging": "Messaging",
+    "files": "Files",
+    "ot": "OT / ICS",
     "diagnostic": "Diagnostic",
 }
 

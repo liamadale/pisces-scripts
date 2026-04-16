@@ -8,6 +8,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class SslModule(ZeekModule):
+    WEB_CATEGORY = "web"
     DATASETS = ["ssl"]
     SOURCE_FIELDS = [
         "@timestamp",

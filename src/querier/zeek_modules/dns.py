@@ -8,6 +8,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class DnsModule(ZeekModule):
+    WEB_CATEGORY = "network"
     DATASETS = ["dns"]
     SOURCE_FIELDS = [
         "@timestamp",

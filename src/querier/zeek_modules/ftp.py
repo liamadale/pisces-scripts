@@ -36,7 +36,7 @@ class FtpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    WEB_CATEGORY = "infrastructure"
+    WEB_CATEGORY = "files"
     WEB_COLUMNS = [
         ("User", lambda r: r.get("user", "—") or "—"),
         ("Command", lambda r: r.get("command", "—") or "—"),

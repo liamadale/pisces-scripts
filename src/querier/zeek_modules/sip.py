@@ -38,7 +38,7 @@ class SipModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    WEB_CATEGORY = "infrastructure"
+    WEB_CATEGORY = "messaging"
     WEB_COLUMNS = [
         ("Method", lambda r: r.get("method", "—") or "—"),
         ("URI", lambda r: r.get("uri", "—") or "—"),

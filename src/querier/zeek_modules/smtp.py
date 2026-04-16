@@ -8,6 +8,7 @@ from .base import ZeekModule, _sensor_str, console
 
 
 class SmtpModule(ZeekModule):
+    WEB_CATEGORY = "messaging"
     DATASETS = ["smtp"]
     SOURCE_FIELDS = [
         "@timestamp",

@@ -260,12 +260,15 @@ a:hover { text-decoration: underline; }
 .sidebar-group:first-of-type { border-top: none; }
 
 /* Per-category left accent on group header */
-.sidebar-group[data-category="core"]           { --cat-color: var(--primary);   }
-.sidebar-group[data-category="files"]          { --cat-color: var(--green);     }
-.sidebar-group[data-category="auth"]           { --cat-color: var(--yellow);    }
-.sidebar-group[data-category="infrastructure"] { --cat-color: var(--secondary); }
-.sidebar-group[data-category="ot"]             { --cat-color: var(--orange);    }
-.sidebar-group[data-category="diagnostic"]     { --cat-color: var(--purple);    }
+.sidebar-group[data-category="alerts"]      { --cat-color: var(--red);       }
+.sidebar-group[data-category="network"]     { --cat-color: var(--primary);   }
+.sidebar-group[data-category="web"]         { --cat-color: var(--secondary); }
+.sidebar-group[data-category="remote"]      { --cat-color: var(--orange);    }
+.sidebar-group[data-category="auth"]        { --cat-color: var(--yellow);    }
+.sidebar-group[data-category="messaging"]   { --cat-color: var(--purple);    }
+.sidebar-group[data-category="files"]       { --cat-color: var(--green);     }
+.sidebar-group[data-category="ot"]          { --cat-color: var(--orange);    }
+.sidebar-group[data-category="diagnostic"]  { --cat-color: var(--on-surface-dim); }
 
 .group-hdr {
   display: flex;
@@ -412,20 +415,26 @@ a:hover { text-decoration: underline; }
 }
 
 /* Per-category color accents */
-.col-group-toggle.cat-core          { color: var(--primary);   border-bottom: 2px solid var(--primary);   }
-.col-group-toggle.cat-files         { color: var(--green);     border-bottom: 2px solid var(--green);     }
-.col-group-toggle.cat-auth          { color: var(--yellow);    border-bottom: 2px solid var(--yellow);    }
-.col-group-toggle.cat-infrastructure{ color: var(--secondary); border-bottom: 2px solid var(--secondary); }
-.col-group-toggle.cat-ot            { color: var(--orange);    border-bottom: 2px solid var(--orange);    }
-.col-group-toggle.cat-diagnostic    { color: var(--purple);    border-bottom: 2px solid var(--purple);    }
+.col-group-toggle.cat-alerts      { color: var(--red);            border-bottom: 2px solid var(--red);            }
+.col-group-toggle.cat-network     { color: var(--primary);        border-bottom: 2px solid var(--primary);        }
+.col-group-toggle.cat-web         { color: var(--secondary);      border-bottom: 2px solid var(--secondary);      }
+.col-group-toggle.cat-remote      { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
+.col-group-toggle.cat-auth        { color: var(--yellow);         border-bottom: 2px solid var(--yellow);         }
+.col-group-toggle.cat-messaging   { color: var(--purple);         border-bottom: 2px solid var(--purple);         }
+.col-group-toggle.cat-files       { color: var(--green);          border-bottom: 2px solid var(--green);          }
+.col-group-toggle.cat-ot          { color: var(--orange);         border-bottom: 2px solid var(--orange);         }
+.col-group-toggle.cat-diagnostic  { color: var(--on-surface-dim); border-bottom: 2px solid var(--on-surface-dim); }
 
 /* Protocol sub-header accent line matches category */
-.thead-protocols .col-group-core          { border-top: 2px solid var(--primary);   }
-.thead-protocols .col-group-files         { border-top: 2px solid var(--green);     }
-.thead-protocols .col-group-auth          { border-top: 2px solid var(--yellow);    }
-.thead-protocols .col-group-infrastructure{ border-top: 2px solid var(--secondary); }
-.thead-protocols .col-group-ot            { border-top: 2px solid var(--orange);    }
-.thead-protocols .col-group-diagnostic    { border-top: 2px solid var(--purple);    }
+.thead-protocols .col-group-alerts      { border-top: 2px solid var(--red);            }
+.thead-protocols .col-group-network     { border-top: 2px solid var(--primary);        }
+.thead-protocols .col-group-web         { border-top: 2px solid var(--secondary);      }
+.thead-protocols .col-group-remote      { border-top: 2px solid var(--orange);         }
+.thead-protocols .col-group-auth        { border-top: 2px solid var(--yellow);         }
+.thead-protocols .col-group-messaging   { border-top: 2px solid var(--purple);         }
+.thead-protocols .col-group-files       { border-top: 2px solid var(--green);          }
+.thead-protocols .col-group-ot          { border-top: 2px solid var(--orange);         }
+.thead-protocols .col-group-diagnostic  { border-top: 2px solid var(--on-surface-dim); }
 
 /* TOTAL column */
 .col-total {
