@@ -777,6 +777,38 @@ def _display_profile(profile: DeviceProfile) -> None:
         console.print(f"[dim]Fingerprints: {' · '.join(fp_parts)}[/dim]")
 
 
+def _run_diff(profile: DeviceProfile) -> None:
+    """Load baseline, diff, save new snapshot, display changes."""
+    from rich.console import Console
+
+    from src.profiler.snapshot import diff_profiles, load_snapshot, save_snapshot
+
+    console = Console()
+    baseline = load_snapshot(profile.ip, profile.sensor)
+
+    if baseline is None:
+        path = save_snapshot(profile)
+        console.print(f"\n[yellow]No baseline found — saved initial snapshot to {path}[/yellow]")
+        return
+
+    changes = diff_profiles(profile, baseline)
+    path = save_snapshot(profile)
+
+    if not changes:
+        console.print("\n[green]No changes detected vs baseline.[/green]")
+        return
+
+    console.print(f"\n[bold]Changes detected ({len(changes)}):[/bold]")
+    for c in changes:
+        icon = {
+            "added": "[green]+[/green]",
+            "removed": "[red]−[/red]",
+            "changed": "[yellow]~[/yellow]",
+        }
+        console.print(f"  {icon.get(c['change'], '?')} {c['category']}: {c['detail']}")
+    console.print(f"[dim]Snapshot updated: {path}[/dim]")
+
+
 def main() -> None:
     """CLI entry point for device profiler."""
     load_dotenv()
@@ -798,6 +830,11 @@ def main() -> None:
         "--time-range", default="now-7d", help="ES date-math range (default: now-7d)"
     )
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
+    parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="Save snapshot and show changes vs previous baseline",
+    )
     args = parser.parse_args()
 
     profile = profile_device(args.ip, time_range=args.time_range, sensor=args.sensor)
@@ -809,6 +846,9 @@ def main() -> None:
         print(json.dumps(asdict(profile), indent=2, default=str))
     else:
         _display_profile(profile)
+
+    if args.diff:
+        _run_diff(profile)
 
 
 if __name__ == "__main__":
