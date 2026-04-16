@@ -67,6 +67,18 @@
     {# Collapsible sections — expanded in full, collapsed in compact #}
     {% set open_attr = '' if compact else 'open' %}
 
+    {# User agents #}
+    {% if profile.user_agents %}
+    <details class="device-card-section" {{ open_attr }}>
+      <summary><i class="fa-solid fa-window-maximize"></i> User Agents ({{ profile.user_agents | length }})</summary>
+      <ul class="tag-list ua-list">
+        {% for ua in profile.user_agents %}
+        <li class="tag mono">{{ ua }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+
     {# JA4 TLS fingerprints #}
     {% if profile.ja4_fingerprints %}
     <details class="device-card-section" {{ open_attr }}>
