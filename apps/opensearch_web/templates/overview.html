@@ -16,27 +16,46 @@
 <div class="table-wrap">
   <table id="overview-table">
     <thead>
-      <tr>
-        <th class="sortable">IP Address</th>
-        <th class="sortable">Org</th>
+      {# Row 1: fixed anchor cols + category group toggle headers #}
+      {# Compute column indices for data-sort-col on rowspan=2 headers #}
+      {% set ns = namespace(col_idx=2) %}
+      <tr class="thead-groups">
+        <th rowspan="2" class="sortable" data-sort-col="0">IP Address</th>
+        <th rowspan="2" class="sortable" data-sort-col="1">Org</th>
         {% for cat in category_order %}
         {% if ip_modules_by_category.get(cat) %}
-        <th class="col-group-toggle{% if cat != 'core' %} active{% endif %}"
+        {% set cat_count = ip_modules_by_category[cat]|length %}
+        <th class="col-group-toggle cat-{{ cat }}"
             data-category="{{ cat }}"
+            data-col-count="{{ cat_count }}"
+            colspan="{{ cat_count }}"
             title="{{ category_labels[cat] }}">
           <i class="fa-solid {{ category_icons[cat] }}"></i>
-          <span class="sidebar-label">{{ category_labels[cat] }}</span>
+          <span class="cat-label">{{ category_labels[cat] }}</span>
+          <span class="cat-count"></span>
           <i class="fa-solid fa-chevron-right toggle-icon"></i>
         </th>
+        {% set ns.col_idx = ns.col_idx + cat_count %}
+        {% endif %}
+        {% endfor %}
+        <th rowspan="2" class="sortable num col-total" data-sort-col="{{ ns.col_idx }}">TOTAL</th>
+      </tr>
+
+      {# Row 2: per-protocol sub-headers #}
+      {% set ns2 = namespace(col_idx=2) %}
+      <tr class="thead-protocols">
+        {% for cat in category_order %}
+        {% if ip_modules_by_category.get(cat) %}
         {% for lt in ip_modules_by_category[cat] %}
         <th class="sortable num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %}"
-            data-col="{{ lt }}">
+            data-col="{{ lt }}"
+            data-sort-col="{{ ns2.col_idx }}">
           <i class="fa-solid {{ proto_icons.get(lt, 'fa-file-lines') }}"></i> {{ lt }}
         </th>
+        {% set ns2.col_idx = ns2.col_idx + 1 %}
         {% endfor %}
         {% endif %}
         {% endfor %}
-        <th class="sortable num">TOTAL</th>
       </tr>
     </thead>
     <tbody>
@@ -51,7 +70,6 @@
         </td>
         {% for cat in category_order %}
         {% if ip_modules_by_category.get(cat) %}
-        <td class="col-group-divider"></td>
         {% for lt in ip_modules_by_category[cat] %}
         {% set count = row.per_protocol.get(lt, 0) %}
         <td class="num col-group-{{ cat }}{% if cat != 'core' %} col-collapsed{% endif %} {% if count == 0 %}zero{% endif %}" data-val="{{ count }}">
@@ -59,14 +77,12 @@
           <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ row.src_ip }}&{{ request.query_string.decode() }}">
             {{ count }}
           </a>
-          {% else %}
-          0
-          {% endif %}
+          {% else %}—{% endif %}
         </td>
         {% endfor %}
         {% endif %}
         {% endfor %}
-        <td class="num" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
+        <td class="num col-total" data-val="{{ row.total }}"><strong>{{ row.total }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -79,20 +95,62 @@
 <script>
 (function() {
   document.querySelectorAll('.col-group-toggle').forEach(function(toggle) {
-    var cat = toggle.dataset.category;
-    var stored = localStorage.getItem('col-group-' + cat);
+    var cat      = toggle.dataset.category;
+    var colCount = parseInt(toggle.dataset.colCount, 10);
+    var stored   = localStorage.getItem('col-group-' + cat);
     // Default: core expanded, all others collapsed
-    var collapsed = stored !== null ? stored !== 'false' : cat !== 'core';
-    document.querySelectorAll('.col-group-' + cat)
-            .forEach(function(el) { el.classList.toggle('col-collapsed', collapsed); });
-    toggle.classList.toggle('active', !collapsed);
+    var collapsed = stored !== null ? stored === 'true' : cat !== 'core';
+
+    function applyState(isCollapsed) {
+      toggle.classList.toggle('col-group-collapsed', isCollapsed);
+      toggle.setAttribute('colspan', isCollapsed ? 1 : colCount);
+
+      // Protocol sub-headers in row 2
+      var protoThs = Array.from(document.querySelectorAll('th.col-group-' + cat));
+      protoThs.forEach(function(th, i) {
+        if (isCollapsed) {
+          if (i === 0) {
+            th.classList.remove('col-collapsed');
+            th.classList.add('col-spacer');
+          } else {
+            th.classList.remove('col-spacer');
+            th.classList.add('col-collapsed');
+          }
+        } else {
+          th.classList.remove('col-collapsed', 'col-spacer');
+        }
+      });
+
+      // Tbody cells — identify per-row using modulo on colCount
+      var tds = Array.from(document.querySelectorAll('td.col-group-' + cat));
+      tds.forEach(function(td, i) {
+        var colIdx = i % colCount;
+        if (isCollapsed) {
+          if (colIdx === 0) {
+            td.classList.remove('col-collapsed');
+            td.classList.add('col-spacer');
+          } else {
+            td.classList.remove('col-spacer');
+            td.classList.add('col-collapsed');
+          }
+        } else {
+          td.classList.remove('col-collapsed', 'col-spacer');
+        }
+      });
+
+      // Update count badge on toggle label
+      var countEl = toggle.querySelector('.cat-count');
+      if (countEl) {
+        countEl.textContent = isCollapsed ? '(' + colCount + ')' : '';
+      }
+    }
+
+    applyState(collapsed);
 
     toggle.addEventListener('click', function() {
-      var cells = document.querySelectorAll('.col-group-' + cat);
-      var isCollapsed = cells[0].classList.contains('col-collapsed');
-      cells.forEach(function(el) { el.classList.toggle('col-collapsed', !isCollapsed); });
-      toggle.classList.toggle('active', isCollapsed);
-      localStorage.setItem('col-group-' + cat, isCollapsed ? 'false' : 'true');
+      var isCollapsed = !toggle.classList.contains('col-group-collapsed');
+      applyState(isCollapsed);
+      localStorage.setItem('col-group-' + cat, isCollapsed ? 'true' : 'false');
     });
   });
 })();
