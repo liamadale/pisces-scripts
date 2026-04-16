@@ -6,8 +6,13 @@
 <div class="page-header">
   <h1>IP Pivot: {{ ip }}</h1>
   {% if is_private(ip) %}
-  <button class="btn" disabled title="Enrichment not available for private IPs">
-    <i class="fa-solid fa-house-lock"></i> Enrich
+  <button class="btn"
+          hx-post="/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
+          hx-target="#enrich-panel"
+          hx-swap="innerHTML"
+          hx-indicator="#profile-spinner">
+    <i class="fa-solid fa-fingerprint"></i> Profile Device
+    <span id="profile-spinner" class="htmx-indicator"><i class="fa-solid fa-spinner fa-spin"></i></span>
   </button>
   {% else %}
   <button class="btn"

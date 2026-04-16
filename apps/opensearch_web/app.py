@@ -398,4 +398,23 @@ def create_app() -> Flask:
             current_sensors=current_sensors,
         )
 
+    # ------------------------------------------------------------------
+    # POST /api/profile/<ip>  — HTMX: device profile card for private IPs
+    # ------------------------------------------------------------------
+    @app.route("/api/profile/<ip>", methods=["POST"])
+    def api_profile(ip: str):
+        from src.querier.zeek_modules.base import is_private
+
+        if not is_private(ip):
+            return '<p class="empty-note">Device profiling is for private IPs only.</p>'
+
+        from src.profiler.device_profiler import profile_device
+
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-7d")
+        compact = request.args.get("compact") == "1"
+
+        profile = profile_device(ip, time_range=time_range, sensor=sensor)
+        return render_template("partials/device_card.html", profile=profile, compact=compact)
+
     return app

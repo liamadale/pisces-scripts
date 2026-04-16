@@ -1345,3 +1345,40 @@ tr.detail-row td {
 .mt-1 { margin-top: 0.5rem; }
 .mt-2 { margin-top: 1rem; }
 .mb-1 { margin-bottom: 0.5rem; }
+
+/* ---------------------------------------------------------------------------
+   Device profile card
+   --------------------------------------------------------------------------- */
+.device-card { border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0; }
+.device-card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.device-card-identity { font-size: 1.1rem; }
+.device-card-domain { color: var(--on-surface-dim); }
+.device-card-meta { display: flex; gap: .5rem; align-items: center; }
+.device-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+.device-card-section { padding: .75rem 1rem; background: var(--surface); }
+.device-card-section h4,
+.device-card-section summary { margin: 0 0 .5rem; font-size: .8rem; color: var(--on-surface-dim); text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
+.device-card-section h4 { cursor: default; }
+.device-card-footer { padding: .5rem 1rem; font-size: .75rem; color: var(--on-surface-dim); border-top: 1px solid var(--border); }
+.device-card-users { padding: 0 1rem .5rem; font-size: .8rem; color: var(--on-surface-dim); border-bottom: 1px solid var(--border); }
+.role-badge { padding: 2px 8px; border-radius: 4px; font-size: .8rem; font-weight: 600; }
+.role-domain_controller { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
+.role-file_server { background: color-mix(in srgb, var(--yellow) 15%, transparent); color: var(--yellow); }
+.role-workstation { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+.role-linux_server { background: color-mix(in srgb, var(--cyan, #22d3ee) 15%, transparent); color: var(--cyan, #22d3ee); }
+.role-print_server { background: color-mix(in srgb, var(--purple, #a78bfa) 15%, transparent); color: var(--purple, #a78bfa); }
+.role-network_appliance { background: color-mix(in srgb, var(--orange, #fb923c) 15%, transparent); color: var(--orange, #fb923c); }
+.role-unknown { background: var(--surface-dim); color: var(--on-surface-dim); }
+.os-badge { padding: 2px 8px; border-radius: 4px; font-size: .75rem; background: var(--surface-dim); }
+.confidence { font-weight: 400; opacity: .7; margin-left: .25rem; }
+.mini-table { width: 100%; font-size: .8rem; border-collapse: collapse; }
+.mini-table th { text-align: left; font-weight: 600; color: var(--on-surface-dim); border-bottom: 1px solid var(--border); padding: 2px 4px; }
+.mini-table td { padding: 2px 4px; }
+.mini-label { font-size: .75rem; color: var(--on-surface-dim); margin: .25rem 0 .125rem; }
+.tag-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem; }
+.tag { padding: 2px 6px; border-radius: 3px; font-size: .75rem; background: var(--surface-dim); }
+.ua-list .tag { white-space: normal; word-break: break-all; }
+@media (max-width: 768px) { .device-card-grid { grid-template-columns: 1fr; } }
+.device-card-compact .device-card-grid { grid-template-columns: 1fr; }
+.device-card-compact .device-card-header { flex-direction: column; align-items: flex-start; }
+.device-card-compact .device-card-identity { font-size: .95rem; }

@@ -1155,6 +1155,42 @@ def create_fp_filter(
 
 
 # ---------------------------------------------------------------------------
+# Device profiler
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def profile_device(
+    ip: str,
+    sensor: str,
+    time_range: str = "now-7d",
+) -> str:
+    """Profile a private IP by aggregating cross-protocol Zeek signals into a device card.
+
+    Runs 9 parallel aggregation queries (conn, DNS, SSL, HTTP, SMB, RDP, SSH)
+    to identify the device's role, OS, installed software, inbound services,
+    hostnames, fingerprints, and behavioral patterns — all from network
+    telemetry without endpoint agents.
+
+    The sensor parameter is required because private IPs overlap across sensors.
+
+    Args:
+        ip: Private IP address to profile (e.g. 10.0.0.50).
+        sensor: Sensor hostname — required, not optional.
+        time_range: ES date-math range (default: now-7d).
+    """
+    try:
+        from dataclasses import asdict
+
+        from src.profiler.device_profiler import profile_device as _profile_device
+
+        profile = _profile_device(ip, time_range=time_range, sensor=sensor)
+        return _ok(asdict(profile))
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
 
