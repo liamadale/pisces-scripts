@@ -112,16 +112,7 @@ def _conn_outbound_query(ip: str, time_range: str, sensor: str) -> dict:
     """Build conn-outbound aggregation body (device as source)."""
     return {
         "size": 0,
-        "query": {
-            "bool": {
-                "must": [
-                    {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-                    {"term": {"event.dataset": "conn"}},
-                    {"term": {"source.ip": ip}},
-                    {"term": {"host.name": sensor}},
-                ]
-            }
-        },
+        "query": {"bool": {"must": _base_must("source.ip", ip, "conn", time_range, sensor)}},
         "aggs": {
             "dest_ports": {"terms": {"field": "destination.port", "size": 10}},
             "app_protos": {"terms": {"field": "network.application", "size": 10}},
@@ -137,16 +128,7 @@ def _conn_inbound_query(ip: str, time_range: str, sensor: str) -> dict:
     """Build conn-inbound aggregation body (device as destination)."""
     return {
         "size": 0,
-        "query": {
-            "bool": {
-                "must": [
-                    {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-                    {"term": {"event.dataset": "conn"}},
-                    {"term": {"destination.ip": ip}},
-                    {"term": {"host.name": sensor}},
-                ]
-            }
-        },
+        "query": {"bool": {"must": _base_must("destination.ip", ip, "conn", time_range, sensor)}},
         "aggs": {
             "inbound_ports": {
                 "terms": {"field": "destination.port", "size": 20},
@@ -166,12 +148,14 @@ def _conn_inbound_query(ip: str, time_range: str, sensor: str) -> dict:
 
 def _base_must(ip_field: str, ip: str, dataset: str, time_range: str, sensor: str) -> list:
     """Shared must clauses for all aggregation queries."""
-    return [
+    clauses = [
         {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
         {"term": {"event.dataset": dataset}},
         {"term": {ip_field: ip}},
-        {"term": {"host.name": sensor}},
     ]
+    if sensor and sensor.lower() != "all":
+        clauses.append({"term": {"host.name": sensor}})
+    return clauses
 
 
 def _dns_query(ip: str, time_range: str, sensor: str) -> dict:
@@ -246,25 +230,16 @@ def _smb_inbound_query(ip: str, time_range: str, sensor: str) -> dict:
 
 def _rdp_query(ip: str, time_range: str, sensor: str) -> dict:
     """Query #8: RDP inbound + outbound (bidirectional)."""
+    must: list = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"term": {"event.dataset": "rdp"}},
+        {"bool": {"should": [{"term": {"source.ip": ip}}, {"term": {"destination.ip": ip}}]}},
+    ]
+    if sensor and sensor.lower() != "all":
+        must.append({"term": {"host.name": sensor}})
     return {
         "size": 0,
-        "query": {
-            "bool": {
-                "must": [
-                    {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-                    {"term": {"event.dataset": "rdp"}},
-                    {"term": {"host.name": sensor}},
-                    {
-                        "bool": {
-                            "should": [
-                                {"term": {"source.ip": ip}},
-                                {"term": {"destination.ip": ip}},
-                            ]
-                        }
-                    },
-                ]
-            }
-        },
+        "query": {"bool": {"must": must}},
         "aggs": {
             "inbound": {
                 "filter": {"term": {"destination.ip": ip}},
@@ -284,25 +259,16 @@ def _rdp_query(ip: str, time_range: str, sensor: str) -> dict:
 
 def _ssh_query(ip: str, time_range: str, sensor: str) -> dict:
     """Query #9: SSH inbound + outbound + HASSH (bidirectional)."""
+    must: list = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"term": {"event.dataset": "ssh"}},
+        {"bool": {"should": [{"term": {"source.ip": ip}}, {"term": {"destination.ip": ip}}]}},
+    ]
+    if sensor and sensor.lower() != "all":
+        must.append({"term": {"host.name": sensor}})
     return {
         "size": 0,
-        "query": {
-            "bool": {
-                "must": [
-                    {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-                    {"term": {"event.dataset": "ssh"}},
-                    {"term": {"host.name": sensor}},
-                    {
-                        "bool": {
-                            "should": [
-                                {"term": {"source.ip": ip}},
-                                {"term": {"destination.ip": ip}},
-                            ]
-                        }
-                    },
-                ]
-            }
-        },
+        "query": {"bool": {"must": must}},
         "aggs": {
             "inbound": {
                 "filter": {"term": {"destination.ip": ip}},
