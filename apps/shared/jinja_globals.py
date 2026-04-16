@@ -13,6 +13,15 @@ def register_shared_helpers(app: Flask) -> None:
 
     app.jinja_env.globals["is_private"] = is_private
     app.jinja_env.globals["lookup_org"] = lookup_org
+    app.jinja_env.globals["role_icon"] = lambda role: {
+        "domain_controller": "server",
+        "file_server": "folder-open",
+        "workstation": "desktop",
+        "print_server": "print",
+        "linux_server": "terminal",
+        "network_appliance": "network-wired",
+        "unknown": "circle-question",
+    }.get(role, "circle-question")
     app.jinja_env.globals["mantis_status_badge"] = lambda s: {
         "resolved": "badge-green",
         "closed": "badge-green",

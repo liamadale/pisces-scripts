@@ -1,0 +1,139 @@
+{# Device profile card — full and compact variants.
+   Receives: profile (DeviceProfile), compact (bool) #}
+<div class="device-card {{ 'device-card-compact' if compact else '' }}">
+
+  {# Header #}
+  <div class="device-card-header">
+    <div class="device-card-identity">
+      <i class="fa-solid fa-{{ role_icon(profile.role) }}"></i>
+      <strong>{{ profile.hostname or profile.ip }}</strong>
+      {% if profile.ad_domain %}
+        <span class="device-card-domain">.{{ profile.ad_domain }}</span>
+      {% endif %}
+    </div>
+    <div class="device-card-meta">
+      <span class="role-badge role-{{ profile.role }}">
+        {{ profile.role | replace('_', ' ') | title }}
+        <span class="confidence">{{ (profile.confidence * 100) | int }}%</span>
+      </span>
+      {% if profile.os_family %}
+        <span class="os-badge">{{ profile.os_family | title }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Signal grid #}
+  <div class="device-card-grid">
+
+    {# Inbound services #}
+    <div class="device-card-section">
+      <h4><i class="fa-solid fa-server"></i> Inbound Services</h4>
+      {% if profile.inbound_services %}
+      <table class="mini-table">
+        <thead><tr><th>Port</th><th>Proto</th><th>#</th></tr></thead>
+        <tbody>
+          {% for svc in profile.inbound_services %}
+          <tr><td>{{ svc.port }}</td><td>{{ svc.app_proto or '—' }}</td><td>{{ svc.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-note">No inbound services</p>
+      {% endif %}
+    </div>
+
+    {# Software #}
+    <div class="device-card-section">
+      <h4><i class="fa-solid fa-cube"></i> Software</h4>
+      {% if profile.software %}
+      <ul class="tag-list">
+        {% for sw in profile.software %}
+        <li class="tag">{{ sw }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty-note">No signatures matched</p>
+      {% endif %}
+    </div>
+
+    {# Collapsible sections — expanded in full, collapsed in compact #}
+    {% set open_attr = '' if compact else 'open' %}
+
+    {# JA4 TLS fingerprints #}
+    {% if profile.ja4_fingerprints %}
+    <details class="device-card-section" {{ open_attr }}>
+      <summary><i class="fa-solid fa-fingerprint"></i> TLS Fingerprints ({{ profile.ja4_fingerprints | length }})</summary>
+      <table class="mini-table">
+        <thead><tr><th>JA4</th><th>#</th></tr></thead>
+        <tbody>
+          {% for fp in profile.ja4_fingerprints %}
+          <tr><td class="mono">{{ fp.hash[:24] }}…</td><td>{{ fp.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+    {% endif %}
+
+    {# DNS domains #}
+    {% if profile.dns_top_domains %}
+    <details class="device-card-section" {{ open_attr }}>
+      <summary><i class="fa-solid fa-globe"></i> DNS Domains ({{ profile.dns_top_domains | length }})</summary>
+      <table class="mini-table">
+        <thead><tr><th>Domain</th><th>#</th></tr></thead>
+        <tbody>
+          {% for d in profile.dns_top_domains[:10] %}
+          <tr><td>{{ d.domain }}</td><td>{{ d.count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+    {% endif %}
+
+    {# SMB shares #}
+    {% if profile.smb_shares_hosted or profile.smb_shares_accessed %}
+    <details class="device-card-section" {{ open_attr }}>
+      <summary><i class="fa-solid fa-folder-open"></i> SMB Shares</summary>
+      {% if profile.smb_shares_hosted %}
+      <p class="mini-label">Hosted:</p>
+      <ul class="tag-list">{% for s in profile.smb_shares_hosted %}<li class="tag mono">{{ s }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if profile.smb_shares_accessed %}
+      <p class="mini-label">Accessed:</p>
+      <ul class="tag-list">{% for s in profile.smb_shares_accessed %}<li class="tag mono">{{ s }}</li>{% endfor %}</ul>
+      {% endif %}
+    </details>
+    {% endif %}
+
+    {# Remote access #}
+    {% if profile.ssh_inbound or profile.rdp_inbound or profile.admin_targets or profile.ssh_admin_targets %}
+    <details class="device-card-section" {{ open_attr }}>
+      <summary><i class="fa-solid fa-terminal"></i> Remote Access</summary>
+      {% if profile.rdp_inbound %}
+        <p>RDP inbound: {{ profile.rdp_usernames | join(', ') or 'yes' }}</p>
+      {% endif %}
+      {% if profile.ssh_inbound and profile.ssh_server_versions %}
+        <p>SSH server: {{ profile.ssh_server_versions | join(', ') }}</p>
+      {% elif profile.ssh_inbound %}
+        <p>SSH inbound: yes</p>
+      {% endif %}
+      {% if profile.admin_targets %}
+        <p>RDP admin → {{ profile.admin_targets[:5] | join(', ') }}</p>
+      {% endif %}
+      {% if profile.ssh_admin_targets %}
+        <p>SSH admin → {{ profile.ssh_admin_targets[:5] | join(', ') }}</p>
+      {% endif %}
+    </details>
+    {% endif %}
+
+  </div>
+
+  {# Footer #}
+  <div class="device-card-footer">
+    {% if profile.first_seen %}
+    First: {{ profile.first_seen[:16] }} · Last: {{ profile.last_seen[:16] }}
+    {% endif %}
+    · {{ profile.inbound_client_count }} unique client{{ 's' if profile.inbound_client_count != 1 else '' }}
+    · {{ profile.sensor }}
+  </div>
+
+</div>
