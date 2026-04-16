@@ -25,11 +25,18 @@ def _has_inbound_port(profile: DeviceProfile, port: int) -> bool:
 
 
 def _has_inbound_proto(profile: DeviceProfile, proto: str) -> bool:
-    return any(s["app_proto"] == proto for s in profile.inbound_services)
+    return any(proto in s["app_proto"] for s in profile.inbound_services)
 
 
 def _has_dns_match(profile: DeviceProfile, pattern: str) -> bool:
     return any(fnmatch(d["domain"].lower(), pattern) for d in profile.dns_top_domains)
+
+
+def _has_dns_or_http_match(profile: DeviceProfile, pattern: str) -> bool:
+    """Match against DNS domains or HTTP host headers."""
+    if _has_dns_match(profile, pattern):
+        return True
+    return any(fnmatch(h["host"].lower(), pattern) for h in profile.http_top_hosts)
 
 
 ROLE_HEURISTICS: dict[str, list[tuple[float, str, object]]] = {
@@ -40,28 +47,36 @@ ROLE_HEURISTICS: dict[str, list[tuple[float, str, object]]] = {
         (0.15, "DCE/RPC inbound", lambda p: _has_inbound_proto(p, "dce_rpc")),
         (0.15, "SMB inbound", lambda p: _has_inbound_port(p, 445)),
         (0.10, "NTP outbound", lambda p: 123 in p.dest_port_distribution),
-        (0.10, "Windows telemetry DNS", lambda p: _has_dns_match(p, "*.windowsupdate.com")),
+        (0.10, "Windows telemetry DNS", lambda p: _has_dns_or_http_match(p, "*.windowsupdate.com")),
         (0.05, "DC replication", lambda p: _has_inbound_port(p, 3268)),
     ],
     "file_server": [
-        (0.35, "SMB inbound", lambda p: _has_inbound_port(p, 445)),
+        (0.30, "SMB inbound", lambda p: _has_inbound_port(p, 445)),
         (
-            0.25,
+            0.20,
             "High SMB count",
             lambda p: any(s["count"] > 50 for s in p.inbound_services if s["port"] == 445),
         ),
         (0.20, "Shares hosted", lambda p: len(p.smb_shares_hosted) > 0),
         (
-            0.20,
+            0.15,
             "Low outbound diversity",
             lambda p: _has_inbound_port(p, 445) and p.unique_dest_count < 20,
+        ),
+        (
+            0.15,
+            "No DC services",
+            lambda p: (
+                _has_inbound_port(p, 445)
+                and not (_has_inbound_port(p, 53) and _has_inbound_port(p, 88))
+            ),
         ),
     ],
     "workstation": [
         (0.25, "Low inbound", lambda p: p.unique_dest_count > 0 and len(p.inbound_services) <= 2),
         (0.20, "Browser UA", lambda p: any("mozilla" in ua.lower() for ua in p.user_agents)),
         (0.15, "WPAD DNS", lambda p: _has_dns_match(p, "wpad*")),
-        (0.15, "Windows Update DNS", lambda p: _has_dns_match(p, "*.windowsupdate.com")),
+        (0.15, "Windows Update", lambda p: _has_dns_or_http_match(p, "*.windowsupdate.com")),
         (0.15, "High outbound diversity", lambda p: p.unique_dest_count > 20),
         (0.10, "Multiple JA4", lambda p: len(p.ja4_fingerprints) >= 3),
     ],
@@ -162,14 +177,16 @@ def detect_os(profile: DeviceProfile) -> str | None:
 
     # DNS pattern matching
     domains = [d["domain"].lower() for d in profile.dns_top_domains]
-    for domain in domains:
-        if any(fnmatch(domain, p) for p in _WINDOWS_DNS):
+    http_hosts = [h["host"].lower() for h in profile.http_top_hosts]
+    all_names = domains + http_hosts
+    for name in all_names:
+        if any(fnmatch(name, p) for p in _WINDOWS_DNS):
             return "windows"
-    for domain in domains:
-        if any(fnmatch(domain, p) for p in _MACOS_DNS):
+    for name in all_names:
+        if any(fnmatch(name, p) for p in _MACOS_DNS):
             return "macos"
-    for domain in domains:
-        if any(fnmatch(domain, p) for p in _LINUX_DNS):
+    for name in all_names:
+        if any(fnmatch(name, p) for p in _LINUX_DNS):
             return "linux"
 
     # SSH version strings

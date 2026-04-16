@@ -14,6 +14,8 @@
       pattern: "*.ninjarmm.com"
     - type: dns
       pattern: "*.ninjarmm.io"
+    - type: ssl_sni
+      pattern: "*.ninjarmm.com"
 
 - name: Rapid7 InsightAgent
   signals:
