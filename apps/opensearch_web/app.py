@@ -348,6 +348,64 @@ def create_app() -> Flask:
         return render_template("partials/notice_summary.html", buckets=buckets)
 
     # ------------------------------------------------------------------
+    # GET /api/suricata/summary  — HTMX: Suricata rule frequency aggregation
+    # ------------------------------------------------------------------
+    @app.route("/api/suricata/summary")
+    def api_suricata_summary():
+        from src.querier.zeek_modules.base import (
+            FILTERS_DIR,
+            build_base_query,
+            load_with_remap,
+            query_opensearch,
+        )
+
+        mod = MODULES["suricata_alert"]
+        search_params = build_search_params_from_request(request)
+
+        must_not, _, _ = load_with_remap(FILTERS_DIR)
+        sensor_val = search_params.get("sensor", "all")
+        sensors = (
+            [s.strip() for s in str(sensor_val).split(",")]
+            if sensor_val and str(sensor_val).lower() != "all"
+            else None
+        )
+
+        extra_must = [{"term": {"event.module": "suricata"}}]
+
+        body, params = build_base_query(
+            must_not=must_not,
+            extra_must=extra_must,
+            source_fields=mod.SOURCE_FIELDS,
+            limit=0,
+            time_range=search_params.get("time_range", "now-24h"),
+            sensors=sensors,
+            datasets=mod.DATASETS,
+            public_only=search_params.get("public_only", False),
+            src_ip_filter=search_params.get("src_ip"),
+            direction=search_params.get("direction"),
+            min_risk_score=search_params.get("min_risk_score"),
+        )
+        body["size"] = 0
+        body.pop("sort", None)
+        body.pop("_source", None)
+        body["aggs"] = {
+            "rule_names": {
+                "terms": {
+                    "field": "rule.name",
+                    "size": 500,
+                    "order": {"_count": "asc"},
+                }
+            }
+        }
+
+        raw = query_opensearch(body, params)
+        buckets = []
+        if raw:
+            buckets = raw.get("aggregations", {}).get("rule_names", {}).get("buckets", [])
+
+        return render_template("partials/suricata_summary.html", buckets=buckets)
+
+    # ------------------------------------------------------------------
     # GET /api/sensor/summary  — HTMX: sensor activity aggregation
     # ------------------------------------------------------------------
     @app.route("/api/sensor/summary")
