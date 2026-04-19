@@ -67,6 +67,7 @@ def create_app() -> Flask:
                 "ssh": "fa-terminal",
                 "notice": "fa-bell",
                 "weird": "fa-triangle-exclamation",
+                "suricata_alert": "fa-shield-halved",
                 "files": "fa-file",
                 "x509": "fa-certificate",
                 "pe": "fa-file-code",

@@ -20,6 +20,14 @@ MODULE_PARAM_KEYS: dict = {
     "ssh": ["ssh_failed_only", "ssh_auth_result"],
     "notice": ["notice_note"],
     "weird": ["weird_name"],
+    "suricata_alert": [
+        "rule_name",
+        "rule_category",
+        "severity",
+        "sid",
+        "exclude_stream",
+        "tag",
+    ],
     # Files & Certs
     "files": ["mime", "hash", "source_proto", "extracted_only", "dest_ip"],
     "x509": ["subject", "issuer", "san", "self_signed", "expired"],
