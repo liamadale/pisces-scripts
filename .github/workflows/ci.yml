@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     branches: [main]
 
@@ -12,6 +12,8 @@ permissions:
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
+    env:
+      ADVISORY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -25,9 +27,11 @@ jobs:
 
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
+        continue-on-error: ${{ env.ADVISORY == 'true' }}
 
       - name: Lint (ruff check)
         run: uv run ruff check src/ apps/ mcp/ tests/ *.py
+        continue-on-error: ${{ env.ADVISORY == 'true' }}
 
       - name: Format check (ruff format) — advisory
         run: uv run ruff format --check src/ apps/ mcp/ tests/ *.py
