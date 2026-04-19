@@ -8,6 +8,7 @@ from .base import ZeekModule, _first, _fmt_bytes, _fmt_dur, _sensor_str, console
 
 
 class ConnModule(ZeekModule):
+    WEB_CATEGORY = "network"
     DATASETS = ["conn"]
     SOURCE_FIELDS = [
         "@timestamp",

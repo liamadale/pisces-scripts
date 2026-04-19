@@ -253,31 +253,70 @@ a:hover { text-decoration: underline; }
 .sidebar-link.active { background: var(--primary-container); color: var(--on-primary-container); }
 
 /* Group headers */
+.sidebar-group {
+  border-top: 1px solid var(--outline-dim);
+  padding-top: 2px;
+}
+.sidebar-group:first-of-type { border-top: none; }
+
+/* Per-category left accent on group header */
+.sidebar-group[data-category="alerts"]      { --cat-color: var(--red);       }
+.sidebar-group[data-category="network"]     { --cat-color: var(--primary);   }
+.sidebar-group[data-category="web"]         { --cat-color: var(--secondary); }
+.sidebar-group[data-category="remote"]      { --cat-color: var(--orange);    }
+.sidebar-group[data-category="auth"]        { --cat-color: var(--yellow);    }
+.sidebar-group[data-category="messaging"]   { --cat-color: var(--purple);    }
+.sidebar-group[data-category="files"]       { --cat-color: var(--green);     }
+.sidebar-group[data-category="ot"]          { --cat-color: var(--orange);    }
+.sidebar-group[data-category="diagnostic"]  { --cat-color: var(--on-surface-dim); }
+
 .group-hdr {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
+  padding: 5px 12px 5px 10px;
   width: 100%;
   background: none;
   border: none;
+  border-left: 3px solid transparent;
   cursor: pointer;
   color: var(--on-surface-dim);
   font-family: var(--sans);
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   white-space: nowrap;
-  margin-top: 6px;
+  margin-top: 4px;
+  transition: color 0.1s, border-color 0.1s;
 }
-.group-hdr:hover { color: var(--on-surface); }
-.group-hdr .toggle-icon { margin-left: auto; transition: transform 0.15s; }
+.group-hdr:hover {
+  color: var(--cat-color, var(--on-surface));
+  border-left-color: var(--cat-color, var(--outline));
+}
+.group-hdr.open {
+  color: var(--cat-color, var(--on-surface));
+  border-left-color: var(--cat-color, var(--outline));
+}
+.group-hdr .toggle-icon { margin-left: auto; transition: transform 0.15s; font-size: 0.6rem; }
 .group-hdr.open .toggle-icon { transform: rotate(90deg); }
 
-/* Collapsed group links */
-.group-links { overflow: hidden; }
+/* Group links — indented to show hierarchy */
+.group-links { overflow: hidden; padding-left: 8px; }
 .group-links.closed { display: none; }
+.group-links .sidebar-link {
+  padding-left: 16px;
+  font-size: 0.82rem;
+}
+.group-links .sidebar-link.active {
+  border-left: 2px solid var(--cat-color, var(--primary));
+}
+
+/* Collapsed sidebar — hide group link indentation */
+#sidebar.collapsed .group-links { padding-left: 0; }
+#sidebar.collapsed .group-links .sidebar-link { padding-left: 12px; }
+#sidebar.collapsed .group-hdr { border-left-color: transparent; padding-left: 12px; }
+#sidebar.collapsed .sidebar-group { border-top-color: var(--outline); padding-top: 4px; }
 
 /* Footer */
 .sidebar-foot {
@@ -286,43 +325,125 @@ a:hover { text-decoration: underline; }
   padding: 4px 0;
 }
 
-/* Tooltip in collapsed mode */
-#sidebar.collapsed .sidebar-link[title]:hover::after {
-  content: attr(title);
+/* Sidebar tooltip (JS-driven, replaces broken ::after approach) */
+#sidebar-tooltip {
+  display: none;
   position: fixed;
-  left: 52px;
-  background: var(--surface-container-high);
+  left: 54px;
+  z-index: 9999;
+  background: var(--surface-container-highest);
   color: var(--on-surface);
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
   font-family: var(--sans);
   font-size: 0.8rem;
   white-space: nowrap;
   pointer-events: none;
-  z-index: 9999;
   border: 1px solid var(--outline);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  transform: translateY(-50%);
 }
 
-/* ── Overview matrix: collapsible column groups ──────── */
-.col-collapsed { display: none; }
+/* ── Overview matrix: two-row grouped header ─────────── */
 
-.col-group-toggle {
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  background: var(--surface-container-high);
-  font-family: var(--sans);
-  font-size: 0.72rem;
-  color: var(--on-surface-dim);
-  border-bottom: 1px solid var(--outline);
-  padding: 6px 8px;
+/* Row 1: category label headers */
+.thead-groups th {
+  background: var(--surface-container-highest);
+  border-bottom: none;
+  top: 0;
+  z-index: 6;
+}
+.thead-groups th[rowspan="2"] {
   vertical-align: middle;
+  background: var(--surface-container-high);
+  border-bottom: 2px solid var(--outline);
+  z-index: 7;
 }
-.col-group-toggle:hover { background: var(--state-hover); color: var(--on-surface); }
-.col-group-toggle .toggle-icon { transition: transform 0.15s; margin-left: 4px; }
-.col-group-toggle.active .toggle-icon { transform: rotate(90deg); }
 
-.col-group-divider { padding: 0; width: 4px; background: var(--outline-dim); }
+/* Row 2: protocol sub-headers */
+.thead-protocols th {
+  font-size: 0.72rem;
+  background: var(--surface-container-high);
+  border-top: none;
+  border-bottom: 2px solid var(--outline);
+  color: var(--on-surface-dim);
+  font-weight: 500;
+  padding: 0 8px 4px;
+  top: 27px;  /* group row height: 7px padding + ~10px line-height + 4px padding ≈ 26–27px */
+  z-index: 5;
+}
+
+/* Category label headers — display only, not interactive */
+.col-group-label {
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 7px 10px 4px;
+  text-align: center;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Per-category color accents — inset box-shadow renders INSIDE the cell's
+   paint area, owned by the label cell, not a border-collapse boundary line */
+.col-group-label.cat-alerts      { color: var(--red);            box-shadow: inset 0 -4px 0 var(--red);            }
+.col-group-label.cat-network     { color: var(--primary);        box-shadow: inset 0 -4px 0 var(--primary);        }
+.col-group-label.cat-web         { color: var(--secondary);      box-shadow: inset 0 -4px 0 var(--secondary);      }
+.col-group-label.cat-remote      { color: var(--orange);         box-shadow: inset 0 -4px 0 var(--orange);         }
+.col-group-label.cat-auth        { color: var(--yellow);         box-shadow: inset 0 -4px 0 var(--yellow);         }
+.col-group-label.cat-messaging   { color: var(--purple);         box-shadow: inset 0 -4px 0 var(--purple);         }
+.col-group-label.cat-files       { color: var(--green);          box-shadow: inset 0 -4px 0 var(--green);          }
+.col-group-label.cat-ot          { color: var(--orange);         box-shadow: inset 0 -4px 0 var(--orange);         }
+.col-group-label.cat-diagnostic  { color: var(--on-surface-dim); box-shadow: inset 0 -4px 0 var(--on-surface-dim); }
+
+/* Protocol sub-header bottom accent — replaces the outline bottom border,
+   creates a second colored bar at the base of the sticky header section */
+.thead-protocols .col-group-alerts      { border-bottom: 3px solid var(--red);            }
+.thead-protocols .col-group-network     { border-bottom: 3px solid var(--primary);        }
+.thead-protocols .col-group-web         { border-bottom: 3px solid var(--secondary);      }
+.thead-protocols .col-group-remote      { border-bottom: 3px solid var(--orange);         }
+.thead-protocols .col-group-auth        { border-bottom: 3px solid var(--yellow);         }
+.thead-protocols .col-group-messaging   { border-bottom: 3px solid var(--purple);         }
+.thead-protocols .col-group-files       { border-bottom: 3px solid var(--green);          }
+.thead-protocols .col-group-ot          { border-bottom: 3px solid var(--orange);         }
+.thead-protocols .col-group-diagnostic  { border-bottom: 3px solid var(--on-surface-dim); }
+
+/* IP Address column — sticky to the left edge */
+.col-ip-addr {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface);
+  /* inset box-shadow renders above scrolled content without subpixel gaps */
+  box-shadow: inset -2px 0 0 var(--outline);
+}
+thead .col-ip-addr {
+  background: var(--surface-container-high);
+  z-index: 9; /* top-left corner: above both sticky rows and sticky right col */
+}
+tbody tr:hover .col-ip-addr       { background: var(--surface-container-highest); }
+tbody tr.row-selected .col-ip-addr { background: var(--surface-container-highest); }
+
+/* TOTAL column — sticky to the right edge */
+.col-total {
+  position: sticky;
+  right: 0;
+  z-index: 4;
+  background: var(--surface);
+  /* box-shadow instead of border-left: renders above scrolled content,
+     eliminates the subpixel gap a real border leaves */
+  box-shadow: -2px 0 0 var(--outline);
+}
+thead .col-total {
+  background: var(--surface-container-high);
+  box-shadow: -2px 0 0 var(--outline);
+  z-index: 8;
+}
+tbody tr:hover .col-total        { background: var(--surface-container-highest); }
+tbody tr.row-selected .col-total { background: var(--surface-container-highest); }
 
 /* Search bar */
 .search-bar {
@@ -511,6 +632,18 @@ main.table-fill > .table-wrap {
 }
 .btn-theme:hover::before { background: var(--state-hover); }
 .btn-theme:hover { color: var(--primary); }
+
+/* When btn-theme is used as a sidebar-link, restore full-width link behaviour */
+.sidebar-link.btn-theme {
+  width: calc(100% - 8px);
+  height: auto;
+  overflow: visible;
+  padding: 7px 12px;
+  font-size: 0.875rem;
+}
+.sidebar-link.btn-theme::before {
+  border-radius: 4px; /* match sidebar-link border-radius, not a circle */
+}
 
 
 /* ── 5. Tables ────────────────────────────────────────── */

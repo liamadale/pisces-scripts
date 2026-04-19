@@ -51,7 +51,7 @@ class X509Module(ZeekModule):
     # run_query() guards src_ip_filter for modules without source.ip in SOURCE_FIELDS.
     SUPPORTS_IP_FILTER = True  # post-filters handle it after pivot resolution
 
-    WEB_CATEGORY = "files"
+    WEB_CATEGORY = "web"
     WEB_COLUMNS = [
         ("Subject", lambda r: _cn(r.get("subject", "") or "")[:22] or "—"),
         ("Issuer", lambda r: _cn(r.get("issuer", "") or "")[:22] or "—"),

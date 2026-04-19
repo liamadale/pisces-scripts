@@ -33,7 +33,7 @@ class NtpModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    WEB_CATEGORY = "infrastructure"
+    WEB_CATEGORY = "network"
     WEB_COLUMNS = [
         ("Mode", lambda r: str(r.get("mode")) if r.get("mode") is not None else "—"),
         ("Version", lambda r: str(r.get("version")) if r.get("version") else "—"),

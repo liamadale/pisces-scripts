@@ -22,7 +22,7 @@ class TunnelModule(ZeekModule):
         "event.risk_score_norm",
     ]
 
-    WEB_CATEGORY = "infrastructure"
+    WEB_CATEGORY = "remote"
     WEB_COLUMNS = [
         ("Tunnel Type", lambda r: r.get("tunnel_type", "—") or "—"),
         ("Action", lambda r: r.get("action", "—") or "—"),

@@ -171,6 +171,9 @@
   </div>
 </div>
 
+<!-- Sidebar tooltip (shown via JS when sidebar is collapsed) -->
+<div id="sidebar-tooltip"></div>
+
 <!-- Record detail slide-in panel -->
 <aside id="detail-panel" class="detail-panel-slide" aria-label="Record detail">
   <div class="detail-panel-resize" id="detail-panel-resize" title="Drag to resize"></div>
@@ -207,10 +210,13 @@
   function sortTable(th) {
     var table = th.closest("table");
     var tbody = table.querySelector("tbody");
-    var col = Array.from(th.parentElement.children).indexOf(th);
+    // Use data-sort-col (two-row header) or fall back to position in parent row
+    var col = th.dataset.sortCol !== undefined
+      ? parseInt(th.dataset.sortCol, 10)
+      : Array.from(th.parentElement.children).indexOf(th);
     var asc = th.classList.toggle("sort-asc");
     if (!asc) th.classList.add("sort-desc"); else th.classList.remove("sort-desc");
-    th.parentElement.querySelectorAll("th").forEach(function(t) {
+    table.querySelectorAll("thead th").forEach(function(t) {
       if (t !== th) t.classList.remove("sort-asc", "sort-desc");
     });
     var rows = Array.from(tbody.querySelectorAll("tr"));
@@ -294,12 +300,18 @@
 
   /* ── Resizable columns ──────────────────────────────── */
   function initResizableColumns(table) {
+    if (table.classList.contains("no-resize")) return;
     var cols = Array.from(table.querySelectorAll("col"));
-    var allThs = Array.from(table.querySelectorAll("thead th"));
+    // Only use the last thead row so multi-row headers don't add duplicate handles
+    var headRows = Array.from(table.querySelectorAll("thead tr"));
+    var lastRow  = headRows[headRows.length - 1];
+    var allThs   = Array.from(lastRow.querySelectorAll("th"));
 
     allThs.forEach(function(th, i) {
       if (th.querySelector(".resize-handle")) return;
       if (i === allThs.length - 1) return;
+      // Skip spanning or group-toggle cells
+      if (parseInt(th.getAttribute("colspan") || "1", 10) > 1) return;
 
       var handle = document.createElement("div");
       handle.className = "resize-handle";
@@ -497,6 +509,31 @@
       if (icon)    { icon.classList.remove('fa-chevron-left');
                      icon.classList.add('fa-chevron-right'); }
     }
+  })();
+
+  /* ── Sidebar tooltip (collapsed mode) ───────────────── */
+  (function() {
+    var tip     = document.getElementById('sidebar-tooltip');
+    var sidebar = document.getElementById('sidebar');
+    if (!tip || !sidebar) return;
+
+    function showTip(el) {
+      if (!sidebar.classList.contains('collapsed')) return;
+      var labelEl = el.querySelector('.sidebar-label');
+      var text = labelEl ? labelEl.textContent.trim() : (el.getAttribute('title') || '');
+      if (!text) return;
+      var rect = el.getBoundingClientRect();
+      tip.textContent = text;
+      tip.style.top  = (rect.top + rect.height / 2) + 'px';
+      tip.style.display = 'block';
+    }
+    function hideTip() { tip.style.display = 'none'; }
+
+    sidebar.querySelectorAll('.sidebar-link, .group-hdr').forEach(function(el) {
+      el.addEventListener('mouseenter', function() { showTip(el); });
+      el.addEventListener('mouseleave', hideTip);
+    });
+    sidebar.addEventListener('mouseleave', hideTip);
   })();
 
 })();
