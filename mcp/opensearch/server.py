@@ -434,6 +434,58 @@ def search_weird(
         return _err(str(exc))
 
 
+@mcp.tool()
+def search_suricata_alert(
+    time_range: str = "now-24h",
+    sensor: str = "all",
+    limit: int = 500,
+    public_only: bool = False,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    direction: Optional[str] = None,
+    no_filters: bool = False,
+    rule_name: Optional[str] = None,
+    rule_category: Optional[str] = None,
+    severity: Optional[int] = None,
+    sid: Optional[int] = None,
+    exclude_stream: bool = False,
+    tag: Optional[str] = None,
+) -> str:
+    """Search Suricata IDS alert records from Malcolm/OpenSearch.
+
+    Suricata alerts complement Zeek notices with signature-based detection.
+    Use exclude_stream=True or severity=1 to skip protocol anomaly noise
+    (~99.6% of records are severity 3 STREAM/QUIC anomalies).
+
+    Args:
+        rule_name: Filter by rule name (wildcard match).
+        rule_category: Filter by rule category, e.g. "Potentially Bad Traffic".
+        severity: Suricata severity level (1=high, 2=medium, 3=low).
+        sid: Suricata rule ID (SID) to filter by.
+        exclude_stream: Exclude noisy SURICATA STREAM/QUIC protocol anomaly rules.
+        tag: Filter by tag, e.g. "CISA_KEV", "Exploit", "RAT".
+    """
+    try:
+        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        if rule_name:
+            params["rule_name"] = rule_name
+        if rule_category:
+            params["rule_category"] = rule_category
+        if severity is not None:
+            params["severity"] = severity
+        if sid is not None:
+            params["sid"] = sid
+        if exclude_stream:
+            params["exclude_stream"] = True
+        if tag:
+            params["tag"] = tag
+        records = run_query(MODULES["suricata_alert"], params)
+        records = _apply_dest_ip_filter(records, dest_ip)
+        return _ok({"count": len(records), "records": _serialise_records(records)})
+    except Exception as exc:
+        return _err(str(exc))
+
+
 # ---------------------------------------------------------------------------
 # Phase 4 Tier 2 protocol tools — RADIUS, SIP, Tunnel
 # ---------------------------------------------------------------------------

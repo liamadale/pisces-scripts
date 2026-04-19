@@ -1,0 +1,7 @@
+description: Suricata alert false positive filters
+author: analyst
+date_added: "2026-04-18"
+category: suricata
+subcategory: false_positives
+enabled: true
+must_not: []

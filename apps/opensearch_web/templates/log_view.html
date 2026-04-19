@@ -20,7 +20,7 @@
   <div class="field">
     <label>{{ key.replace('_', ' ').replace(log_type ~ ' ', '') }}</label>
     <input type="text" name="{{ key }}"
-           id="{{ 'notice-note-input' if key == 'notice_note' else '' }}"
+           id="{{ 'notice-note-input' if key == 'notice_note' else ('suricata-rule-input' if key == 'rule_name' else '') }}"
            value="{{ search_params.get(key, '') or '' }}"
            placeholder="any">
   </div>
@@ -34,6 +34,15 @@
           hx-target="#notice-modal-body"
           hx-swap="innerHTML"
           onclick="openNoticeModal()">
+    <i class="fa-solid fa-chart-bar"></i> Browse Alerts
+  </button>
+  {% endif %}
+  {% if log_type == 'suricata_alert' %}
+  <button type="button" class="btn"
+          hx-get="/api/suricata/summary?{{ request.query_string.decode() }}"
+          hx-target="#suricata-modal-body"
+          hx-swap="innerHTML"
+          onclick="openSuricataModal()">
     <i class="fa-solid fa-chart-bar"></i> Browse Alerts
   </button>
   {% endif %}
@@ -165,6 +174,49 @@ function applyNoticeFilter(noteType) {
 }
 document.addEventListener("keydown", function(e) {
   if (e.key === "Escape") closeNoticeModal();
+});
+</script>
+{% endif %}
+
+{% if log_type == 'suricata_alert' %}
+<div id="suricata-modal-backdrop" class="modal-backdrop" onclick="closeSuricataModal()"></div>
+<div id="suricata-modal" class="modal-panel" role="dialog" aria-modal="true"
+     aria-label="Suricata alert frequency browser">
+  <div class="modal-header">
+    <span class="modal-title">
+      <i class="fa-solid fa-chart-bar"></i> Suricata Alert Browser
+    </span>
+    <button class="btn-icon" onclick="closeSuricataModal()" title="Close">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="modal-body" id="suricata-modal-body">
+  </div>
+</div>
+
+<script>
+function openSuricataModal() {
+  document.getElementById("suricata-modal-body").innerHTML = '<p class="ns-loading">Loading\u2026</p>';
+  document.getElementById("suricata-modal").classList.add("open");
+  document.getElementById("suricata-modal-backdrop").classList.add("open");
+}
+function closeSuricataModal() {
+  document.getElementById("suricata-modal").classList.remove("open");
+  document.getElementById("suricata-modal-backdrop").classList.remove("open");
+}
+function applySuricataFilter(ruleName) {
+  var inp = document.getElementById("suricata-rule-input");
+  if (inp) inp.value = ruleName;
+  closeSuricataModal();
+  var qs = new URLSearchParams(window.location.search);
+  qs.set("rule_name", ruleName);
+  htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
+    target: "#log-tbody",
+    swap: "innerHTML",
+  });
+}
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeSuricataModal();
 });
 </script>
 {% endif %}

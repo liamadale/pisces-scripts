@@ -28,6 +28,7 @@ from .smb import SmbModule
 from .smtp import SmtpModule
 from .ssh import SshModule
 from .ssl import SslModule
+from .suricata_alert import SuricataAlertModule
 from .tunnel import TunnelModule
 from .weird import WeirdModule
 from .x509 import X509Module
@@ -43,6 +44,7 @@ MODULES: dict = {
     "ssh": SshModule(),
     "notice": NoticeModule(),
     "weird": WeirdModule(),
+    "suricata_alert": SuricataAlertModule(),
     "files": FilesModule(),
     "x509": X509Module(),
     "pe": PEModule(),
