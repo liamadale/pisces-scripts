@@ -19,7 +19,7 @@
       {# Row 1: fixed anchor cols + category group label headers #}
       {% set ns = namespace(col_idx=2) %}
       <tr class="thead-groups">
-        <th rowspan="2" class="sortable" data-sort-col="0">IP Address</th>
+        <th rowspan="2" class="sortable col-ip-addr" data-sort-col="0">IP Address</th>
         <th rowspan="2" class="sortable" data-sort-col="1">Org</th>
         {% for cat in category_order %}
         {% if ip_modules_by_category.get(cat) %}
@@ -55,7 +55,7 @@
     <tbody>
       {% for row in rows %}
       <tr>
-        <td>
+        <td class="col-ip-addr">
           <a class="ip-link" href="{{ script_name }}/ip/{{ row.src_ip }}?{{ request.query_string.decode() }}">{{ row.src_ip }}</a>
         </td>
         <td>

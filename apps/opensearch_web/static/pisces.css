@@ -369,7 +369,7 @@ a:hover { text-decoration: underline; }
   color: var(--on-surface-dim);
   font-weight: 500;
   padding: 0 8px 4px;
-  top: 33px;
+  top: 27px;  /* group row height: 7px padding + ~10px line-height + 4px padding ≈ 26–27px */
   z-index: 5;
 }
 
@@ -410,6 +410,22 @@ a:hover { text-decoration: underline; }
 .thead-protocols .col-group-files       { border-bottom: 3px solid var(--green);          }
 .thead-protocols .col-group-ot          { border-bottom: 3px solid var(--orange);         }
 .thead-protocols .col-group-diagnostic  { border-bottom: 3px solid var(--on-surface-dim); }
+
+/* IP Address column — sticky to the left edge */
+.col-ip-addr {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--surface);
+  /* inset box-shadow renders above scrolled content without subpixel gaps */
+  box-shadow: inset -2px 0 0 var(--outline);
+}
+thead .col-ip-addr {
+  background: var(--surface-container-high);
+  z-index: 9; /* top-left corner: above both sticky rows and sticky right col */
+}
+tbody tr:hover .col-ip-addr       { background: var(--surface-container-highest); }
+tbody tr.row-selected .col-ip-addr { background: var(--surface-container-highest); }
 
 /* TOTAL column — sticky to the right edge */
 .col-total {
