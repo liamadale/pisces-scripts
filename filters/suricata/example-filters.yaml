@@ -1,0 +1,22 @@
+description: "EXAMPLE — copy and adapt for your environment. Do not commit real rules."
+author: example
+date_added: '2000-01-01'
+category: suricata
+subcategory: false_positives
+enabled: true
+must_not:
+  # ── Known-good services triggering alert rules ────────────────────────────
+  - bool:
+      must:
+        - term:
+            zeek.notice.note: "ET EXAMPLE Rule Name Here"
+    comment: "Example: Rule fires on legitimate traffic from <vendor>. SID XXXXXXX."
+
+  # ── Internal scanning tools ───────────────────────────────────────────────
+  - bool:
+      must:
+        - term:
+            source.ip: "192.0.2.1"
+        - match_phrase:
+            rule.name: "ET SCAN Example Scanner Rule"
+    comment: "Example: Authorized internal scanner at 192.0.2.1"
