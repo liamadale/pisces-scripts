@@ -146,6 +146,33 @@
       <button type="submit" class="btn btn-primary">
         <i class="fa-solid fa-magnifying-glass"></i> Search
       </button>
+
+      <div class="sep"></div>
+
+      <button type="button" class="btn-icon" id="ts-toggle"
+              onclick="toggleTimestamps()"
+              title="Toggle compact / full timestamps">
+        <i class="fa-regular fa-clock"></i>
+      </button>
+
+      <div class="share-wrapper">
+        <button type="button" class="btn-icon" id="share-btn"
+                onclick="toggleShareDropdown()"
+                title="Share this view">
+          <i class="fa-solid fa-share-nodes"></i>
+        </button>
+        <div id="share-dropdown" class="share-dropdown" style="display:none">
+          <button type="button" onclick="copyPiscesUrl()">
+            <i class="fa-solid fa-link"></i> Copy PISCES link
+          </button>
+          <button type="button" onclick="copyDashboardsUrl()">
+            <i class="fa-solid fa-copy"></i> Copy Dashboards link
+          </button>
+          <button type="button" onclick="openDashboardsUrl()">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Dashboards
+          </button>
+        </div>
+      </div>
     </form>
 
     <main class="{% block main_class %}{% endblock %}">
@@ -205,6 +232,112 @@
   }
 
   updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── Timestamp toggle (compact ↔ full) ──────────────── */
+  window.toggleTimestamps = function() {
+    var full = document.body.classList.toggle('ts-full-mode');
+    localStorage.setItem('pisces-ts-full', full ? '1' : '');
+  };
+  if (localStorage.getItem('pisces-ts-full') === '1') {
+    document.body.classList.add('ts-full-mode');
+  }
+
+  /* ── Click-to-copy timestamp ────────────────────────── */
+  window.copyTimestamp = function(td) {
+    var iso = td.dataset.iso;
+    if (!iso) return;
+    navigator.clipboard.writeText(iso).then(function() {
+      td.classList.add('ts-copied');
+      setTimeout(function() { td.classList.remove('ts-copied'); }, 800);
+    });
+  };
+
+  /* ── Share dropdown ─────────────────────────────────── */
+  var _shareCache = null;
+
+  function _shareParams() {
+    var params = new URLSearchParams(window.location.search);
+    var path = window.location.pathname;
+    var sn = window.SCRIPT_NAME || '';
+    var rel = sn ? path.replace(sn, '') : path;
+    if (rel.indexOf('/ip/') === 0) {
+      params.set('page_type', 'ip_pivot');
+      params.set('src_ip', rel.split('/ip/')[1]);
+    } else if (rel.indexOf('/log/') === 0) {
+      params.set('page_type', 'log');
+      params.set('log_type', rel.split('/log/')[1]);
+    } else {
+      params.set('page_type', 'overview');
+    }
+    /* Collect protocol-specific filter form values (rule_name, notice_note, etc.) */
+    var filterForm = document.getElementById('notice-filter-form');
+    if (filterForm) {
+      Array.from(filterForm.querySelectorAll('input[name]')).forEach(function(inp) {
+        if (inp.value.trim()) params.set(inp.name, inp.value.trim());
+      });
+    }
+    return params;
+  }
+
+  window.toggleShareDropdown = function() {
+    var dd = document.getElementById('share-dropdown');
+    var opening = dd.style.display === 'none';
+    dd.style.display = opening ? 'block' : 'none';
+    if (opening) {
+      _shareCache = null;
+      fetch((window.SCRIPT_NAME || '') + '/api/share?' + _shareParams().toString())
+        .then(function(r) { return r.json(); })
+        .then(function(d) { _shareCache = d; });
+    }
+  };
+
+  function _showToast(msg) {
+    var el = document.createElement('div');
+    el.className = 'share-toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 2000);
+  }
+
+  function _copyText(text) {
+    /* Use a temporary textarea to copy within the user gesture */
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  window.copyPiscesUrl = function() {
+    if (!_shareCache) { _showToast('Loading…'); return; }
+    _copyText(window.location.origin + _shareCache.pisces);
+    _showToast('PISCES link copied');
+    document.getElementById('share-dropdown').style.display = 'none';
+  };
+
+  window.copyDashboardsUrl = function() {
+    if (!_shareCache) { _showToast('Loading…'); return; }
+    _copyText(_shareCache.dashboards);
+    _showToast('Dashboards link copied');
+    document.getElementById('share-dropdown').style.display = 'none';
+  };
+
+  window.openDashboardsUrl = function() {
+    if (!_shareCache) { _showToast('Loading…'); return; }
+    window.open(_shareCache.dashboards, '_blank');
+    document.getElementById('share-dropdown').style.display = 'none';
+  };
+
+  /* Close share dropdown on outside click */
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.share-wrapper')) {
+      var dd = document.getElementById('share-dropdown');
+      if (dd) dd.style.display = 'none';
+    }
+  });
 
   /* ── Sortable table ─────────────────────────────────── */
   function sortTable(th) {

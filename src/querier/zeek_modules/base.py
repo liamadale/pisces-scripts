@@ -266,12 +266,20 @@ def build_base_query(
     src_ip_filter: str | None = None,
     direction: str | None = None,
     min_risk_score: int | None = None,
+    time_from: str | None = None,
+    time_to: str | None = None,
 ) -> tuple:
     """Build the OpenSearch query body and request params.
 
     datasets: list of event.dataset values, or ["all"] to omit the filter.
+    time_from/time_to: absolute ISO timestamps; when both are set they
+        override the relative *time_range* parameter.
     """
-    must_clauses: list = [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]
+    if time_from and time_to:
+        ts_clause = {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}}
+    else:
+        ts_clause = {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}
+    must_clauses: list = [ts_clause]
 
     if datasets and datasets != ["all"]:
         must_clauses.append({"terms": {"event.dataset": datasets}})
@@ -393,6 +401,8 @@ def run_query(module, search_params: dict) -> list:
         src_ip_filter=src_ip_for_query,
         direction=search_params.get("direction"),
         min_risk_score=search_params.get("min_risk_score"),
+        time_from=search_params.get("time_from"),
+        time_to=search_params.get("time_to"),
     )
 
     # Cache handling

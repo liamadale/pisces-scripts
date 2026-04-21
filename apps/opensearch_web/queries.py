@@ -55,6 +55,8 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
     """Build the search_params dict that run_query() expects, from an HTTP request."""
     params = {
         "time_range": request.values.get("time_range", "now-24h"),
+        "time_from": request.values.get("from") or None,
+        "time_to": request.values.get("to") or None,
         "sensor": request.values.get("sensor", "all"),
         "limit": int(v) if (v := request.values.get("limit", "").strip()) and v.isdigit() else 500,
         "public_only": request.values.get("public_only") in ("on", "true", "1"),

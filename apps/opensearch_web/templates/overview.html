@@ -5,6 +5,10 @@
 {% block content %}
 <div class="page-header">
   <h1>Cross-Protocol IP Activity</h1>
+  <span class="time-window">
+    <i class="fa-regular fa-clock"></i>
+    {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
+  </span>
   <span class="count-note">{{ rows|length }} unique source IP(s)</span>
 </div>
 <p class="subtitle">

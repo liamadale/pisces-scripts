@@ -1451,6 +1451,71 @@ tr.detail-row td {
   color: var(--on-surface-dim);
 }
 
+/* Time window display in page headers */
+.time-window {
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+  font-family: var(--mono);
+  margin-left: 0.25rem;
+}
+
+/* Timestamp cells — compact/full toggle + click-to-copy */
+.ts-cell { cursor: pointer; }
+.ts-cell:hover { text-decoration: underline dotted; }
+.ts-full { display: none; }
+.ts-full-mode .ts-compact { display: none; }
+.ts-full-mode .ts-full { display: inline; }
+.ts-copied { background: var(--primary-container); transition: background 0.15s; }
+
+/* Share dropdown */
+.share-wrapper { position: relative; }
+.share-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.share-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--on-surface);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+.share-dropdown button:hover { background: var(--surface-container-high); }
+.share-dropdown button i { width: 16px; text-align: center; }
+
+/* Toast notification */
+.share-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: var(--on-primary);
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  z-index: 9999;
+  animation: toast-fade 2s ease forwards;
+}
+@keyframes toast-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Checkbox */
 .check-label {
   display: flex;

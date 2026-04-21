@@ -1,5 +1,8 @@
 """Flask application factory and route definitions for PISCES Web UI."""
 
+import os
+from datetime import datetime, timedelta, timezone
+
 from flask import Flask, abort, render_template, request
 
 from apps.opensearch_web import cache as wcache
@@ -24,6 +27,42 @@ from src.querier.zeek_modules import (
 from src.querier.zeek_modules.base import TIME_RANGES
 from src.utils.format import fmt_dur
 
+# ------------------------------------------------------------------
+# Timestamp helpers (used by Jinja filters/globals and share URLs)
+# ------------------------------------------------------------------
+
+_UNITS = {"m": "minutes", "h": "hours", "d": "days"}
+
+
+def resolve_time_range(time_range: str) -> tuple[str, str]:
+    """Convert relative range like ``'now-24h'`` to ``(from_iso, to_iso)``."""
+    now = datetime.now(timezone.utc)
+    val = int(time_range.replace("now-", "")[:-1])
+    unit = time_range[-1]
+    from_dt = now - timedelta(**{_UNITS[unit]: val})
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    return from_dt.strftime(fmt), now.strftime(fmt)
+
+
+def fmt_time_window(time_range: str) -> str:
+    """``'now-24h'`` → ``'Apr 14 15:43 → Apr 15 15:43 UTC'``."""
+    f, t = resolve_time_range(time_range)
+    fmt = "%b %d %H:%M"
+    return (
+        f"{datetime.fromisoformat(f).strftime(fmt)} → {datetime.fromisoformat(t).strftime(fmt)} UTC"
+    )
+
+
+def fmt_ts(iso_str: str, full: bool = False) -> str:
+    """Jinja filter: format an ISO timestamp for display."""
+    if not iso_str:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S") if full else dt.strftime("%b %d %H:%M")
+    except (ValueError, TypeError):
+        return iso_str[:16] if iso_str else "—"
+
 
 def _resolve_city(request):  # type: ignore[no-untyped-def]
     from src.mantis.mantis_search import sensor_to_project
@@ -36,8 +75,10 @@ def create_app() -> Flask:
 
     register_shared_helpers(app)
 
-    # opensearch-specific filter
+    # opensearch-specific filters / globals
     app.jinja_env.filters["fmt_dur"] = fmt_dur
+    app.jinja_env.filters["fmt_ts"] = fmt_ts
+    app.jinja_env.globals["fmt_time_window"] = fmt_time_window
 
     # Register shared blueprints
     app.register_blueprint(make_enrich_blueprint())
@@ -292,6 +333,76 @@ def create_app() -> Flask:
             )
 
     # ------------------------------------------------------------------
+    # GET /api/share  — generate PISCES + Dashboards share URLs
+    # ------------------------------------------------------------------
+    @app.route("/api/share")
+    def api_share():
+        """Return PISCES and Dashboards URLs for the current view."""
+        from flask import jsonify
+
+        from src.utils.share_url import (
+            ShareContext,
+            build_dashboards_path,
+            build_pisces_url,
+            shorten_dashboards_url,
+        )
+
+        search_params = build_search_params_from_request(
+            request,
+            MODULE_PARAM_KEYS.get(request.args.get("log_type", ""), []),
+        )
+
+        # Resolve absolute time range
+        time_from = search_params.get("time_from") or ""
+        time_to = search_params.get("time_to") or ""
+        if not (time_from and time_to):
+            time_from, time_to = resolve_time_range(search_params.get("time_range", "now-24h"))
+
+        page_type = request.args.get("page_type", "overview")
+        log_type = request.args.get("log_type") or None
+
+        # Collect protocol-specific extra params
+        extra: dict[str, str] = {}
+        if log_type:
+            for key in MODULE_PARAM_KEYS.get(log_type, []):
+                val = search_params.get(key)
+                if val:
+                    extra[key] = str(val)
+
+        ctx = ShareContext(
+            src_ip=search_params.get("src_ip"),
+            sensor=search_params.get("sensor", "all"),
+            time_from=time_from,
+            time_to=time_to,
+            log_type=log_type,
+            page_type=page_type,
+            extra_params=extra,
+        )
+
+        pisces_url = build_pisces_url(ctx, script_name=request.script_root)
+        discover_path = build_dashboards_path(ctx)
+
+        dashboards_base = os.environ.get("OPENSEARCH_URL", "")
+        short_url = None
+        if dashboards_base:
+            username = os.environ.get("PISCES_USERNAME", "")
+            password = os.environ.get("PISCES_PASSWORD", "")
+            if username and password:
+                short_url = shorten_dashboards_url(
+                    discover_path, dashboards_base, (username, password)
+                )
+
+        long_url = (dashboards_base + discover_path) if dashboards_base else ""
+
+        return jsonify(
+            {
+                "pisces": pisces_url,
+                "dashboards": short_url or long_url,
+                "dashboards_long": long_url,
+            }
+        )
+
+    # ------------------------------------------------------------------
     # GET /api/notice/summary  — HTMX: notice type frequency aggregation
     # ------------------------------------------------------------------
     @app.route("/api/notice/summary")
@@ -326,6 +437,8 @@ def create_app() -> Flask:
             src_ip_filter=search_params.get("src_ip"),
             direction=search_params.get("direction"),
             min_risk_score=search_params.get("min_risk_score"),
+            time_from=search_params.get("time_from"),
+            time_to=search_params.get("time_to"),
         )
         body["size"] = 0
         body.pop("sort", None)
@@ -384,6 +497,8 @@ def create_app() -> Flask:
             src_ip_filter=search_params.get("src_ip"),
             direction=search_params.get("direction"),
             min_risk_score=search_params.get("min_risk_score"),
+            time_from=search_params.get("time_from"),
+            time_to=search_params.get("time_to"),
         )
         body["size"] = 0
         body.pop("sort", None)
@@ -429,6 +544,8 @@ def create_app() -> Flask:
             src_ip_filter=None,
             direction=None,
             min_risk_score=None,
+            time_from=search_params.get("time_from"),
+            time_to=search_params.get("time_to"),
         )
         body["size"] = 0
         body.pop("sort", None)
