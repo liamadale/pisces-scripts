@@ -34,11 +34,11 @@ class SipModule(ZeekModule):
         "zeek.sip.content_type",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "messaging"
+    WEB_ICON = "fa-phone"
+    EXTRA_PARAMS = ["method", "status_code", "user_agent"]
     WEB_COLUMNS = [
         ("Method", lambda r: r.get("method", "—") or "—"),
         ("URI", lambda r: r.get("uri", "—") or "—"),
@@ -67,7 +67,6 @@ class SipModule(ZeekModule):
         ),
         ("Status Msg", lambda r: r.get("status_msg", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -90,8 +89,6 @@ class SipModule(ZeekModule):
             "status_code": zs.get("status_code"),
             "status_msg": zs.get("status_msg", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

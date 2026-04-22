@@ -16,6 +16,10 @@ from .base import ZeekModule, _first, _sensor_str, console
 
 class SuricataAlertModule(ZeekModule):
     WEB_CATEGORY = "alerts"
+    WEB_ICON = "fa-shield-halved"
+    EXTRA_PARAMS = ["rule_name", "rule_category", "severity", "sid", "exclude_stream", "tag"]
+    SUMMARY_FIELD = "rule.name"
+    SUMMARY_PARAM = "rule_name"
     DATASETS = ["alert"]
     SOURCE_FIELDS = [
         "@timestamp",
@@ -35,8 +39,6 @@ class SuricataAlertModule(ZeekModule):
         "network.direction",
         "event.module",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
         "tags",
         "destination.geo.country_name",
         "destination.as.full",
@@ -101,8 +103,6 @@ class SuricataAlertModule(ZeekModule):
             "app_proto": src.get("network", {}).get("application", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "geo_country": (src.get("destination", {}).get("geo", {}).get("country_name", "")),
             "dest_asn": src.get("destination", {}).get("as", {}).get("full", ""),
             "tags": src.get("tags", []),
@@ -129,10 +129,6 @@ class SuricataAlertModule(ZeekModule):
         ("Transport", lambda r: r.get("transport", "—") or "—"),
         ("App Proto", lambda r: r.get("app_proto", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        (
-            "Risk Score",
-            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
-        ),
         ("Country", lambda r: r.get("geo_country", "—") or "—"),
         ("ASN", lambda r: r.get("dest_asn", "—") or "—"),
         ("Tags", lambda r: ", ".join(r.get("tags", [])) or "—"),

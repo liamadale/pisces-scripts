@@ -29,11 +29,11 @@ class NtpModule(ZeekModule):
         "zeek.ntp.xmt_time",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "network"
+    WEB_ICON = "fa-clock"
+    EXTRA_PARAMS = ["mode", "version"]
     WEB_COLUMNS = [
         ("Mode", lambda r: str(r.get("mode")) if r.get("mode") is not None else "—"),
         ("Version", lambda r: str(r.get("version")) if r.get("version") else "—"),
@@ -53,7 +53,6 @@ class NtpModule(ZeekModule):
         ("Poll", lambda r: str(r.get("poll")) if r.get("poll") is not None else "—"),
         ("Ref ID", lambda r: r.get("ref_id", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -73,8 +72,6 @@ class NtpModule(ZeekModule):
             "poll": zn.get("poll"),
             "ref_id": zn.get("ref_id", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

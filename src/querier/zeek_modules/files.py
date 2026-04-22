@@ -30,8 +30,6 @@ class FilesModule(ZeekModule):
         "zeek.files.extracted",
         "zeek.files.extracted_cutoff",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     # source.ip is NOT in SOURCE_FIELDS — IPs come from tx_hosts/rx_hosts arrays.
@@ -39,6 +37,8 @@ class FilesModule(ZeekModule):
     SUPPORTS_IP_FILTER = True  # post-filters handle it
 
     WEB_CATEGORY = "files"
+    WEB_ICON = "fa-file"
+    EXTRA_PARAMS = ["mime", "hash", "source_proto", "extracted_only", "dest_ip"]
     WEB_COLUMNS = [
         ("MIME", lambda r: r.get("mime_type", "—") or "—"),
         ("SHA256", lambda r: ((r.get("sha256", "") or "")[:12] + "…") if r.get("sha256") else "—"),
@@ -60,7 +60,6 @@ class FilesModule(ZeekModule):
         ("SHA256", lambda r: r.get("sha256", "—") or "—"),
         ("Extracted", lambda r: "✓" if r.get("extracted") else "✗"),
         ("Analyzers", lambda r: ", ".join(r.get("analyzers") or []) or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -89,8 +88,6 @@ class FilesModule(ZeekModule):
             "sha256": zf.get("sha256", ""),
             "extracted": zf.get("extracted"),
             "analyzers": analyzers or [],
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

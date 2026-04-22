@@ -43,8 +43,6 @@ class X509Module(ZeekModule):
         "zeek.x509.san.ip",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     # source.ip is intentionally excluded — all IP resolution goes through community_id pivot.
@@ -52,6 +50,8 @@ class X509Module(ZeekModule):
     SUPPORTS_IP_FILTER = True  # post-filters handle it after pivot resolution
 
     WEB_CATEGORY = "web"
+    WEB_ICON = "fa-certificate"
+    EXTRA_PARAMS = ["subject", "issuer", "san", "self_signed", "expired"]
     WEB_COLUMNS = [
         ("Subject", lambda r: _cn(r.get("subject", "") or "")[:22] or "—"),
         ("Issuer", lambda r: _cn(r.get("issuer", "") or "")[:22] or "—"),
@@ -79,7 +79,6 @@ class X509Module(ZeekModule):
         ("Sig Alg", lambda r: r.get("sig_alg", "—")),
         ("Key Length", lambda r: str(r.get("key_length")) if r.get("key_length") else "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -163,8 +162,6 @@ class X509Module(ZeekModule):
             "key_length": cert.get("key_length"),
             "serial": cert.get("serial", ""),
             "community_id": community_id,
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

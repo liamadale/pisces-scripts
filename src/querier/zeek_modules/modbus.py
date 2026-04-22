@@ -21,11 +21,11 @@ class ModbusModule(ZeekModule):
         "zeek.modbus.track_address",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "ot"
+    WEB_ICON = "fa-microchip"
+    EXTRA_PARAMS = ["function", "exceptions_only"]
     WEB_COLUMNS = [
         ("Function", lambda r: r.get("function", "—") or "—"),
         ("Exception", lambda r: r.get("exception", "—") or "—"),
@@ -45,7 +45,6 @@ class ModbusModule(ZeekModule):
             lambda r: str(r.get("track_address")) if r.get("track_address") is not None else "—",
         ),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -63,8 +62,6 @@ class ModbusModule(ZeekModule):
             "exception": zm.get("exception", ""),
             "track_address": zm.get("track_address"),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

@@ -9,6 +9,8 @@ from .base import ZeekModule, _sensor_str, console
 
 class SmtpModule(ZeekModule):
     WEB_CATEGORY = "messaging"
+    WEB_ICON = "fa-envelope"
+    EXTRA_PARAMS = ["smtp_mail_from", "smtp_rcpt_to", "smtp_subject"]
     DATASETS = ["smtp"]
     SOURCE_FIELDS = [
         "@timestamp",
@@ -27,8 +29,6 @@ class SmtpModule(ZeekModule):
         "network.community_id",
         "network.direction",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_COLUMNS = [
@@ -73,8 +73,6 @@ class SmtpModule(ZeekModule):
             "smtp_tls": smtp.get("tls"),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 
@@ -102,14 +100,6 @@ class SmtpModule(ZeekModule):
         ("Last Reply", lambda r: r.get("smtp_last_reply", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        (
-            "Risk Score",
-            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
-        ),
-        (
-            "Risk Score Norm",
-            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
-        ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 

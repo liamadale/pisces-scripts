@@ -9,6 +9,7 @@ from .base import ZeekModule, _first, _fmt_bytes, _fmt_dur, _sensor_str, console
 
 class ConnModule(ZeekModule):
     WEB_CATEGORY = "network"
+    WEB_ICON = "fa-network-wired"
     DATASETS = ["conn"]
     SOURCE_FIELDS = [
         "@timestamp",
@@ -26,8 +27,6 @@ class ConnModule(ZeekModule):
         "zeek.conn.duration",
         "zeek.conn.conn_state",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_COLUMNS = [
@@ -57,8 +56,6 @@ class ConnModule(ZeekModule):
             "bytes_resp": src.get("destination", {}).get("bytes"),
             "duration": src.get("zeek", {}).get("conn", {}).get("duration"),
             "conn_state": src.get("zeek", {}).get("conn", {}).get("conn_state"),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 
@@ -91,14 +88,6 @@ class ConnModule(ZeekModule):
         ("↓ Bytes", lambda r: _fmt_bytes(r.get("bytes_resp"))),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        (
-            "Risk Score",
-            lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—",
-        ),
-        (
-            "Risk Score Norm",
-            lambda r: str(r.get("risk_score_norm")) if r.get("risk_score_norm") else "—",
-        ),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 

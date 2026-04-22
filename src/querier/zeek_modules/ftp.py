@@ -32,11 +32,11 @@ class FtpModule(ZeekModule):
         "network.community_id",
         "network.direction",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "files"
+    WEB_ICON = "fa-file-arrow-up"
+    EXTRA_PARAMS = ["user", "command", "reply_code", "anon_only"]
     WEB_COLUMNS = [
         ("User", lambda r: r.get("user", "—") or "—"),
         ("Command", lambda r: r.get("command", "—") or "—"),
@@ -64,7 +64,6 @@ class FtpModule(ZeekModule):
         ),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -90,8 +89,6 @@ class FtpModule(ZeekModule):
             "passive": dc.get("passive"),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

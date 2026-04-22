@@ -21,11 +21,11 @@ class Dnp3Module(ZeekModule):
         "zeek.dnp3.iin",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "ot"
+    WEB_ICON = "fa-bolt"
+    EXTRA_PARAMS = ["function"]
     WEB_COLUMNS = [
         ("Request", lambda r: r.get("function_request", "—") or "—"),
         ("Reply", lambda r: r.get("function_reply", "—") or "—"),
@@ -43,7 +43,6 @@ class Dnp3Module(ZeekModule):
         ("Reply", lambda r: r.get("function_reply", "—") or "—"),
         ("IIN", lambda r: r.get("iin", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -61,8 +60,6 @@ class Dnp3Module(ZeekModule):
             "function_reply": zd.get("function_reply", ""),
             "iin": zd.get("iin", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

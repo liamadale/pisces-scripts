@@ -265,7 +265,6 @@ def build_base_query(
     public_only: bool = False,
     src_ip_filter: str | None = None,
     direction: str | None = None,
-    min_risk_score: int | None = None,
     time_from: str | None = None,
     time_to: str | None = None,
 ) -> tuple:
@@ -292,9 +291,6 @@ def build_base_query(
 
     if direction:
         must_clauses.append({"term": {"network.direction": direction}})
-
-    if min_risk_score:
-        must_clauses.append({"range": {"event.risk_score_norm": {"gte": min_risk_score}}})
 
     must_clauses.extend(extra_must)
 
@@ -343,13 +339,6 @@ def deduplicate_zeek(records: list, key_fn) -> list:
         rep = sorted(group, key=lambda r: r["timestamp"], reverse=True)[0].copy()
         rep["freq"] = len(group)
         rep["sensors"] = sorted({r["sensor"] for r in group if r.get("sensor")})
-        # Carry the highest risk score seen across the group — the most-recent
-        # record may have no score even if earlier events in the group did.
-        scored = [r for r in group if r.get("risk_score_norm") is not None]
-        if scored:
-            best = max(scored, key=lambda r: r["risk_score_norm"])
-            rep["risk_score_norm"] = best["risk_score_norm"]
-            rep["risk_score"] = best.get("risk_score")
         deduped.append(rep)
 
     return deduped
@@ -400,7 +389,6 @@ def run_query(module, search_params: dict) -> list:
         public_only=search_params.get("public_only", False),
         src_ip_filter=src_ip_for_query,
         direction=search_params.get("direction"),
-        min_risk_score=search_params.get("min_risk_score"),
         time_from=search_params.get("time_from"),
         time_to=search_params.get("time_to"),
     )
@@ -849,7 +837,11 @@ class ZeekModule:
     SUPPORTS_ENRICHMENT: bool = True  # Set False for modules with no IPs or hashes to enrich
     SUPPORTS_FP: bool = True  # Set False for diagnostic modules (capture_loss)
     WEB_CATEGORY: str = "core"  # Category group for the web UI sidebar
+    WEB_ICON: str = "fa-question"  # Font Awesome icon class for the web UI sidebar
     WEB_COLUMNS: list = []  # List of (header: str, value_fn: Callable[[dict], str]) for web table
+    EXTRA_PARAMS: list[str] = []  # Protocol-specific search_params keys forwarded from HTTP request
+    SUMMARY_FIELD: str | None = None  # OpenSearch field to aggregate on for the browse modal
+    SUMMARY_PARAM: str | None = None  # EXTRA_PARAMS key that filters on SUMMARY_FIELD
 
     def build_extra_must(self, search_params: dict) -> tuple:
         """Return (must_clauses, post_filters) built from search_params.
