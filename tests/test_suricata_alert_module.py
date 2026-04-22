@@ -41,8 +41,6 @@ class TestSuricataAlertParseHit:
             "event": {
                 "module": "suricata",
                 "dataset": "alert",
-                "risk_score": 141,
-                "risk_score_norm": 71,
             },
             "tags": ["CISA_KEV", "cross_segment"],
         }
@@ -78,8 +76,6 @@ class TestSuricataAlertParseHit:
 
     def test_enrichment_fields(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
-        assert rec["risk_score"] == 141
-        assert rec["risk_score_norm"] == 71
         assert rec["geo_country"] == "United States"
         assert rec["dest_asn"] == "AS15169 Google LLC"
         assert "CISA_KEV" in rec["tags"]

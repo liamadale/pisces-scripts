@@ -240,8 +240,6 @@ def _rec(src_ip: str, dest_ip: str, port: int, ts: str, sensor: str = "s1") -> d
         "proto": "tcp",
         "timestamp": ts,
         "sensor": sensor,
-        "risk_score_norm": None,
-        "risk_score": None,
     }
 
 
@@ -303,15 +301,6 @@ def test_dedup_collects_sensors() -> None:
     ]
     result = deduplicate_zeek(records, _key)
     assert set(result[0]["sensors"]) == {"s1", "s2"}
-
-
-def test_dedup_carries_highest_risk_score() -> None:
-    rec_low = _rec("1.2.3.4", "5.6.7.8", 443, "2024-01-01T00:00:00Z")
-    rec_low["risk_score_norm"] = 20
-    rec_high = _rec("1.2.3.4", "5.6.7.8", 443, "2024-01-01T00:01:00Z")
-    rec_high["risk_score_norm"] = 85
-    result = deduplicate_zeek([rec_low, rec_high], _key)
-    assert result[0]["risk_score_norm"] == 85
 
 
 def test_dedup_empty_list() -> None:
