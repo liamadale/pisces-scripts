@@ -34,7 +34,6 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
             "public_only": True,
             "src_ip": None,
             "direction": None,
-            "min_risk_score": None,
             "no_filters": False,
             "use_cache": True,
         }

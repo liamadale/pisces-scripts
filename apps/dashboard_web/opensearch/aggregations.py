@@ -22,7 +22,6 @@ def agg_opensearch_protocols(time_range: str) -> dict:
         public_only=False,
         src_ip_filter=None,
         direction=None,
-        min_risk_score=None,
     )
     body["size"] = 0
     body.pop("sort", None)
@@ -57,7 +56,6 @@ def agg_opensearch_sensors(time_range: str) -> dict:
         public_only=False,
         src_ip_filter=None,
         direction=None,
-        min_risk_score=None,
     )
     body["size"] = 0
     body.pop("sort", None)
@@ -95,7 +93,6 @@ def agg_opensearch_notice_count(time_range: str) -> int:
         public_only=False,
         src_ip_filter=None,
         direction=None,
-        min_risk_score=None,
     )
     body["size"] = 0
     body.pop("sort", None)
@@ -117,7 +114,6 @@ def agg_opensearch_top_ips(time_range: str, limit: int = 15) -> dict:
         "public_only": False,
         "src_ip": None,
         "direction": None,
-        "min_risk_score": None,
         "no_filters": False,
         "use_cache": True,
     }

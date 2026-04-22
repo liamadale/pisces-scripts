@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import risk_bars %}
 {% block title %}PISCES · OpenSearch — {{ ip }}{% endblock %}
 
 {% block content %}
@@ -49,7 +48,6 @@
         <col class="col-num"><col class="col-time"><col class="col-sensor">
         <col class="col-ip"><col class="col-port">
         {% for _ in web_columns %}<col class="col-info">{% endfor %}
-        <col class="col-risk">
         <col class="col-freq">
       </colgroup>
       <thead>
@@ -62,7 +60,6 @@
           {% for header, _ in web_columns %}
           <th class="sortable">{{ header }}</th>
           {% endfor %}
-          <th class="sortable num">Risk</th>
           <th class="sortable num">Freq</th>
         </tr>
       </thead>
@@ -89,7 +86,6 @@
           {% for _, fn in web_columns %}
           <td>{{ fn(rec) }}</td>
           {% endfor %}
-          <td class="num" data-val="{{ rec.get('risk_score_norm') or 0 }}">{{ risk_bars(rec) }}</td>
           <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
         </tr>
         {% endfor %}

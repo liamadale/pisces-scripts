@@ -7,7 +7,6 @@ from flask import Flask, abort, render_template, request
 
 from apps.opensearch_web import cache as wcache
 from apps.opensearch_web.queries import (
-    MODULE_PARAM_KEYS,
     build_search_params_from_request,
     cached_run_query,
     run_cross_protocol_query,
@@ -97,34 +96,7 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_nav_data() -> dict:
         return {
-            "proto_icons": {
-                "conn": "fa-network-wired",
-                "dns": "fa-server",
-                "http": "fa-globe",
-                "ssl": "fa-lock",
-                "smtp": "fa-envelope",
-                "rdp": "fa-desktop",
-                "smb": "fa-folder-open",
-                "ssh": "fa-terminal",
-                "notice": "fa-bell",
-                "weird": "fa-triangle-exclamation",
-                "suricata_alert": "fa-shield-halved",
-                "files": "fa-file",
-                "x509": "fa-certificate",
-                "pe": "fa-file-code",
-                "kerberos": "fa-key",
-                "ntlm": "fa-user-lock",
-                "dhcp": "fa-address-card",
-                "ftp": "fa-file-arrow-up",
-                "radius": "fa-wifi",
-                "sip": "fa-phone",
-                "tunnel": "fa-circle-nodes",
-                "ntp": "fa-clock",
-                "modbus": "fa-microchip",
-                "dnp3": "fa-bolt",
-                "capture_loss": "fa-gauge",
-                "dpd": "fa-circle-question",
-            },
+            "proto_icons": {lt: mod.WEB_ICON for lt, mod in MODULES.items()},
             "category_icons": {
                 "alerts": "fa-bell",
                 "network": "fa-network-wired",
@@ -134,7 +106,6 @@ def create_app() -> Flask:
                 "messaging": "fa-envelope",
                 "files": "fa-folder",
                 "ot": "fa-industry",
-                "diagnostic": "fa-stethoscope",
             },
             "category_order": CATEGORY_ORDER,
             "category_labels": CATEGORY_LABELS,
@@ -180,7 +151,6 @@ def create_app() -> Flask:
             ip=ip,
             results=results,
             search_params=search_params,
-            MODULE_PARAM_KEYS=MODULE_PARAM_KEYS,
         )
 
     # ------------------------------------------------------------------
@@ -191,7 +161,7 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
         records = cached_run_query(log_type, search_params)
         return render_template(
@@ -202,6 +172,8 @@ def create_app() -> Flask:
             extra_keys=extra_keys,
             detail_fields=mod.DETAIL_FIELDS,
             web_columns=mod.WEB_COLUMNS,
+            summary_field=mod.SUMMARY_FIELD,
+            summary_param=mod.SUMMARY_PARAM,
         )
 
     # ------------------------------------------------------------------
@@ -212,7 +184,7 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
         records = cached_run_query(log_type, search_params)
         return render_template(
@@ -231,7 +203,7 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
         records = cached_run_query(log_type, search_params)
         if i < 1 or i > len(records):
@@ -347,10 +319,9 @@ def create_app() -> Flask:
             shorten_dashboards_url,
         )
 
-        search_params = build_search_params_from_request(
-            request,
-            MODULE_PARAM_KEYS.get(request.args.get("log_type", ""), []),
-        )
+        _share_lt = request.args.get("log_type", "")
+        _share_extra_keys = MODULES[_share_lt].EXTRA_PARAMS if _share_lt in MODULES else []
+        search_params = build_search_params_from_request(request, _share_extra_keys)
 
         # Resolve absolute time range
         time_from = search_params.get("time_from") or ""
@@ -364,7 +335,7 @@ def create_app() -> Flask:
         # Collect protocol-specific extra params
         extra: dict[str, str] = {}
         if log_type:
-            for key in MODULE_PARAM_KEYS.get(log_type, []):
+            for key in MODULES[log_type].EXTRA_PARAMS if log_type in MODULES else []:
                 val = search_params.get(key)
                 if val:
                     extra[key] = str(val)
@@ -403,10 +374,10 @@ def create_app() -> Flask:
         )
 
     # ------------------------------------------------------------------
-    # GET /api/notice/summary  — HTMX: notice type frequency aggregation
+    # GET /api/summary/<log_type>  — HTMX: field-frequency aggregation browse modal
     # ------------------------------------------------------------------
-    @app.route("/api/notice/summary")
-    def api_notice_summary():
+    @app.route("/api/summary/<log_type>")
+    def api_summary(log_type: str):
         from src.querier.zeek_modules.base import (
             FILTERS_DIR,
             build_base_query,
@@ -414,9 +385,13 @@ def create_app() -> Flask:
             query_opensearch,
         )
 
-        mod = MODULES["notice"]
-        search_params = build_search_params_from_request(request)
+        if log_type not in MODULES:
+            abort(404)
+        mod = MODULES[log_type]
+        if not mod.SUMMARY_FIELD:
+            abort(404)
 
+        search_params = build_search_params_from_request(request)
         must_not, _, _ = load_with_remap(FILTERS_DIR)
         sensor_val = search_params.get("sensor", "all")
         sensors = (
@@ -425,66 +400,7 @@ def create_app() -> Flask:
             else None
         )
 
-        body, params = build_base_query(
-            must_not=must_not,
-            extra_must=[],
-            source_fields=mod.SOURCE_FIELDS,
-            limit=0,
-            time_range=search_params.get("time_range", "now-24h"),
-            sensors=sensors,
-            datasets=mod.DATASETS,
-            public_only=search_params.get("public_only", False),
-            src_ip_filter=search_params.get("src_ip"),
-            direction=search_params.get("direction"),
-            min_risk_score=search_params.get("min_risk_score"),
-            time_from=search_params.get("time_from"),
-            time_to=search_params.get("time_to"),
-        )
-        body["size"] = 0
-        body.pop("sort", None)
-        body.pop("_source", None)
-        body["aggs"] = {
-            "note_types": {
-                "terms": {
-                    "field": "zeek.notice.note",
-                    "size": 500,
-                    "order": {"_count": "asc"},
-                }
-            }
-        }
-
-        raw = query_opensearch(body, params)
-        buckets = []
-        if raw:
-            buckets = raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
-
-        return render_template("partials/notice_summary.html", buckets=buckets)
-
-    # ------------------------------------------------------------------
-    # GET /api/suricata/summary  — HTMX: Suricata rule frequency aggregation
-    # ------------------------------------------------------------------
-    @app.route("/api/suricata/summary")
-    def api_suricata_summary():
-        from src.querier.zeek_modules.base import (
-            FILTERS_DIR,
-            build_base_query,
-            load_with_remap,
-            query_opensearch,
-        )
-
-        mod = MODULES["suricata_alert"]
-        search_params = build_search_params_from_request(request)
-
-        must_not, _, _ = load_with_remap(FILTERS_DIR)
-        sensor_val = search_params.get("sensor", "all")
-        sensors = (
-            [s.strip() for s in str(sensor_val).split(",")]
-            if sensor_val and str(sensor_val).lower() != "all"
-            else None
-        )
-
-        extra_must = [{"term": {"event.module": "suricata"}}]
-
+        extra_must, _ = mod.build_extra_must({})
         body, params = build_base_query(
             must_not=must_not,
             extra_must=extra_must,
@@ -496,7 +412,6 @@ def create_app() -> Flask:
             public_only=search_params.get("public_only", False),
             src_ip_filter=search_params.get("src_ip"),
             direction=search_params.get("direction"),
-            min_risk_score=search_params.get("min_risk_score"),
             time_from=search_params.get("time_from"),
             time_to=search_params.get("time_to"),
         )
@@ -504,9 +419,9 @@ def create_app() -> Flask:
         body.pop("sort", None)
         body.pop("_source", None)
         body["aggs"] = {
-            "rule_names": {
+            "items": {
                 "terms": {
-                    "field": "rule.name",
+                    "field": mod.SUMMARY_FIELD,
                     "size": 500,
                     "order": {"_count": "asc"},
                 }
@@ -516,9 +431,13 @@ def create_app() -> Flask:
         raw = query_opensearch(body, params)
         buckets = []
         if raw:
-            buckets = raw.get("aggregations", {}).get("rule_names", {}).get("buckets", [])
+            buckets = raw.get("aggregations", {}).get("items", {}).get("buckets", [])
 
-        return render_template("partials/suricata_summary.html", buckets=buckets)
+        return render_template(
+            "partials/summary_modal.html",
+            buckets=buckets,
+            summary_param=mod.SUMMARY_PARAM,
+        )
 
     # ------------------------------------------------------------------
     # GET /api/sensor/summary  — HTMX: sensor activity aggregation
@@ -543,7 +462,6 @@ def create_app() -> Flask:
             public_only=False,
             src_ip_filter=None,
             direction=None,
-            min_risk_score=None,
             time_from=search_params.get("time_from"),
             time_to=search_params.get("time_to"),
         )
