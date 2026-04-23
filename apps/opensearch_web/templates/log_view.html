@@ -9,7 +9,13 @@
     <i class="fa-regular fa-clock"></i>
     {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
   </span>
-  <span class="count-note" id="row-count">{{ records|length }} unique record(s), {{ records|sum(attribute='freq') }} total</span>
+  <span class="count-note" id="row-count">
+    {%- if summary_mode -%}
+      aggregation view
+    {%- else -%}
+      {{ records|length }} unique record(s), {{ records|sum(attribute='freq') }} total
+    {%- endif -%}
+  </span>
 </div>
 
 {# Protocol-specific filter form (only shown if the module has extra params) #}
@@ -30,7 +36,7 @@
   <button type="submit" class="btn btn-primary">
     <i class="fa-solid fa-magnifying-glass"></i> Filter
   </button>
-  {% if summary_field %}
+  {% if summary_field and not summary_mode %}
   <button type="button" class="btn"
           hx-get="/api/summary/{{ log_type }}?{{ request.query_string.decode() }}"
           hx-target="#browse-modal-body"
@@ -41,6 +47,40 @@
   {% endif %}
   <span class="htmx-indicator" id="search-spinner">Searching…</span>
 </form>
+{% endif %}
+
+{# ── Tier 1: Inline aggregation summary (summary-capable modules, no drill-down filter) ── #}
+{% if summary_mode %}
+<div class="table-wrap" id="summary-wrap">
+  <div id="summary-container"
+       hx-get="/api/summary/{{ log_type }}?inline=1&{{ request.query_string.decode() }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <p class="ns-loading">Loading summary…</p>
+  </div>
+</div>
+<div class="pagination-bar" id="summary-pager">
+  <button class="btn" id="sp-prev" onclick="summaryPaginate(-1)" disabled>&laquo; Prev</button>
+  <span id="sp-info"></span>
+  <button class="btn" id="sp-next" onclick="summaryPaginate(1)">Next &raquo;</button>
+  <select id="sp-size" onchange="summarySetPageSize(this.value)">
+    <option value="25" selected>25 / page</option>
+    <option value="50">50 / page</option>
+    <option value="100">100 / page</option>
+  </select>
+</div>
+{% endif %}
+
+{# ── Tier 2: Raw hit table (always present in DOM, hidden when in summary mode) ── #}
+<div id="table-container" {% if summary_mode %}style="display:none"{% endif %}>
+
+{% if summary_mode %}
+<div style="margin: 10px 0 6px">
+  <button class="btn" id="back-to-summary" onclick="backToSummary()" style="display:none">
+    <i class="fa-solid fa-arrow-left"></i> Back to summary
+  </button>
+  <span class="count-note" id="drill-count"></span>
+</div>
 {% endif %}
 
 <div class="table-wrap">
@@ -68,7 +108,9 @@
       </tr>
     </thead>
     <tbody id="log-tbody">
-      {% include "partials/log_rows.html" %}
+      {% if not summary_mode %}
+        {% include "partials/log_rows.html" %}
+      {% endif %}
     </tbody>
   </table>
 </div>
@@ -87,6 +129,9 @@
     <option value="100">100 / page</option>
   </select>
 </div>
+
+</div>{# /table-container #}
+
 <script>
 (function () {
   var _ps = 25, _page = 1;
@@ -110,12 +155,10 @@
   window.piscesPaginate    = function (dir) { _page += dir; _apply(); };
   window.piscesSetPageSize = function (v)   { _ps = +v; _page = 1; _apply(); };
 
-  // Reset to page 1 whenever HTMX swaps fresh rows into the table body
   document.body.addEventListener('htmx:afterSwap', function (e) {
     if (e.detail.target.id === 'log-tbody') { _page = 1; _apply(); }
   });
 
-  // Reset to page 1 after column sort (sort runs synchronously before timeout fires)
   document.addEventListener('click', function (e) {
     if (e.target.closest('th.sortable')) {
       setTimeout(function () { _page = 1; _apply(); }, 0);
@@ -124,9 +167,68 @@
 
   document.addEventListener('DOMContentLoaded', _apply);
 })();
+
+{% if summary_mode %}
+{# Drill-down: click a summary row → load raw hits into the table #}
+function toggleGroup(el) {
+  var rules = el.closest('.ns-group').querySelector('.ns-group-rules');
+  rules.style.display = rules.style.display === 'none' ? '' : 'none';
+}
+
+function drillDown(value) {
+  var qs = new URLSearchParams(window.location.search);
+  qs.set("{{ summary_param }}", value);
+  document.getElementById("summary-wrap").style.display = "none";
+  document.getElementById("summary-pager").style.display = "none";
+  document.getElementById("table-container").style.display = "";
+  document.getElementById("back-to-summary").style.display = "";
+  var inp = document.querySelector('input[name="{{ summary_param }}"]');
+  if (inp) inp.value = value;
+  document.getElementById("drill-count").textContent = "Filtering: " + value;
+  htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
+    target: "#log-tbody",
+    swap: "innerHTML",
+  });
+}
+
+function backToSummary() {
+  document.getElementById("table-container").style.display = "none";
+  document.getElementById("summary-wrap").style.display = "";
+  document.getElementById("summary-pager").style.display = "";
+  var inp = document.querySelector('input[name="{{ summary_param }}"]');
+  if (inp) inp.value = "";
+  document.getElementById("row-count").textContent = "aggregation view";
+}
+
+/* Summary-view pagination */
+(function () {
+  var _sps = 25, _sp = 1;
+  function _applyS() {
+    var groups = document.querySelectorAll('#summary-container .ns-group');
+    var rows = groups.length
+      ? Array.from(groups)
+      : Array.from(document.querySelectorAll('#summary-container > .ns-row'));
+    var total = rows.length;
+    var start = (_sp - 1) * _sps;
+    rows.forEach(function (r, i) {
+      r.style.display = (i >= start && i < start + _sps) ? '' : 'none';
+    });
+    document.getElementById('sp-prev').disabled = (_sp === 1);
+    document.getElementById('sp-next').disabled = (start + _sps >= total);
+    var end = Math.min(start + _sps, total);
+    document.getElementById('sp-info').textContent =
+      total ? (start + 1) + '\u2013' + end + ' of ' + total : '';
+  }
+  window.summaryPaginate    = function (dir) { _sp += dir; _applyS(); };
+  window.summarySetPageSize = function (v)   { _sps = +v; _sp = 1; _applyS(); };
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.detail.target.id === 'summary-container') { _sp = 1; _applyS(); }
+  });
+})();
+{% endif %}
 </script>
 
-{% if summary_field %}
+{% if summary_field and not summary_mode %}
 <div id="browse-modal-backdrop" class="modal-backdrop" onclick="closeBrowseModal()"></div>
 <div id="browse-modal" class="modal-panel" role="dialog" aria-modal="true"
      aria-label="Field frequency browser">

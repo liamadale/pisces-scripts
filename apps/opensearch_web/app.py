@@ -163,7 +163,13 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
-        records = cached_run_query(log_type, search_params)
+
+        # Summary-capable modules show aggregation by default; skip raw query
+        # unless the user has drilled into a specific value.
+        has_drill_filter = bool(mod.SUMMARY_PARAM and search_params.get(mod.SUMMARY_PARAM))
+        summary_mode = bool(mod.SUMMARY_FIELD) and not has_drill_filter
+        records = [] if summary_mode else cached_run_query(log_type, search_params)
+
         return render_template(
             "log_view.html",
             log_type=log_type,
@@ -174,6 +180,7 @@ def create_app() -> Flask:
             web_columns=mod.WEB_COLUMNS,
             summary_field=mod.SUMMARY_FIELD,
             summary_param=mod.SUMMARY_PARAM,
+            summary_mode=summary_mode,
         )
 
     # ------------------------------------------------------------------
@@ -418,23 +425,100 @@ def create_app() -> Flask:
         body["size"] = 0
         body.pop("sort", None)
         body.pop("_source", None)
-        body["aggs"] = {
-            "items": {
-                "terms": {
-                    "field": mod.SUMMARY_FIELD,
-                    "size": 500,
-                    "order": {"_count": "asc"},
+
+        if mod.SUMMARY_TYPE == "grouped":
+            # Prefix-grouped aggregation: extract prefix from rule.name,
+            # with nested severity breakdown and top rules per group.
+            body["aggs"] = {
+                "prefixes": {
+                    "terms": {
+                        "script": {
+                            "source": (
+                                "def n = doc['rule.name'].value;"
+                                "int i = n.indexOf(' ');"
+                                "if (i < 0) return n;"
+                                "int j = n.indexOf(' ', i + 1);"
+                                "if (j < 0) return n.substring(0, i);"
+                                "return n.substring(0, j);"
+                            ),
+                            "lang": "painless",
+                        },
+                        "size": 50,
+                        "order": {"_count": "desc"},
+                    },
+                    "aggs": {
+                        "by_severity": {
+                            "terms": {
+                                "field": "suricata.alert.severity",
+                                "size": 5,
+                            }
+                        },
+                        "top_rules": {
+                            "terms": {
+                                "field": "rule.name",
+                                "size": 10,
+                                "order": {"_count": "desc"},
+                            }
+                        },
+                    },
                 }
             }
-        }
+        else:
+            body["aggs"] = {
+                "items": {
+                    "terms": {
+                        "field": mod.SUMMARY_FIELD,
+                        "size": 500,
+                        "order": {"_count": "asc"},
+                    }
+                }
+            }
 
         raw = query_opensearch(body, params)
+
+        is_inline = request.args.get("inline") == "1"
+
+        if mod.SUMMARY_TYPE == "grouped":
+            groups = []
+            if raw:
+                for b in raw.get("aggregations", {}).get("prefixes", {}).get("buckets", []):
+                    sev_map = {
+                        s["key"]: s["doc_count"]
+                        for s in b.get("by_severity", {}).get("buckets", [])
+                    }
+                    min_sev = min(sev_map.keys()) if sev_map else 3
+                    groups.append(
+                        {
+                            "prefix": b["key"],
+                            "count": b["doc_count"],
+                            "min_severity": min_sev,
+                            "sev": sev_map,
+                            "top_rules": [
+                                {"name": r["key"], "count": r["doc_count"]}
+                                for r in b.get("top_rules", {}).get("buckets", [])
+                            ],
+                        }
+                    )
+            template = (
+                "partials/summary_grouped.html" if is_inline else "partials/summary_grouped.html"
+            )
+            return render_template(
+                template,
+                groups=groups,
+                summary_param=mod.SUMMARY_PARAM,
+            )
+
         buckets = []
         if raw:
             buckets = raw.get("aggregations", {}).get("items", {}).get("buckets", [])
 
+        template = (
+            "partials/summary_inline.html"
+            if request.args.get("inline") == "1"
+            else "partials/summary_modal.html"
+        )
         return render_template(
-            "partials/summary_modal.html",
+            template,
             buckets=buckets,
             summary_param=mod.SUMMARY_PARAM,
         )
