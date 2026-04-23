@@ -512,6 +512,20 @@ main.table-fill > .table-wrap {
   overflow: auto;
 }
 
+/* #table-container wraps .table-wrap + .pagination-bar in log_view —
+   make it fill remaining space so the pagination bar stays on-screen */
+main.table-fill #table-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+main.table-fill #table-container > .table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 
 /* ── 4. Buttons ───────────────────────────────────────── */
 
@@ -1178,7 +1192,7 @@ tr.detail-row td {
   border-top: 1px solid var(--outline);
 }
 
-#pager-info {
+#pager-info, #sp-info {
   min-width: 12ch;
   text-align: center;
 }
@@ -1300,6 +1314,44 @@ tr.detail-row td {
 }
 .ns-row:hover .ns-bar-fill { opacity: 1; }
 
+
+/* Severity color indicators (grouped summary) */
+.sev-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.sev-dot.sev-1 { background: var(--red); }
+.sev-dot.sev-2 { background: var(--yellow); }
+.sev-dot.sev-3 { background: var(--on-surface-dim); }
+
+.sev-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.sev-pill.sev-1 { background: var(--badge-red-bg); color: var(--red); }
+.sev-pill.sev-2 { background: var(--badge-yellow-bg); color: var(--yellow); }
+.sev-pill.sev-3 { background: var(--badge-gray-bg); color: var(--on-surface-dim); }
+
+.ns-sev-pills { white-space: nowrap; }
+
+.sev-bar-1 { background: var(--red); }
+.sev-bar-2 { background: var(--yellow); }
+.sev-bar-3 { background: var(--on-surface-dim); }
+
+/* Grouped summary: nested rule rows */
+.ns-group-rules { padding-left: 20px; }
+.ns-rule-row { font-size: 0.78rem; padding: 4px 14px; }
+.ns-rule-name { color: var(--on-surface-dim); }
+.ns-rule-row:hover .ns-rule-name { color: var(--primary); }
+.ns-show-all { opacity: 0.7; }
+.ns-group-header { font-weight: 500; }
 
 /* ── 10b. Sensor Summary Modal ────────────────────────── */
 .ss-meta {
