@@ -26,11 +26,11 @@ class RadiusModule(ZeekModule):
         "zeek.radius.ttl",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "auth"
+    WEB_ICON = "fa-wifi"
+    EXTRA_PARAMS = ["username", "mac", "failed_only"]
     WEB_COLUMNS = [
         ("Username", lambda r: r.get("username", "—") or "—"),
         ("Result", lambda r: r.get("result", "—") or "—"),
@@ -52,7 +52,6 @@ class RadiusModule(ZeekModule):
         ("Reply Msg", lambda r: r.get("reply_msg", "—") or "—"),
         ("TTL", lambda r: str(r.get("ttl")) if r.get("ttl") else "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -74,8 +73,6 @@ class RadiusModule(ZeekModule):
             "reply_msg": zr.get("reply_msg", ""),
             "ttl": zr.get("ttl"),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

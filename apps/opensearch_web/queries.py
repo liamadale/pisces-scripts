@@ -7,60 +7,18 @@ from apps.opensearch_web import cache as wcache
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import run_query
 
-# Protocol-specific search_params keys forwarded from HTTP request
-MODULE_PARAM_KEYS: dict = {
-    # Core
-    "conn": [],
-    "dns": ["dns_query", "rcode", "qtype"],
-    "http": ["http_method", "http_host", "http_uri", "status_code"],
-    "ssl": ["ssl_sni", "ssl_invalid_only"],
-    "smtp": ["smtp_mail_from", "smtp_rcpt_to", "smtp_subject"],
-    "rdp": ["rdp_result", "rdp_cookie"],
-    "smb": ["smb_share", "smb_action"],
-    "ssh": ["ssh_failed_only", "ssh_auth_result"],
-    "notice": ["notice_note"],
-    "weird": ["weird_name"],
-    "suricata_alert": [
-        "rule_name",
-        "rule_category",
-        "severity",
-        "sid",
-        "exclude_stream",
-        "tag",
-    ],
-    # Files & Certs
-    "files": ["mime", "hash", "source_proto", "extracted_only", "dest_ip"],
-    "x509": ["subject", "issuer", "san", "self_signed", "expired"],
-    "pe": ["no_aslr", "no_dep", "only_32bit"],
-    # Authentication
-    "kerberos": ["client", "service", "request_type", "cipher", "failed_only"],
-    "ntlm": ["username", "domain", "failed_only"],
-    "radius": ["username", "mac", "failed_only"],
-    # Infrastructure
-    "dhcp": ["hostname", "mac", "assigned_ip"],
-    "ftp": ["user", "command", "reply_code", "anon_only"],
-    "sip": ["method", "status_code", "user_agent"],
-    "ntp": ["mode", "version"],
-    "tunnel": ["tunnel_type"],
-    # OT / SCADA
-    "modbus": ["function", "exceptions_only"],
-    "dnp3": ["function"],
-    # Diagnostic
-    "capture_loss": [],
-    "dpd": ["analyzer"],
-}
-
 
 def build_search_params_from_request(request, extra_keys=None) -> dict:
     """Build the search_params dict that run_query() expects, from an HTTP request."""
     params = {
         "time_range": request.values.get("time_range", "now-24h"),
+        "time_from": request.values.get("from") or None,
+        "time_to": request.values.get("to") or None,
         "sensor": request.values.get("sensor", "all"),
         "limit": int(v) if (v := request.values.get("limit", "").strip()) and v.isdigit() else 500,
         "public_only": request.values.get("public_only") in ("on", "true", "1"),
         "src_ip": request.values.get("src_ip") or None,
         "direction": request.values.get("direction") or None,
-        "min_risk_score": int(v) if (v := request.values.get("min_risk", "").strip()) else None,
         "no_filters": False,
         "use_cache": False,
     }

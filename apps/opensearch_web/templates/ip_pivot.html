@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import risk_bars %}
 {% block title %}PISCES · OpenSearch — {{ ip }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h1>IP Pivot: {{ ip }}</h1>
+  <span class="time-window">
+    <i class="fa-regular fa-clock"></i>
+    {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
+  </span>
   {% if is_private(ip) %}
   <button class="btn"
           hx-post="/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
@@ -45,7 +48,6 @@
         <col class="col-num"><col class="col-time"><col class="col-sensor">
         <col class="col-ip"><col class="col-port">
         {% for _ in web_columns %}<col class="col-info">{% endfor %}
-        <col class="col-risk">
         <col class="col-freq">
       </colgroup>
       <thead>
@@ -58,7 +60,6 @@
           {% for header, _ in web_columns %}
           <th class="sortable">{{ header }}</th>
           {% endfor %}
-          <th class="sortable num">Risk</th>
           <th class="sortable num">Freq</th>
         </tr>
       </thead>
@@ -72,7 +73,10 @@
             hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
             onclick="if(!event.target.closest('a')) handleDetailToggle(this)">
           <td class="num">{{ idx }}</td>
-          <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
+          <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+            <span class="ts-compact">{{ rec.get('timestamp') | fmt_ts }}</span>
+            <span class="ts-full">{{ rec.get('timestamp') | fmt_ts(full=True) }}</span>
+          </td>
           <td>
             {% set sensors = rec.get('sensors') %}
             {% if sensors %}{{ sensors | join(', ') }}{% else %}{{ rec.get('sensor', '—') }}{% endif %}
@@ -82,7 +86,6 @@
           {% for _, fn in web_columns %}
           <td>{{ fn(rec) }}</td>
           {% endfor %}
-          <td class="num" data-val="{{ rec.get('risk_score_norm') or 0 }}">{{ risk_bars(rec) }}</td>
           <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
         </tr>
         {% endfor %}

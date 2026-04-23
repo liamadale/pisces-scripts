@@ -1243,6 +1243,104 @@ def profile_device(
 
 
 # ---------------------------------------------------------------------------
+# Share URLs
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def build_share_urls(
+    time_range: str = "now-24h",
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
+    src_ip: Optional[str] = None,
+    dest_ip: Optional[str] = None,
+    sensor: str = "all",
+    log_type: Optional[str] = None,
+    page_type: str = "overview",
+    extra_params: Optional[dict] = None,
+    columns: Optional[list] = None,
+) -> str:
+    """Build shareable PISCES and OpenSearch Dashboards URLs for a search view.
+
+    Generates two link types:
+    1. PISCES link — URL back to the PISCES web app with absolute timestamps
+    2. OpenSearch Dashboards link — opens the same KQL query in Discover
+
+    Tries to shorten the Dashboards link via Malcolm's /api/shorten_url API;
+    falls back to the full long URL if that fails.
+
+    Args:
+        time_range: Relative time range, e.g. "now-24h". Used when time_from/time_to
+            are not provided.
+        time_from: Absolute start timestamp (ISO 8601), e.g. "2026-04-19T00:00:00Z".
+        time_to: Absolute end timestamp (ISO 8601), e.g. "2026-04-20T00:00:00Z".
+        src_ip: Source IP filter.
+        dest_ip: Destination IP filter.
+        sensor: Sensor hostname or "all".
+        log_type: Protocol/module name, e.g. "conn", "suricata_alert", "notice".
+            When set, sensible default columns are chosen automatically.
+        page_type: "overview", "log", or "ip_pivot".
+        extra_params: Protocol-specific filters, e.g. {"rule_name": "ET CINS..."}.
+        columns: Explicit list of OpenSearch field names to show as Discover columns.
+            Overrides the automatic defaults. e.g. ["source.ip", "destination.ip",
+            "rule.name", "tags"]. If None, uses sensible per-protocol defaults.
+    """
+    try:
+        from src.utils.share_url import (
+            ShareContext,
+            build_dashboards_path,
+            build_pisces_url,
+            shorten_dashboards_url,
+        )
+
+        if time_from and time_to:
+            resolved_from, resolved_to = time_from, time_to
+        else:
+            from apps.opensearch_web.app import resolve_time_range
+
+            resolved_from, resolved_to = resolve_time_range(time_range)
+
+        ctx = ShareContext(
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            sensor=sensor,
+            time_from=resolved_from,
+            time_to=resolved_to,
+            log_type=log_type,
+            page_type=page_type,
+            extra_params=extra_params or {},
+        )
+
+        pisces_url = build_pisces_url(ctx, script_name="/opensearch")
+        discover_path = build_dashboards_path(ctx, columns=columns)
+
+        dashboards_base = os.environ.get("OPENSEARCH_URL", "")
+        short_url = None
+        if dashboards_base:
+            username = os.environ.get("PISCES_USERNAME", "")
+            password = os.environ.get("PISCES_PASSWORD", "")
+            if username and password:
+                short_url = shorten_dashboards_url(
+                    discover_path, dashboards_base, (username, password)
+                )
+
+        long_url = (dashboards_base + discover_path) if dashboards_base else ""
+
+        return _ok(
+            {
+                "pisces": pisces_url,
+                "dashboards": short_url or long_url,
+                "dashboards_long": long_url,
+                "kql": ctx.extra_params,
+                "time_from": resolved_from,
+                "time_to": resolved_to,
+            }
+        )
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
 

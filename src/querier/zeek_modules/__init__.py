@@ -6,12 +6,10 @@ Import MODULES_BY_CATEGORY, CATEGORY_ORDER, CATEGORY_LABELS for web UI grouping.
 
 from collections import defaultdict
 
-from .capture_loss import CaptureLossModule
 from .conn import ConnModule
 from .dhcp import DhcpModule
 from .dnp3 import Dnp3Module
 from .dns import DnsModule
-from .dpd import DpdModule
 from .files import FilesModule
 from .ftp import FtpModule
 from .http import HttpModule
@@ -58,8 +56,6 @@ MODULES: dict = {
     "ntp": NtpModule(),
     "modbus": ModbusModule(),
     "dnp3": Dnp3Module(),
-    "capture_loss": CaptureLossModule(),
-    "dpd": DpdModule(),
 }
 
 # ---------------------------------------------------------------------------
@@ -75,7 +71,6 @@ CATEGORY_ORDER: list[str] = [
     "messaging",
     "files",
     "ot",
-    "diagnostic",
 ]
 
 CATEGORY_LABELS: dict[str, str] = {
@@ -87,7 +82,6 @@ CATEGORY_LABELS: dict[str, str] = {
     "messaging": "Messaging",
     "files": "Files",
     "ot": "OT / ICS",
-    "diagnostic": "Diagnostic",
 }
 
 MODULES_BY_CATEGORY: dict[str, list[str]] = defaultdict(list)

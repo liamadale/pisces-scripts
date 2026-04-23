@@ -31,11 +31,11 @@ class KerberosModule(ZeekModule):
         "network.community_id",
         "network.direction",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "auth"
+    WEB_ICON = "fa-key"
+    EXTRA_PARAMS = ["client", "service", "request_type", "cipher", "failed_only"]
     WEB_COLUMNS = [
         ("Client", lambda r: r.get("client", "—") or "—"),
         ("Type", lambda r: r.get("request_type", "—") or "—"),
@@ -75,7 +75,6 @@ class KerberosModule(ZeekModule):
         ("Valid Till", lambda r: r.get("valid_till", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -101,8 +100,6 @@ class KerberosModule(ZeekModule):
             "valid_till": zk.get("till", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

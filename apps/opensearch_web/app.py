@@ -1,10 +1,12 @@
 """Flask application factory and route definitions for PISCES Web UI."""
 
+import os
+from datetime import datetime, timedelta, timezone
+
 from flask import Flask, abort, render_template, request
 
 from apps.opensearch_web import cache as wcache
 from apps.opensearch_web.queries import (
-    MODULE_PARAM_KEYS,
     build_search_params_from_request,
     cached_run_query,
     run_cross_protocol_query,
@@ -24,6 +26,42 @@ from src.querier.zeek_modules import (
 from src.querier.zeek_modules.base import TIME_RANGES
 from src.utils.format import fmt_dur
 
+# ------------------------------------------------------------------
+# Timestamp helpers (used by Jinja filters/globals and share URLs)
+# ------------------------------------------------------------------
+
+_UNITS = {"m": "minutes", "h": "hours", "d": "days"}
+
+
+def resolve_time_range(time_range: str) -> tuple[str, str]:
+    """Convert relative range like ``'now-24h'`` to ``(from_iso, to_iso)``."""
+    now = datetime.now(timezone.utc)
+    val = int(time_range.replace("now-", "")[:-1])
+    unit = time_range[-1]
+    from_dt = now - timedelta(**{_UNITS[unit]: val})
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    return from_dt.strftime(fmt), now.strftime(fmt)
+
+
+def fmt_time_window(time_range: str) -> str:
+    """``'now-24h'`` → ``'Apr 14 15:43 → Apr 15 15:43 UTC'``."""
+    f, t = resolve_time_range(time_range)
+    fmt = "%b %d %H:%M"
+    return (
+        f"{datetime.fromisoformat(f).strftime(fmt)} → {datetime.fromisoformat(t).strftime(fmt)} UTC"
+    )
+
+
+def fmt_ts(iso_str: str, full: bool = False) -> str:
+    """Jinja filter: format an ISO timestamp for display."""
+    if not iso_str:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S") if full else dt.strftime("%b %d %H:%M")
+    except (ValueError, TypeError):
+        return iso_str[:16] if iso_str else "—"
+
 
 def _resolve_city(request):  # type: ignore[no-untyped-def]
     from src.mantis.mantis_search import sensor_to_project
@@ -36,8 +74,10 @@ def create_app() -> Flask:
 
     register_shared_helpers(app)
 
-    # opensearch-specific filter
+    # opensearch-specific filters / globals
     app.jinja_env.filters["fmt_dur"] = fmt_dur
+    app.jinja_env.filters["fmt_ts"] = fmt_ts
+    app.jinja_env.globals["fmt_time_window"] = fmt_time_window
 
     # Register shared blueprints
     app.register_blueprint(make_enrich_blueprint())
@@ -56,34 +96,7 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_nav_data() -> dict:
         return {
-            "proto_icons": {
-                "conn": "fa-network-wired",
-                "dns": "fa-server",
-                "http": "fa-globe",
-                "ssl": "fa-lock",
-                "smtp": "fa-envelope",
-                "rdp": "fa-desktop",
-                "smb": "fa-folder-open",
-                "ssh": "fa-terminal",
-                "notice": "fa-bell",
-                "weird": "fa-triangle-exclamation",
-                "suricata_alert": "fa-shield-halved",
-                "files": "fa-file",
-                "x509": "fa-certificate",
-                "pe": "fa-file-code",
-                "kerberos": "fa-key",
-                "ntlm": "fa-user-lock",
-                "dhcp": "fa-address-card",
-                "ftp": "fa-file-arrow-up",
-                "radius": "fa-wifi",
-                "sip": "fa-phone",
-                "tunnel": "fa-circle-nodes",
-                "ntp": "fa-clock",
-                "modbus": "fa-microchip",
-                "dnp3": "fa-bolt",
-                "capture_loss": "fa-gauge",
-                "dpd": "fa-circle-question",
-            },
+            "proto_icons": {lt: mod.WEB_ICON for lt, mod in MODULES.items()},
             "category_icons": {
                 "alerts": "fa-bell",
                 "network": "fa-network-wired",
@@ -93,7 +106,6 @@ def create_app() -> Flask:
                 "messaging": "fa-envelope",
                 "files": "fa-folder",
                 "ot": "fa-industry",
-                "diagnostic": "fa-stethoscope",
             },
             "category_order": CATEGORY_ORDER,
             "category_labels": CATEGORY_LABELS,
@@ -139,7 +151,6 @@ def create_app() -> Flask:
             ip=ip,
             results=results,
             search_params=search_params,
-            MODULE_PARAM_KEYS=MODULE_PARAM_KEYS,
         )
 
     # ------------------------------------------------------------------
@@ -150,9 +161,15 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
-        records = cached_run_query(log_type, search_params)
+
+        # Summary-capable modules show aggregation by default; skip raw query
+        # unless the user has drilled into a specific value.
+        has_drill_filter = bool(mod.SUMMARY_PARAM and search_params.get(mod.SUMMARY_PARAM))
+        summary_mode = bool(mod.SUMMARY_FIELD) and not has_drill_filter
+        records = [] if summary_mode else cached_run_query(log_type, search_params)
+
         return render_template(
             "log_view.html",
             log_type=log_type,
@@ -161,6 +178,9 @@ def create_app() -> Flask:
             extra_keys=extra_keys,
             detail_fields=mod.DETAIL_FIELDS,
             web_columns=mod.WEB_COLUMNS,
+            summary_field=mod.SUMMARY_FIELD,
+            summary_param=mod.SUMMARY_PARAM,
+            summary_mode=summary_mode,
         )
 
     # ------------------------------------------------------------------
@@ -171,7 +191,7 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
         records = cached_run_query(log_type, search_params)
         return render_template(
@@ -190,7 +210,7 @@ def create_app() -> Flask:
         if log_type not in MODULES:
             abort(404)
         mod = MODULES[log_type]
-        extra_keys = MODULE_PARAM_KEYS.get(log_type, [])
+        extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
         records = cached_run_query(log_type, search_params)
         if i < 1 or i > len(records):
@@ -292,66 +312,79 @@ def create_app() -> Flask:
             )
 
     # ------------------------------------------------------------------
-    # GET /api/notice/summary  — HTMX: notice type frequency aggregation
+    # GET /api/share  — generate PISCES + Dashboards share URLs
     # ------------------------------------------------------------------
-    @app.route("/api/notice/summary")
-    def api_notice_summary():
-        from src.querier.zeek_modules.base import (
-            FILTERS_DIR,
-            build_base_query,
-            load_with_remap,
-            query_opensearch,
+    @app.route("/api/share")
+    def api_share():
+        """Return PISCES and Dashboards URLs for the current view."""
+        from flask import jsonify
+
+        from src.utils.share_url import (
+            ShareContext,
+            build_dashboards_path,
+            build_pisces_url,
+            shorten_dashboards_url,
         )
 
-        mod = MODULES["notice"]
-        search_params = build_search_params_from_request(request)
+        _share_lt = request.args.get("log_type", "")
+        _share_extra_keys = MODULES[_share_lt].EXTRA_PARAMS if _share_lt in MODULES else []
+        search_params = build_search_params_from_request(request, _share_extra_keys)
 
-        must_not, _, _ = load_with_remap(FILTERS_DIR)
-        sensor_val = search_params.get("sensor", "all")
-        sensors = (
-            [s.strip() for s in str(sensor_val).split(",")]
-            if sensor_val and str(sensor_val).lower() != "all"
-            else None
+        # Resolve absolute time range
+        time_from = search_params.get("time_from") or ""
+        time_to = search_params.get("time_to") or ""
+        if not (time_from and time_to):
+            time_from, time_to = resolve_time_range(search_params.get("time_range", "now-24h"))
+
+        page_type = request.args.get("page_type", "overview")
+        log_type = request.args.get("log_type") or None
+
+        # Collect protocol-specific extra params
+        extra: dict[str, str] = {}
+        if log_type:
+            for key in MODULES[log_type].EXTRA_PARAMS if log_type in MODULES else []:
+                val = search_params.get(key)
+                if val:
+                    extra[key] = str(val)
+
+        ctx = ShareContext(
+            src_ip=search_params.get("src_ip"),
+            sensor=search_params.get("sensor", "all"),
+            time_from=time_from,
+            time_to=time_to,
+            log_type=log_type,
+            page_type=page_type,
+            extra_params=extra,
         )
 
-        body, params = build_base_query(
-            must_not=must_not,
-            extra_must=[],
-            source_fields=mod.SOURCE_FIELDS,
-            limit=0,
-            time_range=search_params.get("time_range", "now-24h"),
-            sensors=sensors,
-            datasets=mod.DATASETS,
-            public_only=search_params.get("public_only", False),
-            src_ip_filter=search_params.get("src_ip"),
-            direction=search_params.get("direction"),
-            min_risk_score=search_params.get("min_risk_score"),
-        )
-        body["size"] = 0
-        body.pop("sort", None)
-        body.pop("_source", None)
-        body["aggs"] = {
-            "note_types": {
-                "terms": {
-                    "field": "zeek.notice.note",
-                    "size": 500,
-                    "order": {"_count": "asc"},
-                }
+        pisces_url = build_pisces_url(ctx, script_name=request.script_root)
+        discover_path = build_dashboards_path(ctx)
+
+        dashboards_base = os.environ.get("OPENSEARCH_URL", "")
+        short_url = None
+        if dashboards_base:
+            username = os.environ.get("PISCES_USERNAME", "")
+            password = os.environ.get("PISCES_PASSWORD", "")
+            if username and password:
+                short_url = shorten_dashboards_url(
+                    discover_path, dashboards_base, (username, password)
+                )
+
+        long_url = (dashboards_base + discover_path) if dashboards_base else ""
+
+        return jsonify(
+            {
+                "pisces": pisces_url,
+                "dashboards": short_url or long_url,
+                "dashboards_long": long_url,
             }
-        }
-
-        raw = query_opensearch(body, params)
-        buckets = []
-        if raw:
-            buckets = raw.get("aggregations", {}).get("note_types", {}).get("buckets", [])
-
-        return render_template("partials/notice_summary.html", buckets=buckets)
+        )
 
     # ------------------------------------------------------------------
-    # GET /api/suricata/summary  — HTMX: Suricata rule frequency aggregation
+    # GET /api/summary/<log_type>  — HTMX: field-frequency aggregation browse modal
     # ------------------------------------------------------------------
-    @app.route("/api/suricata/summary")
-    def api_suricata_summary():
+    @app.route("/api/summary/<log_type>")
+    def api_summary(log_type: str):
         from src.querier.zeek_modules.base import (
             FILTERS_DIR,
             build_base_query,
@@ -359,9 +392,13 @@ def create_app() -> Flask:
             query_opensearch,
         )
 
-        mod = MODULES["suricata_alert"]
-        search_params = build_search_params_from_request(request)
+        if log_type not in MODULES:
+            abort(404)
+        mod = MODULES[log_type]
+        if not mod.SUMMARY_FIELD:
+            abort(404)
 
+        search_params = build_search_params_from_request(request)
         must_not, _, _ = load_with_remap(FILTERS_DIR)
         sensor_val = search_params.get("sensor", "all")
         sensors = (
@@ -370,8 +407,7 @@ def create_app() -> Flask:
             else None
         )
 
-        extra_must = [{"term": {"event.module": "suricata"}}]
-
+        extra_must, _ = mod.build_extra_must({})
         body, params = build_base_query(
             must_not=must_not,
             extra_must=extra_must,
@@ -383,27 +419,109 @@ def create_app() -> Flask:
             public_only=search_params.get("public_only", False),
             src_ip_filter=search_params.get("src_ip"),
             direction=search_params.get("direction"),
-            min_risk_score=search_params.get("min_risk_score"),
+            time_from=search_params.get("time_from"),
+            time_to=search_params.get("time_to"),
         )
         body["size"] = 0
         body.pop("sort", None)
         body.pop("_source", None)
-        body["aggs"] = {
-            "rule_names": {
-                "terms": {
-                    "field": "rule.name",
-                    "size": 500,
-                    "order": {"_count": "asc"},
+
+        if mod.SUMMARY_TYPE == "grouped":
+            # Prefix-grouped aggregation: extract prefix from rule.name,
+            # with nested severity breakdown and top rules per group.
+            body["aggs"] = {
+                "prefixes": {
+                    "terms": {
+                        "script": {
+                            "source": (
+                                "def n = doc['rule.name'].value;"
+                                "int i = n.indexOf(' ');"
+                                "if (i < 0) return n;"
+                                "int j = n.indexOf(' ', i + 1);"
+                                "if (j < 0) return n.substring(0, i);"
+                                "return n.substring(0, j);"
+                            ),
+                            "lang": "painless",
+                        },
+                        "size": 50,
+                        "order": {"_count": "desc"},
+                    },
+                    "aggs": {
+                        "by_severity": {
+                            "terms": {
+                                "field": "suricata.alert.severity",
+                                "size": 5,
+                            }
+                        },
+                        "top_rules": {
+                            "terms": {
+                                "field": "rule.name",
+                                "size": 10,
+                                "order": {"_count": "desc"},
+                            }
+                        },
+                    },
                 }
             }
-        }
+        else:
+            body["aggs"] = {
+                "items": {
+                    "terms": {
+                        "field": mod.SUMMARY_FIELD,
+                        "size": 500,
+                        "order": {"_count": "asc"},
+                    }
+                }
+            }
 
         raw = query_opensearch(body, params)
+
+        is_inline = request.args.get("inline") == "1"
+
+        if mod.SUMMARY_TYPE == "grouped":
+            groups = []
+            if raw:
+                for b in raw.get("aggregations", {}).get("prefixes", {}).get("buckets", []):
+                    sev_map = {
+                        s["key"]: s["doc_count"]
+                        for s in b.get("by_severity", {}).get("buckets", [])
+                    }
+                    min_sev = min(sev_map.keys()) if sev_map else 3
+                    groups.append(
+                        {
+                            "prefix": b["key"],
+                            "count": b["doc_count"],
+                            "min_severity": min_sev,
+                            "sev": sev_map,
+                            "top_rules": [
+                                {"name": r["key"], "count": r["doc_count"]}
+                                for r in b.get("top_rules", {}).get("buckets", [])
+                            ],
+                        }
+                    )
+            template = (
+                "partials/summary_grouped.html" if is_inline else "partials/summary_grouped.html"
+            )
+            return render_template(
+                template,
+                groups=groups,
+                summary_param=mod.SUMMARY_PARAM,
+            )
+
         buckets = []
         if raw:
-            buckets = raw.get("aggregations", {}).get("rule_names", {}).get("buckets", [])
+            buckets = raw.get("aggregations", {}).get("items", {}).get("buckets", [])
 
-        return render_template("partials/suricata_summary.html", buckets=buckets)
+        template = (
+            "partials/summary_inline.html"
+            if request.args.get("inline") == "1"
+            else "partials/summary_modal.html"
+        )
+        return render_template(
+            template,
+            buckets=buckets,
+            summary_param=mod.SUMMARY_PARAM,
+        )
 
     # ------------------------------------------------------------------
     # GET /api/sensor/summary  — HTMX: sensor activity aggregation
@@ -428,7 +546,8 @@ def create_app() -> Flask:
             public_only=False,
             src_ip_filter=None,
             direction=None,
-            min_risk_score=None,
+            time_from=search_params.get("time_from"),
+            time_to=search_params.get("time_to"),
         )
         body["size"] = 0
         body.pop("sort", None)

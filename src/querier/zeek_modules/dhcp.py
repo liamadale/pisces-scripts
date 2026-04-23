@@ -27,11 +27,11 @@ class DhcpModule(ZeekModule):
         "zeek.dhcp.msg_types",
         "zeek.dhcp.requested_ip",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "network"
+    WEB_ICON = "fa-address-card"
+    EXTRA_PARAMS = ["hostname", "mac", "assigned_ip"]
     WEB_COLUMNS = [
         ("MAC", lambda r: r.get("mac", "—") or "—"),
         ("Hostname", lambda r: r.get("hostname", "—") or "—"),
@@ -50,7 +50,6 @@ class DhcpModule(ZeekModule):
         ("Domain", lambda r: r.get("domain", "—") or "—"),
         ("Lease Time", lambda r: _fmt_dur(r.get("lease_time"))),
         ("Msg Types", lambda r: r.get("msg_types", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -75,8 +74,6 @@ class DhcpModule(ZeekModule):
             "domain": zd.get("domain", ""),
             "lease_time": zd.get("lease_time"),
             "msg_types": msg_types or "",
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

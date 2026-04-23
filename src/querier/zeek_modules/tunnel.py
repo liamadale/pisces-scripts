@@ -18,11 +18,11 @@ class TunnelModule(ZeekModule):
         "zeek.tunnel.action",
         "network.community_id",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "remote"
+    WEB_ICON = "fa-circle-nodes"
+    EXTRA_PARAMS = ["tunnel_type"]
     WEB_COLUMNS = [
         ("Tunnel Type", lambda r: r.get("tunnel_type", "—") or "—"),
         ("Action", lambda r: r.get("action", "—") or "—"),
@@ -36,7 +36,6 @@ class TunnelModule(ZeekModule):
         ("Tunnel Type", lambda r: r.get("tunnel_type", "—")),
         ("Action", lambda r: r.get("action", "—")),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -51,8 +50,6 @@ class TunnelModule(ZeekModule):
             "tunnel_type": zt.get("tunnel_type", ""),
             "action": zt.get("action", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

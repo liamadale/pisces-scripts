@@ -22,7 +22,6 @@ def _terms(field: str, time_range: str, datasets: list, size: int = 20) -> dict:
         public_only=False,
         src_ip_filter=None,
         direction=None,
-        min_risk_score=None,
     )
     body["size"] = 0
     body.pop("sort", None)
@@ -51,7 +50,6 @@ def _sum_terms(
         public_only=False,
         src_ip_filter=None,
         direction=None,
-        min_risk_score=None,
     )
     body["size"] = 0
     body.pop("sort", None)

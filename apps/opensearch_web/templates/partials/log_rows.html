@@ -1,4 +1,3 @@
-{% from "partials/macros.html" import risk_bars %}
 {% for rec in records %}
 {% set idx = loop.index %}
 <tr id="row-{{ idx }}"
@@ -8,7 +7,10 @@
     hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
     onclick="if(!event.target.closest('a')) handleDetailToggle(this)">
   <td class="num">{{ idx }}</td>
-  <td>{{ rec.get('timestamp', '')[:16] if rec.get('timestamp') else '—' }}</td>
+  <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+    <span class="ts-compact">{{ rec.get('timestamp') | fmt_ts }}</span>
+    <span class="ts-full">{{ rec.get('timestamp') | fmt_ts(full=True) }}</span>
+  </td>
   <td>
     {% set sensors = rec.get('sensors') %}
     {% if sensors %}
@@ -42,7 +44,6 @@
   {% for _, fn in web_columns %}
   <td>{{ fn(rec) }}</td>
   {% endfor %}
-  <td class="num">{{ risk_bars(rec) }}</td>
   <td class="num" data-val="{{ rec.get('freq', 1) }}">{{ rec.get('freq', 1) }}</td>
 </tr>
 {% else %}

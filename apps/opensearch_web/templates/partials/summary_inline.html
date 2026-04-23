@@ -1,0 +1,24 @@
+{# Inline aggregation summary — default landing for summary-capable log types.
+   Loaded via hx-trigger="load" into #summary-container.
+   Clicking a row drills into raw hits for that value. #}
+{% if not buckets %}
+<p class="ns-empty">No records in the selected time range.</p>
+{% else %}
+{% set total_docs = buckets | sum(attribute='doc_count') %}
+{% set max_count = buckets[-1].doc_count %}
+<div class="ns-meta">
+  {{ buckets|length }} distinct value(s) · {{ "{:,}".format(total_docs) }} total hit(s) · rarest first
+</div>
+{% for b in buckets %}
+<div class="ns-row" role="button" tabindex="0"
+     onclick='drillDown({{ b.key|tojson }})'
+     onkeydown='if(event.key==="Enter"||event.key===" ")drillDown({{ b.key|tojson }})'>
+  <span class="ns-name">{{ b.key }}</span>
+  <span class="ns-count">{{ "{:,}".format(b.doc_count) }}</span>
+  <span class="ns-bar-wrap">
+    <span class="ns-bar-fill"
+          style="width:{{ (b.doc_count / max_count * 100)|round(1) }}%"></span>
+  </span>
+</div>
+{% endfor %}
+{% endif %}

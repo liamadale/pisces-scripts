@@ -48,8 +48,6 @@ class TestConnModuleParseHit:
             "zeek": {"conn": {"duration": 1.5, "conn_state": "SF"}},
             "event": {
                 "dataset": "conn",
-                "risk_score": 75.0,
-                "risk_score_norm": 80,
             },
         }
         base.update(overrides)
@@ -73,11 +71,6 @@ class TestConnModuleParseHit:
         rec = self.MODULE.parse_hit(self._src())
         assert rec["duration"] == 1.5
         assert rec["conn_state"] == "SF"
-
-    def test_risk_score(self) -> None:
-        rec = self.MODULE.parse_hit(self._src())
-        assert rec["risk_score_norm"] == 80
-        assert rec["risk_score"] == 75.0
 
     def test_bytes(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
@@ -143,8 +136,6 @@ class TestDnsModuleParseHit:
             },
             "event": {
                 "dataset": "dns",
-                "risk_score": None,
-                "risk_score_norm": None,
             },
         }
         base.update(overrides)
@@ -244,7 +235,7 @@ class TestFilesModuleParseHit:
                     "analyzers": ["MD5", "SHA1", "SHA256"],
                 }
             },
-            "event": {"dataset": "files", "risk_score": 90.0, "risk_score_norm": 95},
+            "event": {"dataset": "files"},
         }
         base.update(overrides)
         return base

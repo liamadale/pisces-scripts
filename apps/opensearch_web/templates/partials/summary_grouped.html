@@ -1,0 +1,51 @@
+{# Prefix-grouped aggregation summary for suricata_alert.
+   Shows rule name prefixes (ET EXPLOIT, SURICATA, etc.) with severity color
+   coding and expandable top-rules list. Click a rule to drill into raw hits. #}
+{% if not groups %}
+<p class="ns-empty">No records in the selected time range.</p>
+{% else %}
+{% set total_docs = groups | sum(attribute='count') %}
+{% set max_count = groups[0].count %}
+<div class="ns-meta">
+  {{ groups|length }} prefix group(s) · {{ "{:,}".format(total_docs) }} total hit(s)
+</div>
+{% for g in groups %}
+<div class="ns-group" data-prefix="{{ g.prefix }}">
+  <div class="ns-row ns-group-header" role="button" tabindex="0"
+       onclick="toggleGroup(this)"
+       onkeydown='if(event.key==="Enter"||event.key===" ")toggleGroup(this)'>
+    <span class="ns-name">
+      <span class="sev-dot sev-{{ g.min_severity }}"></span>
+      {{ g.prefix }}
+    </span>
+    <span class="ns-sev-pills">
+      {%- if g.sev.get(1) %}<span class="sev-pill sev-1">{{ "{:,}".format(g.sev[1]) }}</span>{% endif %}
+      {%- if g.sev.get(2) %}<span class="sev-pill sev-2">{{ "{:,}".format(g.sev[2]) }}</span>{% endif %}
+      {%- if g.sev.get(3) %}<span class="sev-pill sev-3">{{ "{:,}".format(g.sev[3]) }}</span>{% endif %}
+    </span>
+    <span class="ns-count">{{ "{:,}".format(g.count) }}</span>
+    <span class="ns-bar-wrap">
+      <span class="ns-bar-fill sev-bar-{{ g.min_severity }}"
+            style="width:{{ (g.count / max_count * 100)|round(1) }}%"></span>
+    </span>
+  </div>
+  <div class="ns-group-rules" style="display:none">
+    {% for r in g.top_rules %}
+    <div class="ns-row ns-rule-row" role="button" tabindex="0"
+         onclick='drillDown({{ r.name|tojson }})'
+         onkeydown='if(event.key==="Enter"||event.key===" ")drillDown({{ r.name|tojson }})'>
+      <span class="ns-name ns-rule-name">{{ r.name }}</span>
+      <span class="ns-count">{{ "{:,}".format(r.count) }}</span>
+    </div>
+    {% endfor %}
+    <div class="ns-row ns-rule-row ns-show-all" role="button" tabindex="0"
+         onclick='drillDown({{ (g.prefix ~ "*")|tojson }})'
+         onkeydown='if(event.key==="Enter"||event.key===" ")drillDown({{ (g.prefix ~ "*")|tojson }})'>
+      <span class="ns-name ns-rule-name" style="font-style:italic">
+        Show all {{ g.prefix }}… rules
+      </span>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}

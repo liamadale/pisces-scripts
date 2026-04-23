@@ -27,11 +27,11 @@ class NtlmModule(ZeekModule):
         "network.community_id",
         "network.direction",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     WEB_CATEGORY = "auth"
+    WEB_ICON = "fa-user-lock"
+    EXTRA_PARAMS = ["username", "domain", "failed_only"]
     WEB_COLUMNS = [
         ("Username", lambda r: r.get("username", "—") or "—"),
         ("Domain", lambda r: r.get("domain", "—") or "—"),
@@ -61,7 +61,6 @@ class NtlmModule(ZeekModule):
         ("Status", lambda r: r.get("status", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -85,8 +84,6 @@ class NtlmModule(ZeekModule):
             "status": zn.get("status", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 

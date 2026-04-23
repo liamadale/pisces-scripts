@@ -254,10 +254,13 @@ filters/signatures/*.yaml
 filters/composite/*.yaml
 filters/ports/*.yaml
 filters/notices/*.yaml
+filters/suricata/*.yaml
 !filters/ips/example-*.yaml
 !filters/signatures/example-*.yaml
 !filters/composite/example-*.yaml
 !filters/ports/example-*.yaml
+!filters/notices/example-*.yaml
+!filters/suricata/example-*.yaml
 reports/
 AGENT.md
 

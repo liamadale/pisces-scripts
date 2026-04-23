@@ -1,12 +1,21 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import risk_bars %}
 {% block title %}PISCES · OpenSearch — {{ log_type }}{% endblock %}
 
 {% block main_class %}table-fill{% endblock %}
 {% block content %}
 <div class="page-header">
   <h1>{{ log_type }}</h1>
-  <span class="count-note" id="row-count">{{ records|length }} unique record(s), {{ records|sum(attribute='freq') }} total</span>
+  <span class="time-window">
+    <i class="fa-regular fa-clock"></i>
+    {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
+  </span>
+  <span class="count-note" id="row-count">
+    {%- if summary_mode -%}
+      aggregation view
+    {%- else -%}
+      {{ records|length }} unique record(s), {{ records|sum(attribute='freq') }} total
+    {%- endif -%}
+  </span>
 </div>
 
 {# Protocol-specific filter form (only shown if the module has extra params) #}
@@ -20,7 +29,6 @@
   <div class="field">
     <label>{{ key.replace('_', ' ').replace(log_type ~ ' ', '') }}</label>
     <input type="text" name="{{ key }}"
-           id="{{ 'notice-note-input' if key == 'notice_note' else ('suricata-rule-input' if key == 'rule_name' else '') }}"
            value="{{ search_params.get(key, '') or '' }}"
            placeholder="any">
   </div>
@@ -28,26 +36,51 @@
   <button type="submit" class="btn btn-primary">
     <i class="fa-solid fa-magnifying-glass"></i> Filter
   </button>
-  {% if log_type == 'notice' %}
+  {% if summary_field and not summary_mode %}
   <button type="button" class="btn"
-          hx-get="/api/notice/summary?{{ request.query_string.decode() }}"
-          hx-target="#notice-modal-body"
+          hx-get="/api/summary/{{ log_type }}?{{ request.query_string.decode() }}"
+          hx-target="#browse-modal-body"
           hx-swap="innerHTML"
-          onclick="openNoticeModal()">
-    <i class="fa-solid fa-chart-bar"></i> Browse Alerts
-  </button>
-  {% endif %}
-  {% if log_type == 'suricata_alert' %}
-  <button type="button" class="btn"
-          hx-get="/api/suricata/summary?{{ request.query_string.decode() }}"
-          hx-target="#suricata-modal-body"
-          hx-swap="innerHTML"
-          onclick="openSuricataModal()">
-    <i class="fa-solid fa-chart-bar"></i> Browse Alerts
+          onclick="openBrowseModal()">
+    <i class="fa-solid fa-chart-bar"></i> Browse
   </button>
   {% endif %}
   <span class="htmx-indicator" id="search-spinner">Searching…</span>
 </form>
+{% endif %}
+
+{# ── Tier 1: Inline aggregation summary (summary-capable modules, no drill-down filter) ── #}
+{% if summary_mode %}
+<div class="table-wrap" id="summary-wrap">
+  <div id="summary-container"
+       hx-get="/api/summary/{{ log_type }}?inline=1&{{ request.query_string.decode() }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <p class="ns-loading">Loading summary…</p>
+  </div>
+</div>
+<div class="pagination-bar" id="summary-pager">
+  <button class="btn" id="sp-prev" onclick="summaryPaginate(-1)" disabled>&laquo; Prev</button>
+  <span id="sp-info"></span>
+  <button class="btn" id="sp-next" onclick="summaryPaginate(1)">Next &raquo;</button>
+  <select id="sp-size" onchange="summarySetPageSize(this.value)">
+    <option value="25" selected>25 / page</option>
+    <option value="50">50 / page</option>
+    <option value="100">100 / page</option>
+  </select>
+</div>
+{% endif %}
+
+{# ── Tier 2: Raw hit table (always present in DOM, hidden when in summary mode) ── #}
+<div id="table-container" {% if summary_mode %}style="display:none"{% endif %}>
+
+{% if summary_mode %}
+<div style="margin: 10px 0 6px">
+  <button class="btn" id="back-to-summary" onclick="backToSummary()" style="display:none">
+    <i class="fa-solid fa-arrow-left"></i> Back to summary
+  </button>
+  <span class="count-note" id="drill-count"></span>
+</div>
 {% endif %}
 
 <div class="table-wrap">
@@ -57,7 +90,6 @@
       <col class="col-ip"><col class="col-port">
       <col class="col-ip"><col class="col-port">
       {% for _ in web_columns %}<col class="col-info">{% endfor %}
-      <col class="col-risk">
       <col class="col-freq">
     </colgroup>
     <thead>
@@ -72,12 +104,13 @@
         {% for header, _ in web_columns %}
         <th class="sortable">{{ header }}</th>
         {% endfor %}
-        <th class="sortable num">Risk</th>
         <th class="sortable num">Freq</th>
       </tr>
     </thead>
     <tbody id="log-tbody">
-      {% include "partials/log_rows.html" %}
+      {% if not summary_mode %}
+        {% include "partials/log_rows.html" %}
+      {% endif %}
     </tbody>
   </table>
 </div>
@@ -96,6 +129,9 @@
     <option value="100">100 / page</option>
   </select>
 </div>
+
+</div>{# /table-container #}
+
 <script>
 (function () {
   var _ps = 25, _page = 1;
@@ -119,12 +155,10 @@
   window.piscesPaginate    = function (dir) { _page += dir; _apply(); };
   window.piscesSetPageSize = function (v)   { _ps = +v; _page = 1; _apply(); };
 
-  // Reset to page 1 whenever HTMX swaps fresh rows into the table body
   document.body.addEventListener('htmx:afterSwap', function (e) {
     if (e.detail.target.id === 'log-tbody') { _page = 1; _apply(); }
   });
 
-  // Reset to page 1 after column sort (sort runs synchronously before timeout fires)
   document.addEventListener('click', function (e) {
     if (e.target.closest('th.sortable')) {
       setTimeout(function () { _page = 1; _apply(); }, 0);
@@ -133,90 +167,106 @@
 
   document.addEventListener('DOMContentLoaded', _apply);
 })();
-</script>
 
-{% if log_type == 'notice' %}
-<div id="notice-modal-backdrop" class="modal-backdrop" onclick="closeNoticeModal()"></div>
-<div id="notice-modal" class="modal-panel" role="dialog" aria-modal="true"
-     aria-label="Alert frequency browser">
-  <div class="modal-header">
-    <span class="modal-title">
-      <i class="fa-solid fa-chart-bar"></i> Alert Browser
-    </span>
-    <button class="btn-icon" onclick="closeNoticeModal()" title="Close">
-      <i class="fa-solid fa-xmark"></i>
-    </button>
-  </div>
-  <div class="modal-body" id="notice-modal-body">
-  </div>
-</div>
+{% if summary_mode %}
+{# Drill-down: click a summary row → load raw hits into the table #}
+function toggleGroup(el) {
+  var rules = el.closest('.ns-group').querySelector('.ns-group-rules');
+  rules.style.display = rules.style.display === 'none' ? '' : 'none';
+}
 
-<script>
-function openNoticeModal() {
-  document.getElementById("notice-modal-body").innerHTML = '<p class="ns-loading">Loading\u2026</p>';
-  document.getElementById("notice-modal").classList.add("open");
-  document.getElementById("notice-modal-backdrop").classList.add("open");
-}
-function closeNoticeModal() {
-  document.getElementById("notice-modal").classList.remove("open");
-  document.getElementById("notice-modal-backdrop").classList.remove("open");
-}
-function applyNoticeFilter(noteType) {
-  var inp = document.getElementById("notice-note-input");
-  if (inp) inp.value = noteType;
-  closeNoticeModal();
+function drillDown(value) {
   var qs = new URLSearchParams(window.location.search);
-  qs.set("notice_note", noteType);
+  qs.set("{{ summary_param }}", value);
+  document.getElementById("summary-wrap").style.display = "none";
+  document.getElementById("summary-pager").style.display = "none";
+  document.getElementById("table-container").style.display = "";
+  document.getElementById("back-to-summary").style.display = "";
+  var inp = document.querySelector('input[name="{{ summary_param }}"]');
+  if (inp) inp.value = value;
+  document.getElementById("drill-count").textContent = "Filtering: " + value;
   htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
     target: "#log-tbody",
     swap: "innerHTML",
   });
 }
-document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") closeNoticeModal();
-});
-</script>
+
+function backToSummary() {
+  document.getElementById("table-container").style.display = "none";
+  document.getElementById("summary-wrap").style.display = "";
+  document.getElementById("summary-pager").style.display = "";
+  var inp = document.querySelector('input[name="{{ summary_param }}"]');
+  if (inp) inp.value = "";
+  document.getElementById("row-count").textContent = "aggregation view";
+}
+
+/* Summary-view pagination */
+(function () {
+  var _sps = 25, _sp = 1;
+  function _applyS() {
+    var groups = document.querySelectorAll('#summary-container .ns-group');
+    var rows = groups.length
+      ? Array.from(groups)
+      : Array.from(document.querySelectorAll('#summary-container > .ns-row'));
+    var total = rows.length;
+    var start = (_sp - 1) * _sps;
+    rows.forEach(function (r, i) {
+      r.style.display = (i >= start && i < start + _sps) ? '' : 'none';
+    });
+    document.getElementById('sp-prev').disabled = (_sp === 1);
+    document.getElementById('sp-next').disabled = (start + _sps >= total);
+    var end = Math.min(start + _sps, total);
+    document.getElementById('sp-info').textContent =
+      total ? (start + 1) + '\u2013' + end + ' of ' + total : '';
+  }
+  window.summaryPaginate    = function (dir) { _sp += dir; _applyS(); };
+  window.summarySetPageSize = function (v)   { _sps = +v; _sp = 1; _applyS(); };
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.detail.target.id === 'summary-container') { _sp = 1; _applyS(); }
+  });
+})();
 {% endif %}
+</script>
 
-{% if log_type == 'suricata_alert' %}
-<div id="suricata-modal-backdrop" class="modal-backdrop" onclick="closeSuricataModal()"></div>
-<div id="suricata-modal" class="modal-panel" role="dialog" aria-modal="true"
-     aria-label="Suricata alert frequency browser">
+{% if summary_field and not summary_mode %}
+<div id="browse-modal-backdrop" class="modal-backdrop" onclick="closeBrowseModal()"></div>
+<div id="browse-modal" class="modal-panel" role="dialog" aria-modal="true"
+     aria-label="Field frequency browser">
   <div class="modal-header">
     <span class="modal-title">
-      <i class="fa-solid fa-chart-bar"></i> Suricata Alert Browser
+      <i class="fa-solid fa-chart-bar"></i> Browse
     </span>
-    <button class="btn-icon" onclick="closeSuricataModal()" title="Close">
+    <button class="btn-icon" onclick="closeBrowseModal()" title="Close">
       <i class="fa-solid fa-xmark"></i>
     </button>
   </div>
-  <div class="modal-body" id="suricata-modal-body">
+  <div class="modal-body" id="browse-modal-body">
   </div>
 </div>
 
 <script>
-function openSuricataModal() {
-  document.getElementById("suricata-modal-body").innerHTML = '<p class="ns-loading">Loading\u2026</p>';
-  document.getElementById("suricata-modal").classList.add("open");
-  document.getElementById("suricata-modal-backdrop").classList.add("open");
+function openBrowseModal() {
+  document.getElementById("browse-modal-body").innerHTML = '<p class="ns-loading">Loading\u2026</p>';
+  document.getElementById("browse-modal").classList.add("open");
+  document.getElementById("browse-modal-backdrop").classList.add("open");
 }
-function closeSuricataModal() {
-  document.getElementById("suricata-modal").classList.remove("open");
-  document.getElementById("suricata-modal-backdrop").classList.remove("open");
+function closeBrowseModal() {
+  document.getElementById("browse-modal").classList.remove("open");
+  document.getElementById("browse-modal-backdrop").classList.remove("open");
 }
-function applySuricataFilter(ruleName) {
-  var inp = document.getElementById("suricata-rule-input");
-  if (inp) inp.value = ruleName;
-  closeSuricataModal();
+function applyBrowseFilter(value) {
+  var inp = document.querySelector('input[name="{{ summary_param }}"]');
+  if (inp) inp.value = value;
+  closeBrowseModal();
   var qs = new URLSearchParams(window.location.search);
-  qs.set("rule_name", ruleName);
+  qs.set("{{ summary_param }}", value);
   htmx.ajax("POST", "/api/search/{{ log_type }}?" + qs.toString(), {
     target: "#log-tbody",
     swap: "innerHTML",
   });
 }
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") closeSuricataModal();
+  if (e.key === "Escape") closeBrowseModal();
 });
 </script>
 {% endif %}

@@ -1,8 +1,11 @@
 <div class="detail-panel-header">
   <div class="detail-panel-title">
     <span class="title-log-type"><i class="fa-solid fa-file-lines"></i> {{ log_type }} #{{ idx }}</span>
-    <span class="title-timestamp">
-      {{ record.get('timestamp', '')[:19].replace('T', ' ') if record.get('timestamp') else '' }}
+    <span class="title-timestamp ts-cell"
+          data-iso="{{ record.get('timestamp', '') }}"
+          onclick="copyTimestamp(this)"
+          title="Click to copy">
+      {{ record.get('timestamp') | fmt_ts(full=True) }} UTC
     </span>
   </div>
   <button class="btn-icon" onclick="closeDetailPanel()" title="Close">

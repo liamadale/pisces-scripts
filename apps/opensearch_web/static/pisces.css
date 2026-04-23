@@ -268,7 +268,6 @@ a:hover { text-decoration: underline; }
 .sidebar-group[data-category="messaging"]   { --cat-color: var(--purple);    }
 .sidebar-group[data-category="files"]       { --cat-color: var(--green);     }
 .sidebar-group[data-category="ot"]          { --cat-color: var(--orange);    }
-.sidebar-group[data-category="diagnostic"]  { --cat-color: var(--on-surface-dim); }
 
 .group-hdr {
   display: flex;
@@ -397,7 +396,6 @@ a:hover { text-decoration: underline; }
 .col-group-label.cat-messaging   { color: var(--purple);         box-shadow: inset 0 -4px 0 var(--purple);         }
 .col-group-label.cat-files       { color: var(--green);          box-shadow: inset 0 -4px 0 var(--green);          }
 .col-group-label.cat-ot          { color: var(--orange);         box-shadow: inset 0 -4px 0 var(--orange);         }
-.col-group-label.cat-diagnostic  { color: var(--on-surface-dim); box-shadow: inset 0 -4px 0 var(--on-surface-dim); }
 
 /* Protocol sub-header bottom accent — replaces the outline bottom border,
    creates a second colored bar at the base of the sticky header section */
@@ -409,7 +407,6 @@ a:hover { text-decoration: underline; }
 .thead-protocols .col-group-messaging   { border-bottom: 3px solid var(--purple);         }
 .thead-protocols .col-group-files       { border-bottom: 3px solid var(--green);          }
 .thead-protocols .col-group-ot          { border-bottom: 3px solid var(--orange);         }
-.thead-protocols .col-group-diagnostic  { border-bottom: 3px solid var(--on-surface-dim); }
 
 /* IP Address column — sticky to the left edge */
 .col-ip-addr {
@@ -510,6 +507,20 @@ main.table-fill {
   flex-direction: column;
 }
 main.table-fill > .table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* #table-container wraps .table-wrap + .pagination-bar in log_view —
+   make it fill remaining space so the pagination bar stays on-screen */
+main.table-fill #table-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+main.table-fill #table-container > .table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -672,17 +683,8 @@ tbody td:last-child { border-right: 1px solid var(--outline); }
 .col-port   { min-width: 60px; }
 .col-info   { min-width: 140px; }
 .col-bytes  { min-width: 64px; }
-.col-risk   { min-width: 50px; }
 .col-freq   { min-width: 52px; }
 .col-detail { min-width: 44px; }
-
-/* Risk bar visual (3-block tier indicator) */
-.risk-bar  { display: inline-flex; gap: 2px; align-items: center; }
-.rb        { width: 8px; height: 12px; border-radius: 2px; }
-.rb-low    { background: var(--green); }
-.rb-med    { background: var(--yellow); }
-.rb-high   { background: var(--red); }
-.rb-off    { background: var(--surface-container-high); border: 1px solid var(--outline); }
 
 thead th {
   position: sticky;
@@ -1190,7 +1192,7 @@ tr.detail-row td {
   border-top: 1px solid var(--outline);
 }
 
-#pager-info {
+#pager-info, #sp-info {
   min-width: 12ch;
   text-align: center;
 }
@@ -1312,6 +1314,44 @@ tr.detail-row td {
 }
 .ns-row:hover .ns-bar-fill { opacity: 1; }
 
+
+/* Severity color indicators (grouped summary) */
+.sev-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.sev-dot.sev-1 { background: var(--red); }
+.sev-dot.sev-2 { background: var(--yellow); }
+.sev-dot.sev-3 { background: var(--on-surface-dim); }
+
+.sev-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.sev-pill.sev-1 { background: var(--badge-red-bg); color: var(--red); }
+.sev-pill.sev-2 { background: var(--badge-yellow-bg); color: var(--yellow); }
+.sev-pill.sev-3 { background: var(--badge-gray-bg); color: var(--on-surface-dim); }
+
+.ns-sev-pills { white-space: nowrap; }
+
+.sev-bar-1 { background: var(--red); }
+.sev-bar-2 { background: var(--yellow); }
+.sev-bar-3 { background: var(--on-surface-dim); }
+
+/* Grouped summary: nested rule rows */
+.ns-group-rules { padding-left: 20px; }
+.ns-rule-row { font-size: 0.78rem; padding: 4px 14px; }
+.ns-rule-name { color: var(--on-surface-dim); }
+.ns-rule-row:hover .ns-rule-name { color: var(--primary); }
+.ns-show-all { opacity: 0.7; }
+.ns-group-header { font-weight: 500; }
 
 /* ── 10b. Sensor Summary Modal ────────────────────────── */
 .ss-meta {
@@ -1449,6 +1489,71 @@ tr.detail-row td {
 .count-note {
   font-size: 0.8rem;
   color: var(--on-surface-dim);
+}
+
+/* Time window display in page headers */
+.time-window {
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+  font-family: var(--mono);
+  margin-left: 0.25rem;
+}
+
+/* Timestamp cells — compact/full toggle + click-to-copy */
+.ts-cell { cursor: pointer; }
+.ts-cell:hover { text-decoration: underline dotted; }
+.ts-full { display: none; }
+.ts-full-mode .ts-compact { display: none; }
+.ts-full-mode .ts-full { display: inline; }
+.ts-copied { background: var(--primary-container); transition: background 0.15s; }
+
+/* Share dropdown */
+.share-wrapper { position: relative; }
+.share-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.share-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--on-surface);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+.share-dropdown button:hover { background: var(--surface-container-high); }
+.share-dropdown button i { width: 16px; text-align: center; }
+
+/* Toast notification */
+.share-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: var(--on-primary);
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  z-index: 9999;
+  animation: toast-fade 2s ease forwards;
+}
+@keyframes toast-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Checkbox */

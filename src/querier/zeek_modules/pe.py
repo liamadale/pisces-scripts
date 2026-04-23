@@ -33,8 +33,6 @@ class PEModule(ZeekModule):
         "zeek.pe.has_debug_data",
         "zeek.pe.section_names",
         "event.dataset",
-        "event.risk_score",
-        "event.risk_score_norm",
     ]
 
     # PE records have no IP addresses — metadata-only module.
@@ -43,6 +41,8 @@ class PEModule(ZeekModule):
     SUPPORTS_FP = True
 
     WEB_CATEGORY = "files"
+    WEB_ICON = "fa-file-code"
+    EXTRA_PARAMS = ["no_aslr", "no_dep", "only_32bit"]
     WEB_COLUMNS = [
         ("OS", lambda r: r.get("os", "—") or "—"),
         ("Subsystem", lambda r: r.get("subsystem", "—") or "—"),
@@ -117,7 +117,6 @@ class PEModule(ZeekModule):
             ),
         ),
         ("Sections", lambda r: ", ".join(r.get("section_names") or []) or "—"),
-        ("Risk Score", lambda r: str(r.get("risk_score")) if r.get("risk_score") else "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
     ]
 
@@ -188,8 +187,6 @@ class PEModule(ZeekModule):
             "has_export_table": zp.get("has_export_table"),
             "has_debug_data": zp.get("has_debug_data"),
             "section_names": section_names or [],
-            "risk_score": src.get("event", {}).get("risk_score"),
-            "risk_score_norm": src.get("event", {}).get("risk_score_norm"),
             "_raw": src,
         }
 
