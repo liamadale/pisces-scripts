@@ -157,13 +157,13 @@ def test_build_base_query_sensor_filter() -> None:
         source_fields=[],
         limit=10,
         time_range="now-1h",
-        sensors=["hedgehog-bonney-lake"],
+        sensors=["hedgehog-example"],
         datasets=["conn"],
     )
     must = body["query"]["bool"]["must"]
     sensor_clause = next((c for c in must if "terms" in c and "host.name" in c["terms"]), None)
     assert sensor_clause is not None
-    assert "hedgehog-bonney-lake" in sensor_clause["terms"]["host.name"]
+    assert "hedgehog-example" in sensor_clause["terms"]["host.name"]
 
 
 def test_build_base_query_src_ip_filter() -> None:

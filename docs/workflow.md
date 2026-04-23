@@ -1,145 +1,123 @@
-# Analyst Workflow
+# Analyst Workflow — Web UI
 
-A typical session from launch to resolution using the Malcolm/Zeek OpenSearch querier.
+A typical triage session using the OpenSearch web app from launch to resolution.
+
+For the terminal-based querier workflow, see [cli-workflow.md](cli-workflow.md).
 
 ---
 
-## Malcolm/Zeek Workflow (`opensearch_querier.py`)
+## 1. Launch and open the overview
 
-### 1. Launch the querier
+Start the web UI if it isn't already running:
 
 ```bash
-.venv/bin/python src/querier/opensearch_querier.py --log-type conn --public-only --time-range now-24h
+uv run run_all.py
 ```
 
-Common flags:
+Open **http://localhost:5000** and navigate to **OpenSearch**. The overview page shows
+a cross-protocol IP activity matrix — every source IP seen in the selected time window,
+with hit counts across all log type categories (alerts, network, web, remote access,
+auth, messaging, and file activity).
 
-| Flag | Default | Purpose |
-|---|---|---|
-| `--log-type` | required | Protocol log: conn, dns, http, ssl, smtp, rdp, smb, ssh, notice, weird |
-| `--time-range` | `now-24h` | OpenSearch date-math range |
-| `--sensor` | `all` | Comma-separated sensor hostname(s) |
-| `--public-only` | off | Exclude RFC 1918 source IPs |
-| `--src-ip` | — | Filter to a specific source IP |
-| `--limit` | `100` | Max raw hits before deduplication |
+Use the search bar at the top to scope the view:
 
-The tool loads all enabled YAML filters, queries Malcolm's OpenSearch index, deduplicates by the module's key, and prints a protocol-specific table.
-
----
-
-## 2. Select an alert
-
-At the action prompt, enter the alert number:
-
-```
-Action — enter alert # / [r]e-search / [p]rint (CTRL+C to exit):
-  > 2
-```
-
-Then choose an action:
-
-```
-Alert #2: ET TROJAN Meterpreter | 103.14.8.22
-  [e]nrich  [f]alse positive  [m]antis search  [s]kip
-  Action:
-```
-
----
-
-## 3. Actions
-
-### `[e]` Enrich
-
-Runs the full threat intelligence pipeline:
-
-1. **GreyNoise** — classification (benign / malicious / not found), name, reason
-   - If **benign**: offer to create an FP filter, print reference URLs, stop
-2. **AbuseIPDB** — confidence score, report count, ISP, domain, usage type
-3. **Shodan** — open ports, OS, org, CVEs
-4. **VirusTotal** — vendor detection count breakdown
-5. **Reference URLs** — always printed for manual review
-
-```
-GreyNoise — 103.14.8.22
-  Classification   malicious
-  Name             TOR Exit Node
-
-AbuseIPDB — 103.14.8.22
-  Confidence Score  94%
-  Total Reports     512
-  ISP               Frantech Solutions
-  Usage Type        Data Center/Web Hosting/Transit
-
-Shodan — 103.14.8.22
-  Org          Frantech Solutions
-  Open Ports   22, 80, 443, 9001, 9030
-  Vulns        CVE-2023-38545
-
-VirusTotal — 103.14.8.22
-  Malicious    18
-  Suspicious   2
-  Harmless     51
-
-Reference Links
-  GreyNoise    https://viz.greynoise.io/ip/103.14.8.22
-  AbuseIPDB    https://www.abuseipdb.com/check/103.14.8.22
-  Shodan       https://www.shodan.io/search?query=103.14.8.22
-  VirusTotal   https://www.virustotal.com/gui/ip-address/103.14.8.22
-```
-
-### `[f]` False Positive Filter
-
-Opens the interactive filter creator, pre-seeded with the alert's IP and metadata. Prompts for:
-- Category and subcategory
-- Clause type (`term`, `match_phrase`, `bool`, etc.)
-- Optional comment (auto-suggested from GreyNoise enrichment if already run)
-
-The filter is written to the appropriate YAML file immediately. The next `[r]`e-search will pick it up without restarting.
-
-### `[m]` Mantis Search
-
-Searches MantisBT for existing tickets matching the alert's public IPs. Private/RFC 1918 addresses are skipped automatically. Results show ticket ID, summary, status, and last-updated date.
-
-### `[s]` Skip
-
-No action taken. Returns to the prompt. The last-alert hint will not update.
-
----
-
-## 4. Prompt navigation
-
-| Input | Effect |
+| Control | Purpose |
 |---|---|
-| `<number>` | Select alert by row number |
-| `r` | Re-search with new or modified parameters (reloads filters from disk) |
-| `p` | Reprint the table without re-querying |
-| `CTRL+C` | Confirm-exit prompt (press again to quit, Enter to continue) |
+| **Time** | Time window to query (last 1h, 6h, 24h, 7d, etc.) |
+| **Sensor** | Filter to one or more sensors, or browse active sensors with the list button |
+| **Src IP** | Narrow to a specific source IP |
+| **Direction** | Filter by traffic direction: inbound, outbound, internal, external |
+| **Public only** | Check to exclude RFC 1918 / private addresses from results |
+| **Limit** | Maximum number of raw records to fetch before deduplication |
 
-The dim hint above each prompt shows the last alert you acted on:
-
-```
-↩  Last: #2 ET TROJAN Meterpreter | 103.14.8.22
-
-Action — enter alert # / [r]e-search / [p]rint (CTRL+C to exit):
-  >
-```
+Click any column header to sort. The **TOTAL** column sorts by overall activity across
+all log types.
 
 ---
 
-## 5. Typical session patterns
+## 2. Investigate an IP
 
-### Mid-session filter a recurring noisy scanner
+**Click a count cell** to go directly to the log view for that IP and protocol — e.g.
+clicking the `conn` count for an IP opens the connection log filtered to that IP.
+
+**Click an IP address** to open the IP pivot view — all protocol records for that
+address stacked in one page. From here:
+
+- Click **Enrich** (public IPs) to run the full threat intelligence pipeline — GreyNoise,
+  AbuseIPDB, Shodan, and VirusTotal results appear inline with reference links
+- Click **Profile Device** (private/RFC 1918 IPs) to generate a device activity profile
+- Click **Full view** on any protocol section to open the full log view for that protocol
+
+---
+
+## 3. Inspect a record
+
+In any table — overview, IP pivot, or log view — **click a row** to open the record
+detail panel on the right. The panel shows:
+
+- **Field details** — protocol-specific key-value breakdown for the record
+- **Create FP Filter** — opens an inline form to suppress this IP. Select a category
+  and subcategory, optionally add a comment, and submit. The filter is written
+  immediately and will take effect on the next search
+- **Mantis Tickets** — buttons to search for existing tickets by source IP, destination
+  IP, or alert signature. Results appear inline without leaving the page
+- **Enrich / Profile Device** — per-IP threat intelligence or device profile, one button
+  each for source and destination
+
+Click the same row again or press **Escape** to close the panel.
+
+---
+
+## 4. Drill into a protocol
+
+Use the left sidebar to jump to any protocol log directly. Some protocol views open in
+**summary mode** first — for example, alerts show rule name groups by frequency before
+you drill into individual records. Click a summary item to filter to those records.
+
+The search bar persists across pages — your time range, sensor, and IP filter carry
+over when you navigate between views.
+
+---
+
+## 5. Share a view
+
+The share button in the search bar generates shareable links:
+
+- **Copy PISCES link** — a URL that opens this exact view (time range, sensor, IP
+  filter, protocol) in PISCES for another analyst
+- **Copy Dashboards link** — a shortened link to the equivalent view in Malcolm
+  OpenSearch Dashboards
+- **Open in Dashboards** — opens the Dashboards view directly in a new tab
+
+---
+
+## Typical session patterns
+
+### Spot and suppress a noisy scanner
 
 ```
-> 7  →  [e]  →  GreyNoise: benign, Censys
-       →  [f]  →  category: ips / known_scanners
-                  comment: Censys (auto-suggested)
-> r  →  re-search — alert #7 is gone
+Overview → IP with high conn count → click IP → Enrich
+  GreyNoise: benign, Censys → click a conn row → Create FP Filter
+  category: ips / known_scanners, comment: Censys
+Search again → IP is gone
 ```
 
-### Check for an existing ticket
+### Check for an existing ticket before triaging
 
 ```
-> 4  →  [m]  →  Mantis results show open ticket #1842
-       →  [s]  →  skip, ticket already exists
+Click a row → detail panel → Mantis Tickets → click src IP button
+  Existing ticket found → review admin note verdict → close panel
+```
+
+### Investigate a specific sensor's traffic
+
+```
+Search bar: Sensor → browse modal → select hedgehog-example-city → Search
+Overview now scoped to that sensor's source IPs only
+```
+
+### Share a filtered view with another analyst
+
+```
+Set time range, sensor, Src IP → Share button → Copy PISCES link → paste in chat
 ```

@@ -36,7 +36,7 @@ class TestConnModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "198.51.100.1", "port": 54321, "bytes": 1024},
             "destination": {"ip": "203.0.113.5", "port": 443, "bytes": 512},
             "network": {
@@ -65,7 +65,7 @@ class TestConnModuleParseHit:
     def test_timestamp_and_sensor(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
         assert rec["timestamp"] == "2024-06-01T12:00:00Z"
-        assert rec["sensor"] == "hedgehog-bonney-lake"
+        assert rec["sensor"] == "hedgehog-example"
 
     def test_zeek_conn_fields(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
@@ -117,7 +117,7 @@ class TestDnsModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:05:00Z",
-            "host": {"name": "hedgehog-puyallup"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "192.168.1.100", "port": 53421},
             "destination": {"ip": "8.8.8.8", "port": 53},
             "network": {
@@ -130,7 +130,7 @@ class TestDnsModuleParseHit:
                     "query": "example.com",
                     "qtype_name": "A",
                     "rcode_name": "NOERROR",
-                    "answers": ["93.184.216.34"],
+                    "answers": ["198.51.100.34"],
                     "rtt": 0.005,
                 }
             },
@@ -155,7 +155,7 @@ class TestDnsModuleParseHit:
 
     def test_answers_list_joined(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
-        assert rec["answers"] == "93.184.216.34"
+        assert rec["answers"] == "198.51.100.34"
 
     def test_answers_multiple_joined(self) -> None:
         src = self._src()
@@ -218,7 +218,7 @@ class TestFilesModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "zeek": {
                 "files": {
                     "fuid": "FiD1234",
@@ -339,7 +339,7 @@ class TestX509ModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "destination": {"port": 443},
             "zeek": {
                 "x509": {
@@ -430,7 +430,7 @@ class TestDhcpModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "0.0.0.0"},
             "destination": {"ip": "255.255.255.255"},
             "zeek": {
@@ -502,7 +502,7 @@ class TestKerberosModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "192.168.1.10", "port": 51234},
             "destination": {"ip": "10.0.0.1", "port": 88},
             "zeek": {
@@ -569,7 +569,7 @@ class TestNtlmModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "192.168.1.20", "port": 55001},
             "destination": {"ip": "10.0.0.5", "port": 445},
             "zeek": {
@@ -635,7 +635,7 @@ class TestFtpModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "192.168.1.30", "port": 60001},
             "destination": {"ip": "198.51.100.10", "port": 21},
             "zeek": {
@@ -713,7 +713,7 @@ class TestRadiusModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "10.0.0.100", "port": 1812},
             "destination": {"ip": "10.0.0.1", "port": 1812},
             "zeek": {
@@ -787,7 +787,7 @@ class TestSipModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "192.168.1.10", "port": 5060},
             "destination": {"ip": "192.168.1.20", "port": 5060},
             "zeek": {
@@ -862,7 +862,7 @@ class TestTunnelModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "10.0.0.5"},
             "destination": {"ip": "203.0.113.10"},
             "zeek": {
@@ -920,7 +920,7 @@ class TestNtpModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "10.0.0.5", "port": 55000},
             "destination": {"ip": "203.0.113.1", "port": 123},
             "zeek": {
@@ -1129,7 +1129,7 @@ class TestPEModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "zeek": {
                 "pe": {
                     "client": "FcXjAm2wbsGBSqhv7d",
@@ -1253,7 +1253,7 @@ class TestCaptureLossModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "zeek": {
                 "capture_loss": {
                     "ts_delta": 300.0,
@@ -1278,13 +1278,13 @@ class TestCaptureLossModuleParseHit:
 
     def test_sensor(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
-        assert rec["sensor"] == "hedgehog-bonney-lake"
+        assert rec["sensor"] == "hedgehog-example"
         assert rec["timestamp"] == "2024-06-01T12:00:00Z"
 
     def test_dedup_key(self) -> None:
         rec = self.MODULE.parse_hit(self._src())
         key = self.MODULE.dedup_key(rec)
-        assert "hedgehog-bonney-lake" in key
+        assert "hedgehog-example" in key
         assert "bro" in key
 
     def test_missing_zeek_block(self) -> None:
@@ -1318,7 +1318,7 @@ class TestDpdModuleParseHit:
     def _src(self, **overrides: object) -> dict:
         base: dict = {
             "@timestamp": "2024-06-01T12:00:00Z",
-            "host": {"name": "hedgehog-bonney-lake"},
+            "host": {"name": "hedgehog-example"},
             "source": {"ip": "198.51.100.1", "port": 54321},
             "destination": {"ip": "203.0.113.5", "port": 443},
             "zeek": {

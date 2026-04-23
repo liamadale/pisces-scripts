@@ -51,7 +51,7 @@ class TestIsNegated:
 
     def test_contrastive_clause(self) -> None:
         """Second clause is affirmative — should return False."""
-        text = "these are not a threat; however, 104.219.238.86 appears to have malicious history"
+        text = "these are not a threat; however, 198.51.100.86 appears to have malicious history"
         assert is_negated(text, "malicious") is False
 
     def test_cannot(self) -> None:
@@ -88,9 +88,9 @@ class TestIsNegated:
 
     def test_real_admin_note_mixed(self) -> None:
         text = (
-            "100.27.42.242, 100.27.42.243 all appear to be "
+            "203.0.113.242, 203.0.113.243 all appear to be "
             "CISA hygiene scans that are not a threat; however, "
-            "104.219.238.86 appears to have malicious history "
+            "198.51.100.86 appears to have malicious history "
             "and the alerts seem to warrant escalation"
         )
         assert is_negated(text, "malicious") is False
@@ -121,13 +121,13 @@ class TestExtractIpRoles:
     def test_from_to_pattern(self) -> None:
         roles = extract_ip_roles(
             "Traffic originated from internal host "
-            "192.168.10.135 to external IP 151.101.1.1 "
+            "192.168.10.135 to external IP 203.0.113.1 "
             "over port 443"
         )
         assert roles is not None
         by_ip = {r.ip: r.role for r in roles}
         assert by_ip["192.168.10.135"] == "source"
-        assert by_ip["151.101.1.1"] == "dest"
+        assert by_ip["203.0.113.1"] == "dest"
 
     def test_attacker_scanned(self) -> None:
         roles = extract_ip_roles("An attacker at 10.0.0.1 scanned 192.168.1.1")
@@ -137,10 +137,10 @@ class TestExtractIpRoles:
         assert by_ip["192.168.1.1"] == "dest"
 
     def test_compound_labels(self) -> None:
-        roles = extract_ip_roles("source IP 78.153.140.0 sent traffic to destination 10.10.3.39")
+        roles = extract_ip_roles("source IP 198.51.100.0 sent traffic to destination 10.10.3.39")
         assert roles is not None
         by_ip = {r.ip: r.role for r in roles}
-        assert by_ip["78.153.140.0"] == "source"
+        assert by_ip["198.51.100.0"] == "source"
         assert by_ip["10.10.3.39"] == "dest"
 
     def test_passive_voice(self) -> None:

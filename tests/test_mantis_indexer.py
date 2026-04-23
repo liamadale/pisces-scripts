@@ -51,8 +51,8 @@ def test_extract_ips_deduplicates() -> None:
 
 def test_extract_ips_cidr_extracts_host() -> None:
     """CIDR notation — only the host portion is extracted."""
-    result = _extract_ips(["src: 78.153.140.0/24"])
-    assert "78.153.140.0" in result
+    result = _extract_ips(["src: 198.51.100.0/24"])
+    assert "198.51.100.0" in result
 
 
 # ---------------------------------------------------------------------------
@@ -86,19 +86,19 @@ def test_classify_roles_verbose_source_dest() -> None:
 
 def test_classify_roles_abbreviated_src_ip() -> None:
     """src_ip: format (Kibana/Suricata template) must be recognised."""
-    texts = ["src_ip: 65.49.1.163\ndest_ip: 10.0.0.5"]
-    src, dest, unknown = _classify_ip_roles(texts, ["65.49.1.163", "10.0.0.5"])
-    assert src == ["65.49.1.163"]
+    texts = ["src_ip: 198.51.100.163\ndest_ip: 10.0.0.5"]
+    src, dest, unknown = _classify_ip_roles(texts, ["198.51.100.163", "10.0.0.5"])
+    assert src == ["198.51.100.163"]
     assert dest == ["10.0.0.5"]
     assert unknown == []
 
 
 def test_classify_roles_abbreviated_src_space() -> None:
     """'src IP:' (space separator) must be recognised."""
-    texts = ["src IP:  10.0.0.61\ndest IP: 18.65.226.136"]
-    src, dest, unknown = _classify_ip_roles(texts, ["10.0.0.61", "18.65.226.136"])
+    texts = ["src IP:  10.0.0.61\ndest IP: 203.0.113.136"]
+    src, dest, unknown = _classify_ip_roles(texts, ["10.0.0.61", "203.0.113.136"])
     assert "10.0.0.61" in src
-    assert "18.65.226.136" in dest
+    assert "203.0.113.136" in dest
 
 
 def test_classify_roles_no_labels_all_unknown() -> None:
