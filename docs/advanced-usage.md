@@ -56,20 +56,23 @@ uv run src/querier/fp_manager.py --validate
 
 See [filter-schema.md](filter-schema.md) for the full schema and authoring guide.
 
-## Mantis Index
+## Mantis Index and Threat Model
 
 Rebuild the local ticket index at the start of each shift (or via cron):
 
 ```bash
-uv run src/mantis/mantis_index.py                        # full index
-uv run src/mantis/mantis_index.py --max-pages 3          # smoke test (~150 tickets)
-uv run src/mantis/mantis_index.py --from-index --classify-stats  # reprocess without API fetch
+uv run src/mantis/mantis_index.py                # full index
+uv run src/mantis/mantis_index.py --max-pages 3  # smoke test (~150 tickets)
+uv run src/mantis/mantis_index.py --from-index   # reprocess without API fetch
 ```
 
-With the ML classifier (requires `uv sync --extra ml`):
+Then run the threat model generator to rebuild the IP registries:
 
 ```bash
-uv run src/mantis/mantis_index.py --from-index --retrain --use-ml
+uv run src/mantis/mantis_threat_model.py                  # build registries
+uv run src/mantis/mantis_threat_model.py --classify-stats # with classification breakdown
+uv run src/mantis/mantis_threat_model.py --enrich         # + live API enrichment for undetermined IPs
 ```
 
-See [mantis.md](mantis.md) for full documentation on indexing, classification, and FP candidate generation.
+See [mantis.md](mantis.md) for indexing and search reference, and
+[mantis-threat-model.md](mantis-threat-model.md) for the full threat model flag reference.

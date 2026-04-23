@@ -1,6 +1,12 @@
 # Filter Schema
 
-Filters are YAML files that map directly to Elasticsearch DSL `must_not` clauses. The filter loader merges all enabled files into the query at runtime, suppressing matching events before results are returned.
+> **For most analysts:** the easiest way to create a filter is interactively from the
+> web UI ("Create FP Filter" in any record detail panel) or the CLI (`[f]` action on
+> any alert). Both pre-fill the IP and metadata for you. This reference doc covers the
+> underlying YAML format for anyone authoring or editing filters directly.
+
+Filters are YAML files that suppress matching traffic before results are returned. The
+filter loader merges all enabled files into every query at runtime.
 
 ## File Header
 

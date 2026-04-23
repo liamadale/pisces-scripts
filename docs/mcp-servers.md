@@ -15,15 +15,14 @@ duplicated from the source modules.
 ## Prerequisites
 
 ```bash
-# Activate the project virtualenv
-source .venv/bin/activate
-
 # Install project + MCP dependencies
-pip install -r requirements.txt -r mcp/requirements.txt
+uv sync --extra mcp
 
-# Copy the example env file and fill in credentials
+# Copy the example env file and fill in credentials (if not already done)
 cp .env.example .env
 ```
+
+New here? See [getting-started-mcp.md](getting-started-mcp.md) for a setup walkthrough.
 
 Credentials required by each server:
 
@@ -64,16 +63,16 @@ in `.env` you can omit the inline env prefix.
 
 ---
 
-## Connecting a client (Claude Desktop / Claude Code / kiro-cli)
+## Connecting a client
 
-Add each server to your MCP client configuration.  The exact file location varies by client:
+Add each server to your MCP client configuration. All servers use the project
+virtualenv directly — no Docker required.
 
-- **Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
-  or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
-- **Claude Code** — `.claude/settings.json` in the project root, or `~/.claude/settings.json`
+- **Claude Code** — `~/.claude/settings.json` (global) or `.claude/settings.json` in the project root
 - **kiro-cli** — `.kiro/settings/mcp.json` in the project root
 
-All servers use the project virtualenv directly — no Docker required.
+See [getting-started-mcp.md](getting-started-mcp.md) for per-client config blocks and
+setup instructions, including gemini-cli and codex-cli.
 
 ```json
 {
