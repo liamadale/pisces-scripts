@@ -181,11 +181,11 @@ def test_classify_all_unknown_no_labels() -> None:
 
 
 def test_sensor_to_project_strips_prefix() -> None:
-    assert sensor_to_project("hedgehog-bonney-lake") == "bonney-lake"
+    assert sensor_to_project("hedgehog-example") == "example"
 
 
 def test_sensor_to_project_no_prefix() -> None:
-    assert sensor_to_project("puyallup") == "puyallup"
+    assert sensor_to_project("example") == "example"
 
 
 def test_sensor_to_project_all_returns_none() -> None:
