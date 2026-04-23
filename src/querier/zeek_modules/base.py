@@ -842,6 +842,7 @@ class ZeekModule:
     EXTRA_PARAMS: list[str] = []  # Protocol-specific search_params keys forwarded from HTTP request
     SUMMARY_FIELD: str | None = None  # OpenSearch field to aggregate on for the browse modal
     SUMMARY_PARAM: str | None = None  # EXTRA_PARAMS key that filters on SUMMARY_FIELD
+    SUMMARY_TYPE: str = "flat"  # "flat" = single field agg, "grouped" = scripted prefix + severity
 
     def build_extra_must(self, search_params: dict) -> tuple:
         """Return (must_clauses, post_filters) built from search_params.

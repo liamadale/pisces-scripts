@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Zeek weird log module — unusual protocol behaviour records."""
+"""Zeek weird log module — unusual protocol behaviour records.
+
+Malcolm's Logstash pipeline remaps Zeek's weird.log fields to ECS:
+  zeek.weird.name  → rule.name (array), then REMOVED from zeek.weird
+  zeek.weird.addl  → event.original (combined name:addl), then REMOVED
+  zeek.weird.peer  → REMOVED
+  zeek.weird.source, zeek.weird.notice → kept in zeek.weird
+"""
 
 from rich import box
 from rich.table import Table
 
-from .base import ZeekModule, _sensor_str, console
+from .base import ZeekModule, _first, _sensor_str, console
 
 
 class WeirdModule(ZeekModule):
@@ -19,9 +26,9 @@ class WeirdModule(ZeekModule):
         "source.port",
         "destination.ip",
         "destination.port",
-        "zeek.weird.name",
+        "rule.name",
         "zeek.weird.addl",
-        "zeek.weird.peer",
+        "zeek.weird.source",
         "network.community_id",
         "network.direction",
         "event.dataset",
@@ -35,10 +42,12 @@ class WeirdModule(ZeekModule):
     def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
         if search_params.get("weird_name"):
-            clauses.append({"term": {"zeek.weird.name": search_params["weird_name"]}})
+            clauses.append({"term": {"rule.name": search_params["weird_name"]}})
         return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
+        rule_names = src.get("rule", {}).get("name", [])
+        weird_name = _first(rule_names) or ""
         weird = src.get("zeek", {}).get("weird", {})
         return {
             "timestamp": src.get("@timestamp", ""),
@@ -48,9 +57,9 @@ class WeirdModule(ZeekModule):
             "src_port": src.get("source", {}).get("port"),
             "dest_ip": src.get("destination", {}).get("ip", ""),
             "dest_port": src.get("destination", {}).get("port"),
-            "weird_name": weird.get("name", ""),
+            "weird_name": weird_name,
             "weird_addl": weird.get("addl", ""),
-            "weird_peer": weird.get("peer", ""),
+            "weird_source": weird.get("source", ""),
             "community_id": src.get("network", {}).get("community_id", ""),
             "direction": src.get("network", {}).get("direction", ""),
             "_raw": src,
@@ -69,6 +78,7 @@ class WeirdModule(ZeekModule):
         ("Dst IP", lambda r: r.get("dest_ip", "—") or "—"),
         ("Weird Name", lambda r: r.get("weird_name", "—") or "—"),
         ("Additional", lambda r: r.get("weird_addl", "—") or "—"),
+        ("Source", lambda r: r.get("weird_source", "—") or "—"),
         ("Comm ID", lambda r: r.get("community_id", "—") or "—"),
         ("Direction", lambda r: r.get("direction", "—") or "—"),
         ("Freq", lambda r: str(r.get("freq", "—"))),
@@ -109,7 +119,7 @@ class WeirdModule(ZeekModule):
         parser.add_argument(
             "--name",
             dest="weird_name",
-            help="Filter by weird event name (term on zeek.weird.name)",
+            help="Filter by weird event name (term on rule.name)",
         )
 
     def describe_record(self, record: dict) -> str:
