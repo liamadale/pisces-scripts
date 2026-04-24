@@ -80,10 +80,11 @@ skips = ["B101"]
 profile = "jinja"
 indent = 2
 max_line_length = 100
-ignore = "H021,H023,H030,H031"
+ignore = "H021,H023,H030,H031,J018"
 # H021: inline styles are intentional in dashboard/chart templates
 # H023: HTML entity references (&middot; etc.) are standard and intentional
 # H030/H031: meta description/keywords are false positives on Jinja child templates
+# J018: cross-app internal links cannot use url_for() in a multi-app Flask setup
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

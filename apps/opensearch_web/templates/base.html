@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}PISCES · OpenSearch{% endblock %}</title>
+  <title>{% block title %}PISCES · OpenSearch{% endblock title %}</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
   <script>
     /* Apply saved theme before CSS loads to prevent flash */
@@ -80,7 +80,7 @@
     <div id="htmx-bar"></div>
 
     {# Global search controls — persisted across pages via form GET #}
-    <form class="search-bar" method="GET" action="{{ script_name }}{{ request.path }}" id="global-search">
+    <form class="search-bar" method="get" action="{{ script_name }}{{ request.path }}" id="global-search">
       <label>Time</label>
       <select name="time_range" onchange="this.form.submit()">
         {% for tr in TIME_RANGES %}
@@ -141,7 +141,6 @@
              value="{{ request.values.get('limit', '500') }}"
              placeholder="500">
 
-
       <div class="sep"></div>
 
       <button type="submit" class="btn btn-primary">
@@ -176,8 +175,8 @@
       </div>
     </form>
 
-    <main class="{% block main_class %}{% endblock %}">
-    {% block content %}{% endblock %}
+    <main class="{% block main_class %}{% endblock main_class %}">
+    {% block content %}{% endblock content %}
     </main>
 
   </div><!-- /#content-area -->

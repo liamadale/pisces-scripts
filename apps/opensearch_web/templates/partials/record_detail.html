@@ -37,7 +37,7 @@
   <div id="filter-zone-{{ idx }}"></div>
 
   <!-- Zone 2.5: Mantis ticket lookup -->
-  {% set src_ip  = record.get('src_ip') %}
+  {% set src_ip = record.get('src_ip') %}
   {% set dest_ip = record.get('dest_ip') %}
   {% if src_ip or dest_ip or record.get('notice_note') %}
   <div class="detail-card">
@@ -136,6 +136,5 @@
     </div>
   </div>
   {% endif %}
-
 
 </div>
