@@ -111,6 +111,13 @@
 
       <div class="sep"></div>
 
+      <label>Dst IP</label>
+      <input type="text" name="dest_ip"
+             value="{{ request.values.get('dest_ip', '') }}"
+             placeholder="any">
+
+      <div class="sep"></div>
+
       <label>Direction</label>
       <select name="direction">
         <option value="" {% if not request.values.get('direction') %}selected{% endif %}>any</option>
