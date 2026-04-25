@@ -59,7 +59,7 @@ def run_cross_protocol_query(search_params: dict) -> list:
     for lt, records in results_by_type.items():
         for rec in records:
             ip = rec.get("src_ip", "")
-            if not ip:
+            if not ip or ip == "—":
                 continue
             freq = rec.get("freq", 1)
             ip_data[ip]["per_protocol"][lt] += freq
