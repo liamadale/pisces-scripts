@@ -12,7 +12,7 @@
       document.documentElement.setAttribute('data-theme', t);
     })();
   </script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}?v={{ css_version }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -26,19 +26,19 @@
   <!-- ── Left Sidebar ─────────────────────────────────────── -->
   <aside id="sidebar">
 
-    <!-- Brand -->
-    <a class="sidebar-brand" href="{{ script_name }}/">
-      <img src="{{ url_for('static', filename='pisces-logo.png') }}" class="brand-logo" alt="PISCES">
+    <!-- Brand — links to Hub when mounted, overview when standalone -->
+    <a class="sidebar-brand" href="{{ '/' if script_name else script_name + '/' }}" title="{{ 'Hub' if script_name else 'Overview' }}">
+      <img src="{{ url_for('static', filename='pisces-logo.png') }}" class="brand-logo" alt="PISCES" height="32" width="auto">
       <span class="sidebar-label">PISCES <span class="brand-sub">OpenSearch</span></span>
     </a>
 
-    <!-- Hub link (only when mounted under a script name) -->
-    {% if script_name %}
-    <a href="/" class="sidebar-link sidebar-hub" title="Hub">
-      <i class="fa-solid fa-house"></i>
-      <span class="sidebar-label">Hub</span>
+    <!-- Overview link — cross-protocol IP activity matrix -->
+    <a href="{{ script_name }}/"
+       class="sidebar-link sidebar-overview{% if request.path == '/' or request.path == (script_name + '/') or request.path == script_name %} active{% endif %}"
+       title="Overview">
+      <i class="fa-solid fa-border-all"></i>
+      <span class="sidebar-label">Overview</span>
     </a>
-    {% endif %}
 
     <!-- Protocol groups -->
     {% for cat in category_order %}
@@ -82,7 +82,7 @@
     {# Global search controls — persisted across pages via form GET #}
     <form class="search-bar" method="GET" action="{{ script_name }}{{ request.path }}" id="global-search">
       <label>Time</label>
-      <select name="time_range" onchange="localStorage.setItem('pisces-time-range', this.value); this.form.submit()">
+      <select name="time_range" onchange="this.form.submit()">
         {% for tr in TIME_RANGES %}
         <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
           {{ tr.replace('now-', '') }}
@@ -543,29 +543,38 @@
     document.getElementById('global-search').submit();
   };
 
-  /* ── Sticky search params (time_range + sensor) ─────── */
+  /* ── Per-tab session filter params ──────────────────── */
+  /* Uses sessionStorage so each tab carries its own filter context independently.
+     localStorage is reserved for personal preferences (theme, sidebar, etc.).
+     On form submit  → URL has params → save all filters to sessionStorage.
+     On nav (no URL params) → inject saved filters and redirect once.          */
   (function() {
+    var P = 'pisces-s-';
+    var KEYS = ['time_range', 'sensor', 'src_ip', 'dest_ip', 'direction', 'public_only', 'limit', 'min_risk'];
     var params = new URLSearchParams(window.location.search);
-    var changed = false;
+    var hasParams = window.location.search.length > 0;
 
-    if (params.has('sensor')) {
-      var sv = params.get('sensor');
-      if (sv && sv.toLowerCase() !== 'all') {
-        localStorage.setItem('pisces-sensor', sv);
-      } else {
-        localStorage.removeItem('pisces-sensor');
-      }
+    if (hasParams) {
+      /* Came from a form submit or explicit URL — snapshot all filter state */
+      KEYS.forEach(function(k) {
+        var v = (k === 'public_only')
+          ? (params.has(k) ? 'on' : 'off')
+          : (params.get(k) || '');
+        if (v) sessionStorage.setItem(P + k, v);
+        else   sessionStorage.removeItem(P + k);
+      });
     } else {
-      var savedSensor = localStorage.getItem('pisces-sensor');
-      if (savedSensor) { params.set('sensor', savedSensor); changed = true; }
+      /* Sidebar / link navigation — restore saved filter context */
+      var changed = false;
+      KEYS.forEach(function(k) {
+        var v = sessionStorage.getItem(P + k);
+        if (!v || v === 'off') return;
+        if (k === 'sensor' && v.toLowerCase() === 'all') return;
+        params.set(k, v);
+        changed = true;
+      });
+      if (changed) window.location.replace(window.location.pathname + '?' + params.toString());
     }
-
-    if (!params.has('time_range')) {
-      var savedTR = localStorage.getItem('pisces-time-range');
-      if (savedTR) { params.set('time_range', savedTR); changed = true; }
-    }
-
-    if (changed) window.location.replace(window.location.pathname + '?' + params.toString());
   })();
 
   document.addEventListener("htmx:afterSwap", function(e) {
