@@ -84,6 +84,10 @@ def create_app() -> Flask:
     app.register_blueprint(make_mantis_blueprint(_resolve_city))
     app.register_blueprint(make_cache_blueprint(wcache))
 
+    # Compute CSS version once at startup from file mtime — busts browser cache on deploy
+    _css_path = os.path.join(app.static_folder, "pisces.css")
+    _css_version = str(int(os.path.getmtime(_css_path))) if os.path.exists(_css_path) else "1"
+
     # Make TIME_RANGES, MODULES, and nav data available to all templates
     @app.context_processor
     def inject_globals() -> dict:
@@ -91,6 +95,7 @@ def create_app() -> Flask:
             "TIME_RANGES": TIME_RANGES,
             "MODULES": MODULES,
             "script_name": request.environ.get("SCRIPT_NAME", ""),
+            "css_version": _css_version,
         }
 
     @app.context_processor
@@ -98,12 +103,12 @@ def create_app() -> Flask:
         return {
             "proto_icons": {lt: mod.WEB_ICON for lt, mod in MODULES.items()},
             "category_icons": {
-                "alerts": "fa-bell",
-                "network": "fa-network-wired",
-                "web": "fa-globe",
-                "remote": "fa-terminal",
-                "auth": "fa-shield-halved",
-                "messaging": "fa-envelope",
+                "alerts": "fa-fire",
+                "network": "fa-sitemap",
+                "web": "fa-cloud",
+                "remote": "fa-right-to-bracket",
+                "auth": "fa-fingerprint",
+                "messaging": "fa-comments",
                 "files": "fa-folder",
                 "ot": "fa-industry",
             },

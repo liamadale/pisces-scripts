@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}PISCES Threat Modeling{% endblock %}</title>
+  <title>{% block title %}PISCES Threat Modeling{% endblock title %}</title>
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
   <script>
     (function() {
@@ -22,7 +22,7 @@
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo">PISCES <span class="brand-sub">Threat Intel</span></a>
+  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Threat Intel</span></a>
   {% if script_name %}
   <a href="/" class="btn-icon" title="Back to PISCES Hub">
     <i class="fa-solid fa-house"></i>
@@ -37,7 +37,7 @@
 </nav>
 
 <main>
-{% block content %}{% endblock %}
+{% block content %}{% endblock content %}
 </main>
 
 {# ── Ticket detail side panel ──────────────────────── #}
@@ -618,7 +618,7 @@
 })();
 </script>
 
-{% block extra_scripts %}{% endblock %}
+{% block extra_scripts %}{% endblock extra_scripts %}
 
 </body>
 </html>

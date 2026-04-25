@@ -264,6 +264,7 @@ def build_base_query(
     datasets: list,
     public_only: bool = False,
     src_ip_filter: str | None = None,
+    dest_ip_filter: str | None = None,
     direction: str | None = None,
     time_from: str | None = None,
     time_to: str | None = None,
@@ -288,6 +289,9 @@ def build_base_query(
 
     if src_ip_filter:
         must_clauses.append({"term": {"source.ip": src_ip_filter}})
+
+    if dest_ip_filter:
+        must_clauses.append({"term": {"destination.ip": dest_ip_filter}})
 
     if direction:
         must_clauses.append({"term": {"network.direction": direction}})
@@ -370,9 +374,12 @@ def run_query(module, search_params: dict) -> list:
 
     extra_must, post_filters = module.build_extra_must(search_params)
 
-    # Guard src_ip_filter for modules without source.ip in SOURCE_FIELDS —
+    # Guard src/dest ip filters for modules that don't have the field in SOURCE_FIELDS —
     # a term query on a missing field returns zero results.
     src_ip_for_query = search_params.get("src_ip") if "source.ip" in module.SOURCE_FIELDS else None
+    dest_ip_for_query = (
+        search_params.get("dest_ip") if "destination.ip" in module.SOURCE_FIELDS else None
+    )
 
     # Over-fetch when post-filters are active so truncation still yields enough rows.
     requested_limit = search_params.get("limit", 500)
@@ -388,6 +395,7 @@ def run_query(module, search_params: dict) -> list:
         datasets=module.DATASETS,
         public_only=search_params.get("public_only", False),
         src_ip_filter=src_ip_for_query,
+        dest_ip_filter=dest_ip_for_query,
         direction=search_params.get("direction"),
         time_from=search_params.get("time_from"),
         time_to=search_params.get("time_to"),

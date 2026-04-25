@@ -18,6 +18,7 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
         "limit": int(v) if (v := request.values.get("limit", "").strip()) and v.isdigit() else 500,
         "public_only": request.values.get("public_only") in ("on", "true", "1"),
         "src_ip": request.values.get("src_ip") or None,
+        "dest_ip": request.values.get("dest_ip") or None,
         "direction": request.values.get("direction") or None,
         "no_filters": False,
         "use_cache": False,
@@ -58,7 +59,7 @@ def run_cross_protocol_query(search_params: dict) -> list:
     for lt, records in results_by_type.items():
         for rec in records:
             ip = rec.get("src_ip", "")
-            if not ip:
+            if not ip or ip == "—":
                 continue
             freq = rec.get("freq", 1)
             ip_data[ip]["per_protocol"][lt] += freq

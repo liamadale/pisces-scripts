@@ -44,3 +44,11 @@ jobs:
       - name: SAST (bandit) — advisory
         run: uv run bandit -r src/ apps/ mcp/ -c pyproject.toml
         continue-on-error: true
+
+      - name: Lint HTML (djlint check)
+        run: uv run djlint apps/ --lint
+        continue-on-error: ${{ env.ADVISORY == 'true' }}
+
+      - name: Format check HTML (djlint format) — advisory
+        run: uv run djlint apps/ --check
+        continue-on-error: true

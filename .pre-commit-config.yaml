@@ -18,6 +18,12 @@ repos:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline]
 
+  - repo: https://github.com/djlint/djLint
+    rev: v1.36.4
+    hooks:
+      - id: djlint-jinja
+        args: [--lint]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:

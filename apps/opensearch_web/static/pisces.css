@@ -198,9 +198,16 @@ a:hover { text-decoration: underline; }
   z-index: 100;
 }
 
-#sidebar.collapsed { width: 48px; }
+#sidebar.collapsed { width: 48px; scrollbar-width: none; }
+#sidebar.collapsed::-webkit-scrollbar { display: none; }
 
 #sidebar.collapsed .sidebar-label { display: none; }
+
+/* Collapsed: center brand logo */
+#sidebar.collapsed .sidebar-brand { justify-content: center; padding: 10px; }
+
+/* Collapsed: center all nav links and boost icon legibility */
+#sidebar.collapsed .sidebar-link { justify-content: center; padding: 7px 0; font-size: 1rem; }
 
 /* Brand */
 .sidebar-brand {
@@ -311,11 +318,41 @@ a:hover { text-decoration: underline; }
   border-left: 2px solid var(--cat-color, var(--primary));
 }
 
-/* Collapsed sidebar — hide group link indentation */
+/* Collapsed sidebar — centered icons, category color accents */
 #sidebar.collapsed .group-links { padding-left: 0; }
-#sidebar.collapsed .group-links .sidebar-link { padding-left: 12px; }
-#sidebar.collapsed .group-hdr { border-left-color: transparent; padding-left: 12px; }
+#sidebar.collapsed .group-links .sidebar-link { padding: 5px 0; font-size: 0.875rem; }
+#sidebar.collapsed .group-hdr {
+  justify-content: center;
+  padding: 5px 0;
+  border-left-color: transparent;
+  color: var(--cat-color, var(--on-surface-dim));
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+#sidebar.collapsed .group-hdr:hover,
+#sidebar.collapsed .group-hdr.open {
+  border-left-color: var(--cat-color, var(--outline));
+  color: var(--cat-color, var(--on-surface));
+  opacity: 1;
+}
 #sidebar.collapsed .sidebar-group { border-top-color: var(--outline); padding-top: 4px; }
+
+
+/* Overview link — visually distinct from protocol links */
+.sidebar-overview {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  margin-bottom: 4px;
+}
+.sidebar-overview:hover {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.sidebar-overview.active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  font-weight: 600;
+}
 
 /* Footer */
 .sidebar-foot {
@@ -356,7 +393,7 @@ a:hover { text-decoration: underline; }
   vertical-align: middle;
   background: var(--surface-container-high);
   border-bottom: 2px solid var(--outline);
-  z-index: 7;
+  /* No z-index here — let thead .col-ip-addr / thead .col-total own their corners */
 }
 
 /* Row 2: protocol sub-headers */
@@ -412,14 +449,17 @@ a:hover { text-decoration: underline; }
 .col-ip-addr {
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: 5;
   background: var(--surface);
-  /* inset box-shadow renders above scrolled content without subpixel gaps */
-  box-shadow: inset -2px 0 0 var(--outline);
+  box-shadow: inset -1px 0 0 var(--outline);
 }
 thead .col-ip-addr {
+  /* Frozen top-left corner: explicit top + left so both axes stick reliably */
+  position: sticky;
+  top: 0;
+  left: 0;
   background: var(--surface-container-high);
-  z-index: 9; /* top-left corner: above both sticky rows and sticky right col */
+  z-index: 20; /* must beat all other sticky headers (max elsewhere: 9) */
 }
 tbody tr:hover .col-ip-addr       { background: var(--surface-container-highest); }
 tbody tr.row-selected .col-ip-addr { background: var(--surface-container-highest); }
@@ -430,14 +470,15 @@ tbody tr.row-selected .col-ip-addr { background: var(--surface-container-highest
   right: 0;
   z-index: 4;
   background: var(--surface);
-  /* box-shadow instead of border-left: renders above scrolled content,
-     eliminates the subpixel gap a real border leaves */
   box-shadow: -2px 0 0 var(--outline);
 }
 thead .col-total {
+  position: sticky;
+  top: 0;
+  right: 0;
   background: var(--surface-container-high);
   box-shadow: -2px 0 0 var(--outline);
-  z-index: 8;
+  z-index: 15; /* below col-ip-addr corner (20) but above all scrolling headers (9) */
 }
 tbody tr:hover .col-total        { background: var(--surface-container-highest); }
 tbody tr.row-selected .col-total { background: var(--surface-container-highest); }
