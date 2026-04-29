@@ -20,7 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # AI assistant integration via MCP servers (Claude Code, Claude Desktop, kiro-cli)
-mcp = ["mcp[cli]>=1.0.0"]
+mcp = ["mcp[cli]>=1.27.0"]
 
 # NLP-enhanced ticket classification (spaCy dependency parsing, NER)
 nlp = [
@@ -35,7 +35,7 @@ offline-enrichment = [
 
 # Everything
 all = [
-    "mcp[cli]>=1.0.0",
+    "mcp[cli]>=1.27.0",
     "spacy>=3.7",
     "pyasn>=1.6.2",
 ]
