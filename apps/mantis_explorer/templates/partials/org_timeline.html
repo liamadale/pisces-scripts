@@ -1,0 +1,39 @@
+<div class="me-chart-title">
+  <i class="fa-solid fa-chart-bar" style="margin-right:6px;color:var(--green)"></i>
+  Submission Timeline — {{ org_name }}
+</div>
+<div class="me-chart-body">
+{% if timeline.labels %}
+<div id="chart-org-timeline" style="width:100%;height:180px"></div>
+<script>
+(function() {
+  var labels = {{ timeline.labels | tojson }};
+  var counts = {{ timeline.counts | tojson }};
+
+  var el = document.getElementById('chart-org-timeline');
+  if (!el) return;
+  var chart = echarts.init(el, null, {renderer: 'svg'});
+  chart.setOption({
+    grid: { left: 40, right: 10, top: 10, bottom: 40 },
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      type: 'category', data: labels,
+      axisLabel: { color: 'var(--on-surface-dim)', fontSize: 10, rotate: 30 },
+    },
+    yAxis: {
+      type: 'value', minInterval: 1,
+      axisLabel: { color: 'var(--on-surface-dim)', fontSize: 10 },
+      splitLine: { lineStyle: { color: 'var(--outline-dim)' } },
+    },
+    series: [{
+      type: 'bar', data: counts,
+      itemStyle: { color: '#3fb950', borderRadius: [2, 2, 0, 0] },
+    }],
+  });
+  new ResizeObserver(function() { chart.resize(); }).observe(el);
+})();
+</script>
+{% else %}
+<div class="chart-empty">No dated tickets in range.</div>
+{% endif %}
+</div>

@@ -1,0 +1,38 @@
+<div class="me-chart-title">Tickets by Institution</div>
+<div class="me-chart-body">
+{% if rows %}
+<div id="chart-orgs-bar" style="width:100%;height:{{ [180, rows|length * 34]|max }}px"></div>
+<script>
+(function() {
+  var names  = {{ rows | map(attribute='name') | list | tojson }};
+  var counts = {{ rows | map(attribute='ticket_count') | list | tojson }};
+  // Reverse so highest is at top
+  names  = names.slice().reverse();
+  counts = counts.slice().reverse();
+
+  var el = document.getElementById('chart-orgs-bar');
+  if (!el) return;
+  var chart = echarts.init(el, null, {renderer: 'svg'});
+  chart.setOption({
+    grid: { left: 140, right: 60, top: 10, bottom: 10 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: { type: 'value', axisLine: { lineStyle: { color: 'var(--outline)' } },
+             splitLine: { lineStyle: { color: 'var(--outline-dim)' } },
+             axisLabel: { color: 'var(--on-surface-dim)', fontSize: 11 } },
+    yAxis: { type: 'category', data: names,
+             axisLabel: { color: 'var(--on-surface)', fontSize: 11,
+                          width: 130, overflow: 'truncate' } },
+    series: [{
+      type: 'bar',
+      data: counts,
+      itemStyle: { color: '#4f8ef7', borderRadius: [0, 3, 3, 0] },
+      label: { show: true, position: 'right', color: 'var(--on-surface-dim)', fontSize: 11 },
+    }],
+  });
+  new ResizeObserver(function() { chart.resize(); }).observe(el);
+})();
+</script>
+{% else %}
+<div class="chart-empty">No data available.</div>
+{% endif %}
+</div>

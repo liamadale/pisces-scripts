@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Mantis Explorer — Overview{% endblock title %}
+
+{% block content %}
+
+{# Hidden filter form — included by all HTMX regions #}
+<form id="filter-form" style="display:contents">
+  <input type="hidden" name="since" id="since" value="{{ since }}">
+  <input type="hidden" name="until" id="until" value="{{ until }}">
+</form>
+
+{# ── Filter bar ─────────────────────────────────────────── #}
+<div class="me-filter-bar">
+  <i class="fa-solid fa-filter" style="color:var(--on-surface-dim);font-size:0.85rem"></i>
+  <label for="since-pick">From</label>
+  <input type="date" id="since-pick" value="{{ since }}"
+         onchange="document.getElementById('since').value=this.value; dispatchFilter()">
+  <label for="until-pick">To</label>
+  <input type="date" id="until-pick" value="{{ until }}"
+         onchange="document.getElementById('until').value=this.value; dispatchFilter()">
+</div>
+
+{# ── Stat row ───────────────────────────────────────────── #}
+<div id="stat-row-region"
+     hx-get="/api/stat-row"
+     hx-include="#filter-form"
+     hx-trigger="load, filter-changed from:body"
+     hx-swap="innerHTML">
+  <div class="me-stat-row">
+    <div class="me-stat-chip"><span class="chip-value">—</span><span class="chip-label">Loading…</span></div>
+  </div>
+</div>
+
+{# ── Institution table ──────────────────────────────────── #}
+<div class="me-section">
+  <div class="me-section-header">
+    <h2><i class="fa-solid fa-building-columns" style="margin-right:6px"></i>Institutions</h2>
+    <span class="section-spacer"></span>
+    <input type="text" id="org-q" placeholder="Search institution…"
+           style="width:200px"
+           oninput="filterOrgs(this.value)">
+    {# Hidden sort state #}
+    <input type="hidden" id="org-sort" value="tickets">
+    <input type="hidden" id="org-order" value="desc">
+  </div>
+  <div class="section-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="sortOrgs('name')">Institution</th>
+          <th class="sortable num" onclick="sortOrgs('students')">Students</th>
+          <th class="sortable num sort-desc" id="th-tickets" onclick="sortOrgs('tickets')">Tickets</th>
+          <th class="sortable num" onclick="sortOrgs('escalated')">Escalated</th>
+          <th class="sortable num" onclick="sortOrgs('notes')">Notes</th>
+          <th>Date Range</th>
+        </tr>
+      </thead>
+      <tbody id="org-tbody"
+             hx-get="/api/org-table"
+             hx-include="#filter-form, #org-sort, #org-order"
+             hx-trigger="load, filter-changed from:body"
+             hx-swap="innerHTML">
+        <tr class="loading-row"><td colspan="6">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Chart grid ─────────────────────────────────────────── #}
+<div class="me-chart-grid">
+
+  {# Orgs bar #}
+  <div class="me-chart-card"
+       id="chart-orgs-bar-region"
+       hx-get="/api/chart/orgs-bar"
+       hx-include="#filter-form"
+       hx-trigger="load, filter-changed from:body"
+       hx-swap="innerHTML">
+    <div class="me-chart-title">Tickets by Institution</div>
+    <div class="me-chart-body"><div class="chart-empty">Loading…</div></div>
+  </div>
+
+  {# Timeline #}
+  <div class="me-chart-card"
+       id="chart-timeline-region"
+       hx-get="/api/chart/timeline"
+       hx-include="#filter-form"
+       hx-trigger="load, filter-changed from:body"
+       hx-swap="innerHTML">
+    <div class="me-chart-title">Submissions Over Time</div>
+    <div class="me-chart-body"><div class="chart-empty">Loading…</div></div>
+  </div>
+
+  {# Escalation rate #}
+  <div class="me-chart-card"
+       id="chart-escalation-region"
+       hx-get="/api/chart/escalation"
+       hx-include="#filter-form"
+       hx-trigger="load, filter-changed from:body"
+       hx-swap="innerHTML">
+    <div class="me-chart-title">Escalations by Institution</div>
+    <div class="me-chart-body"><div class="chart-empty">Loading…</div></div>
+  </div>
+
+</div>
+
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  /* Live org search: re-trigger HTMX table load */
+  var _orgSearchTimer = null;
+  window.filterOrgs = function(val) {
+    clearTimeout(_orgSearchTimer);
+    _orgSearchTimer = setTimeout(function() {
+      var sortEl  = document.getElementById('org-sort');
+      var orderEl = document.getElementById('org-order');
+      var form    = document.getElementById('filter-form');
+      var params  = new URLSearchParams(form ? new FormData(form) : {});
+      params.set('sort',  sortEl  ? sortEl.value  : 'tickets');
+      params.set('order', orderEl ? orderEl.value : 'desc');
+      params.set('q', val);
+      htmx.ajax('GET', '/api/org-table?' + params.toString(),
+                {target: '#org-tbody', swap: 'innerHTML'});
+    }, 250);
+  };
+
+  /* Sync visible date inputs to hidden form inputs on filter-changed */
+  document.body.addEventListener('filter-changed', function() {
+    var sinceV = document.getElementById('since') ? document.getElementById('since').value : '';
+    var untilV = document.getElementById('until') ? document.getElementById('until').value : '';
+    var sp = document.getElementById('since-pick');
+    var up = document.getElementById('until-pick');
+    if (sp && sp.value !== sinceV) sp.value = sinceV;
+    if (up && up.value !== untilV) up.value = untilV;
+  });
+
+  /* On load restore visible pickers from URL params */
+  document.addEventListener('DOMContentLoaded', function() {
+    var params = new URLSearchParams(window.location.search);
+    var since = params.get('since') || '';
+    var until = params.get('until') || '';
+    var sp = document.getElementById('since-pick');
+    var up = document.getElementById('until-pick');
+    var sh = document.getElementById('since');
+    var uh = document.getElementById('until');
+    if (sp && since) sp.value = since;
+    if (up && until) up.value = until;
+    if (sh && since) sh.value = since;
+    if (uh && until) uh.value = until;
+  });
+})();
+</script>
+{% endblock extra_scripts %}

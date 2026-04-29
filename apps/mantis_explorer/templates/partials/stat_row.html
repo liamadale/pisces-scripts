@@ -1,0 +1,28 @@
+<div class="me-stat-row">
+  <div class="me-stat-chip accent-blue">
+    <span class="chip-value">{{ stats.institution_count }}</span>
+    <span class="chip-label">Institutions</span>
+  </div>
+  <div class="me-stat-chip">
+    <span class="chip-value">{{ stats.student_count }}</span>
+    <span class="chip-label">Students</span>
+  </div>
+  <div class="me-stat-chip accent-blue">
+    <span class="chip-value">{{ stats.ticket_count }}</span>
+    <span class="chip-label">Tickets</span>
+  </div>
+  <div class="me-stat-chip accent-red">
+    <span class="chip-value">{{ stats.escalation_count }}</span>
+    <span class="chip-label">Escalated</span>
+  </div>
+  <div class="me-stat-chip accent-green">
+    <span class="chip-value">{{ stats.note_count }}</span>
+    <span class="chip-label">Notes</span>
+  </div>
+  {% if stats.date_range %}
+  <div class="me-stat-date">
+    <i class="fa-regular fa-calendar"></i>
+    {{ stats.date_range }}
+  </div>
+  {% endif %}
+</div>
