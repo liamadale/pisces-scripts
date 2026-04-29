@@ -1,0 +1,110 @@
+{# Student detail panel body — loaded via HTMX into #student-panel-content #}
+
+{# ── Mini stat row ─────────────────────────────────────── #}
+<div class="student-panel-stats">
+  <div class="student-panel-stat accent-blue">
+    <span class="sp-val">{{ student.tickets_created }}</span>
+    <span class="sp-lbl">Created</span>
+  </div>
+  <div class="student-panel-stat accent-red">
+    <span class="sp-val">{{ student.escalated_tickets }}</span>
+    <span class="sp-lbl">Escalated</span>
+  </div>
+  <div class="student-panel-stat accent-green">
+    <span class="sp-val">{{ student.notes_written }}</span>
+    <span class="sp-lbl">Notes</span>
+  </div>
+  <div class="student-panel-stat">
+    <span class="sp-val">{{ student.total_activity }}</span>
+    <span class="sp-lbl">Total</span>
+  </div>
+</div>
+
+{# ── Tickets created ────────────────────────────────────── #}
+<div class="sp-ticket-section">
+  <h4>
+    <i class="fa-solid fa-plus-circle" style="color:var(--primary)"></i>
+    Tickets Created
+    <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--on-surface-dim)">
+      ({{ student.created_tickets | length }})
+    </span>
+  </h4>
+
+  {% if student.created_tickets %}
+  <table class="sp-ticket-table">
+    <thead>
+      <tr>
+        <th style="width:60px">ID</th>
+        <th>Summary</th>
+        <th style="width:90px">Status</th>
+        <th style="width:80px">Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in student.created_tickets %}
+      <tr class="sp-ticket-row{% if t.is_escalated %} sp-ticket-row-escalated{% endif %}"
+          data-tid="{{ t.id | e }}"
+          data-summary="{{ t.summary | e }}"
+          data-url="{{ t.url | e }}"
+          onclick="(function(tr){ document.querySelectorAll('tr.sp-ticket-row-active').forEach(function(r){r.classList.remove('sp-ticket-row-active')}); tr.classList.add('sp-ticket-row-active'); openTicketPanel(tr.dataset.tid, tr.dataset.summary, tr.dataset.url); })(this)"
+          title="{{ t.summary | e }}">
+        <td>
+          <span class="ticket-id-link">#{{ t.id }}</span>
+          {% if t.is_escalated %}
+          <i class="fa-solid fa-circle-exclamation sp-escalated-icon" title="Escalated"></i>
+          {% endif %}
+        </td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis"
+            title="{{ t.summary }}">{{ t.summary or '—' }}</td>
+        <td style="color:var(--on-surface-dim);font-size:0.75rem">{{ t.status or '—' }}</td>
+        <td style="color:var(--on-surface-dim);font-size:0.75rem;font-variant-numeric:tabular-nums">
+          {{ (t.created_at or '')[:10] or '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="sp-no-data">No tickets created.</p>
+  {% endif %}
+</div>
+
+{# ── Tickets commented on ───────────────────────────────── #}
+<div class="sp-ticket-section">
+  <h4>
+    <i class="fa-solid fa-comment" style="color:var(--secondary)"></i>
+    Tickets Commented On
+    <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--on-surface-dim)">
+      ({{ student.noted_tickets | length }})
+    </span>
+  </h4>
+
+  {% if student.noted_tickets %}
+  <table class="sp-ticket-table">
+    <thead>
+      <tr>
+        <th style="width:60px">ID</th>
+        <th>Summary</th>
+        <th style="width:90px">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in student.noted_tickets %}
+      <tr class="sp-ticket-row"
+          data-tid="{{ t.id | e }}"
+          data-summary="{{ t.summary | e }}"
+          data-url="{{ t.url | e }}"
+          onclick="(function(tr){ document.querySelectorAll('tr.sp-ticket-row-active').forEach(function(r){r.classList.remove('sp-ticket-row-active')}); tr.classList.add('sp-ticket-row-active'); openTicketPanel(tr.dataset.tid, tr.dataset.summary, tr.dataset.url); })(this)"
+          title="{{ t.summary | e }}">
+        <td><span class="ticket-id-link">#{{ t.id }}</span></td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis"
+            title="{{ t.summary }}">{{ t.summary or '—' }}</td>
+        <td style="color:var(--on-surface-dim);font-size:0.75rem">{{ t.status or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="sp-no-data">No other tickets commented on.</p>
+  {% endif %}
+</div>

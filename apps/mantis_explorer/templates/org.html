@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ org_name }} — Mantis Explorer{% endblock title %}
+
+{% block content %}
+
+{# Hidden filter form — included by all HTMX regions #}
+<form id="filter-form" style="display:contents">
+  <input type="hidden" name="since" id="since" value="{{ since }}">
+  <input type="hidden" name="until" id="until" value="{{ until }}">
+</form>
+
+{# Hidden state for student table sort + slug #}
+<input type="hidden" id="student-sort" value="activity">
+<input type="hidden" id="student-order" value="desc">
+<input type="hidden" id="student-slug" value="{{ slug }}">
+
+{# ── Breadcrumb ─────────────────────────────────────────── #}
+<nav class="me-breadcrumb" aria-label="breadcrumb">
+  <a href="{{ script_name }}/?since={{ since }}&until={{ until }}">
+    <i class="fa-solid fa-arrow-left"></i> Overview
+  </a>
+  <span class="sep">/</span>
+  <span class="current">{{ org_name }}</span>
+</nav>
+
+{# ── Filter bar ─────────────────────────────────────────── #}
+<div class="me-filter-bar">
+  <i class="fa-solid fa-filter" style="color:var(--on-surface-dim);font-size:0.85rem"></i>
+  <label for="since-pick">From</label>
+  <input type="date" id="since-pick" value="{{ since }}"
+         onchange="document.getElementById('since').value=this.value; dispatchFilter()">
+  <label for="until-pick">To</label>
+  <input type="date" id="until-pick" value="{{ until }}"
+         onchange="document.getElementById('until').value=this.value; dispatchFilter()">
+</div>
+
+{# ── Stat row ───────────────────────────────────────────── #}
+<div id="stat-row-region"
+     hx-get="/api/org/{{ slug }}/stat-row"
+     hx-include="#filter-form"
+     hx-trigger="load, filter-changed from:body"
+     hx-swap="innerHTML">
+  <div class="me-stat-row">
+    <div class="me-stat-chip"><span class="chip-value">—</span><span class="chip-label">Loading…</span></div>
+  </div>
+</div>
+
+{# ── Org timeline chart — full width ────────────────────── #}
+<div class="me-chart-full"
+     id="chart-org-timeline-region"
+     hx-get="/api/org/{{ slug }}/timeline"
+     hx-include="#filter-form"
+     hx-trigger="load, filter-changed from:body"
+     hx-swap="innerHTML">
+  <div class="me-chart-title">Submission Timeline</div>
+  <div class="me-chart-body"><div class="chart-empty">Loading…</div></div>
+</div>
+
+{# ── Student table ──────────────────────────────────────── #}
+<div class="me-section">
+  <div class="me-section-header">
+    <h2><i class="fa-solid fa-users" style="margin-right:6px"></i>Students</h2>
+    <span class="section-spacer"></span>
+    <input type="text" id="student-q" placeholder="Search students…"
+           oninput="filterStudents(this.value)">
+  </div>
+  <div class="section-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="sortStudents('name')">Name</th>
+          <th class="sortable num" onclick="sortStudents('tickets')">Tickets</th>
+          <th class="sortable num" onclick="sortStudents('escalated')">Escalated</th>
+          <th class="sortable num" onclick="sortStudents('notes')">Notes</th>
+          <th class="sortable num sort-desc" onclick="sortStudents('activity')">Total Activity</th>
+          <th>Date Range</th>
+        </tr>
+      </thead>
+      <tbody id="student-tbody"
+             hx-get="/api/org/{{ slug }}/students"
+             hx-include="#filter-form, #student-sort, #student-order"
+             hx-trigger="load, filter-changed from:body"
+             hx-swap="innerHTML">
+        <tr class="loading-row"><td colspan="6">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock content %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  var _studentSearchTimer = null;
+  window.filterStudents = function(val) {
+    clearTimeout(_studentSearchTimer);
+    _studentSearchTimer = setTimeout(function() {
+      var sortEl  = document.getElementById('student-sort');
+      var orderEl = document.getElementById('student-order');
+      var slugEl  = document.getElementById('student-slug');
+      var form    = document.getElementById('filter-form');
+      var params  = new URLSearchParams(form ? new FormData(form) : {});
+      params.set('sort',  sortEl  ? sortEl.value  : 'activity');
+      params.set('order', orderEl ? orderEl.value : 'desc');
+      params.set('q', val);
+      var slug = slugEl ? slugEl.value : '';
+      htmx.ajax('GET', '/api/org/' + slug + '/students?' + params.toString(),
+                {target: '#student-tbody', swap: 'innerHTML'});
+    }, 250);
+  };
+
+  /* On load restore visible pickers from URL params */
+  document.addEventListener('DOMContentLoaded', function() {
+    var params = new URLSearchParams(window.location.search);
+    var since = params.get('since') || '';
+    var until = params.get('until') || '';
+    var sp = document.getElementById('since-pick');
+    var up = document.getElementById('until-pick');
+    var sh = document.getElementById('since');
+    var uh = document.getElementById('until');
+    if (sp && since) sp.value = since;
+    if (up && until) up.value = until;
+    if (sh && since) sh.value = since;
+    if (uh && until) uh.value = until;
+  });
+})();
+</script>
+{% endblock extra_scripts %}

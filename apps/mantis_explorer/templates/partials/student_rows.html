@@ -1,0 +1,20 @@
+{% if rows %}
+{% for row in rows %}
+<tr data-student-id="{{ row.id }}" data-student-name="{{ row.name | e }}"
+    onclick="(function(tr){ tr.classList.add('student-row-active'); openStudentPanel(parseInt(tr.dataset.studentId), tr.dataset.studentName); })(this)"
+    title="{{ row.name }}">
+  <td class="name-cell">{{ row.name }}</td>
+  <td class="num">{{ row.tickets_created }}</td>
+  <td class="num {% if row.escalated_tickets == 0 %}zero{% endif %}">
+    {{ row.escalated_tickets }}
+  </td>
+  <td class="num {% if row.notes_written == 0 %}zero{% endif %}">
+    {{ row.notes_written }}
+  </td>
+  <td class="num">{{ row.total_activity }}</td>
+  <td style="color:var(--on-surface-dim);font-size:0.78rem">{{ row.date_range or '—' }}</td>
+</tr>
+{% endfor %}
+{% else %}
+<tr class="loading-row"><td colspan="6">No students found.</td></tr>
+{% endif %}

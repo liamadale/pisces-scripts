@@ -12,16 +12,16 @@ When --student matches exactly one name, a detailed view is shown with ticket
 titles and links. When it matches multiple, the user is prompted to pick one.
 
 Usage:
-    python src/mantis/student_activity.py
-    python src/mantis/student_activity.py --live
-    python src/mantis/student_activity.py --sort tickets
-    python src/mantis/student_activity.py --project bonney-lake
-    python src/mantis/student_activity.py --student alice
-    python src/mantis/student_activity.py --student alice --graph
-    python src/mantis/student_activity.py --org 'bellevue college'
-    python src/mantis/student_activity.py --org 'bellevue college' --student alice
-    python src/mantis/student_activity.py --since 2025-01-01 --until 2025-04-30
-    python src/mantis/student_activity.py --input data/tickets/indexed/tickets_index.json
+    python src/mantis/activity_report.py
+    python src/mantis/activity_report.py --live
+    python src/mantis/activity_report.py --sort tickets
+    python src/mantis/activity_report.py --project bonney-lake
+    python src/mantis/activity_report.py --student alice
+    python src/mantis/activity_report.py --student alice --graph
+    python src/mantis/activity_report.py --org 'bellevue college'
+    python src/mantis/activity_report.py --org 'bellevue college' --student alice
+    python src/mantis/activity_report.py --since 2025-01-01 --until 2025-04-30
+    python src/mantis/activity_report.py --input data/tickets/indexed/tickets_index.json
 """
 
 import argparse
@@ -157,6 +157,7 @@ def _ticket_ref(ticket: dict) -> _TicketRef:
         "url": ticket.get("url", ""),
         "status": ticket.get("status", ""),
         "created_at": ticket.get("created_at", ""),
+        "is_escalated": bool(ticket.get("is_escalated")),
     }
 
 

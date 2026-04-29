@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mantis Explorer{% endblock title %}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
+  <script>
+    (function() {
+      var t = localStorage.getItem('pisces-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='me.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <script>window.SCRIPT_NAME = {{ script_name | tojson }};</script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+<div id="htmx-bar"></div>
+
+<nav>
+  <a class="brand" href="{{ script_name }}/">
+    <img src="{{ url_for('static', filename='pisces-logo.png') }}"
+         alt="PISCES" class="brand-logo" height="28" width="auto">
+    PISCES <span class="brand-sub">Mantis Explorer</span>
+  </a>
+  {% if script_name %}
+  <a href="/" class="btn-icon" title="Back to PISCES Hub"><i class="fa-solid fa-house"></i></a>
+  {% endif %}
+  <div class="spacer"></div>
+  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  </button>
+</nav>
+
+<main>
+{% block content %}{% endblock content %}
+</main>
+
+{# ── Ticket slide panel ───────────────────────── #}
+<div id="ticket-panel-backdrop" class="ticket-panel-backdrop"
+     onclick="closeTicketPanel()"></div>
+<aside id="ticket-panel" class="ticket-panel" aria-label="Ticket detail">
+  <div class="ticket-panel-resize-handle" id="ticket-panel-resize" title="Drag to resize"></div>
+  <div class="ticket-panel-header">
+    <div class="ticket-panel-title">
+      <span class="ticket-panel-id" id="ticket-panel-id">
+        <i class="fa-solid fa-ticket"></i> —
+      </span>
+      <span class="ticket-panel-summary" id="ticket-panel-summary"></span>
+    </div>
+    <button class="ticket-panel-close" onclick="closeTicketPanel()" title="Close panel">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="ticket-panel-body" id="ticket-panel-content">
+    <p style="color:var(--on-surface-dim);font-style:italic;padding:1rem">Loading…</p>
+  </div>
+</aside>
+
+{# ── Student slide panel ──────────────────────── #}
+<div id="student-panel-backdrop" class="student-panel-backdrop"
+     onclick="closeStudentPanel()"></div>
+<aside id="student-panel" class="student-panel" aria-label="Student detail">
+  <div class="student-panel-header">
+    <div class="student-panel-title">
+      <span class="student-panel-label"><i class="fa-solid fa-user-graduate"></i> Student</span>
+      <span class="student-panel-name" id="student-panel-name">—</span>
+    </div>
+    <button class="student-panel-close" onclick="closeStudentPanel()" title="Close panel">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="student-panel-body" id="student-panel-content">
+    <p style="color:var(--on-surface-dim);font-style:italic;padding:1rem">Loading…</p>
+  </div>
+</aside>
+
+<script>
+(function() {
+
+  /* ── Theme toggle ──────────────────────────────────── */
+  window.toggleTheme = function() {
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pisces-theme', next);
+    updateThemeIcon(next);
+  };
+
+  function updateThemeIcon(theme) {
+    var icon = document.getElementById('theme-icon');
+    if (!icon) return;
+    icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  }
+
+  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  /* ── HTMX SCRIPT_NAME prefix (hub mode) ────────────── */
+  document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (window.SCRIPT_NAME && evt.detail.path.startsWith('/')) {
+      evt.detail.path = window.SCRIPT_NAME + evt.detail.path;
+    }
+  });
+
+  /* ── HTMX progress bar ─────────────────────────────── */
+  var bar = document.getElementById('htmx-bar');
+  var pending = 0;
+  document.addEventListener('htmx:beforeRequest', function() {
+    pending++;
+    bar.classList.remove('htmx-bar-done');
+    bar.classList.add('htmx-bar-active');
+  });
+  document.addEventListener('htmx:afterRequest', function() {
+    pending = Math.max(0, pending - 1);
+    if (pending === 0) {
+      bar.classList.remove('htmx-bar-active');
+      bar.classList.add('htmx-bar-done');
+      setTimeout(function() { bar.classList.remove('htmx-bar-done'); }, 400);
+    }
+  });
+
+  /* ── Date filter cascade ───────────────────────────── */
+  window.dispatchFilter = function() {
+    // Update URL params so the filter survives navigation
+    var since = document.getElementById('since') ? document.getElementById('since').value : '';
+    var until = document.getElementById('until') ? document.getElementById('until').value : '';
+    var url = new URL(window.location.href);
+    if (since) { url.searchParams.set('since', since); } else { url.searchParams.delete('since'); }
+    if (until) { url.searchParams.set('until', until); } else { url.searchParams.delete('until'); }
+    history.replaceState(null, '', url.toString());
+    document.body.dispatchEvent(new Event('filter-changed'));
+  };
+
+  /* ── Org table sort ────────────────────────────────── */
+  window.sortOrgs = function(field) {
+    var sortEl  = document.getElementById('org-sort');
+    var orderEl = document.getElementById('org-order');
+    var cur = sortEl ? sortEl.value : 'tickets';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    var form = document.getElementById('filter-form');
+    var params = new URLSearchParams(form ? new FormData(form) : {});
+    params.set('sort', field);
+    params.set('order', ord);
+    var q = document.getElementById('org-q');
+    if (q) params.set('q', q.value);
+    htmx.ajax('GET', '/api/org-table?' + params.toString(),
+              {target: '#org-tbody', swap: 'innerHTML'});
+  };
+
+  /* ── Student table sort ────────────────────────────── */
+  window.sortStudents = function(field) {
+    var sortEl  = document.getElementById('student-sort');
+    var orderEl = document.getElementById('student-order');
+    var slugEl  = document.getElementById('student-slug');
+    var cur = sortEl ? sortEl.value : 'activity';
+    var ord = orderEl ? orderEl.value : 'desc';
+    if (cur === field) {
+      ord = ord === 'desc' ? 'asc' : 'desc';
+    } else {
+      ord = 'desc';
+    }
+    if (sortEl)  sortEl.value  = field;
+    if (orderEl) orderEl.value = ord;
+    var slug = slugEl ? slugEl.value : '';
+    var form = document.getElementById('filter-form');
+    var params = new URLSearchParams(form ? new FormData(form) : {});
+    params.set('sort', field);
+    params.set('order', ord);
+    var q = document.getElementById('student-q');
+    if (q) params.set('q', q.value);
+    htmx.ajax('GET', '/api/org/' + slug + '/students?' + params.toString(),
+              {target: '#student-tbody', swap: 'innerHTML'});
+  };
+
+  /* ── Ticket panel ─────────────────────────────────── */
+  window.openTicketPanel = function(tid, summary, url) {
+    var panel   = document.getElementById('ticket-panel');
+    var backdrop = document.getElementById('ticket-panel-backdrop');
+    var idEl    = document.getElementById('ticket-panel-id');
+    var sumEl   = document.getElementById('ticket-panel-summary');
+    if (idEl) idEl.innerHTML = '<i class="fa-solid fa-ticket"></i> #' + tid
+      + (url ? ' <a class="ticket-mantis-link" href="' + url + '" target="_blank" rel="noopener">'
+             + '<i class="fa-solid fa-arrow-up-right-from-square"></i> Mantis</a>' : '');
+    if (sumEl) sumEl.textContent = summary || '';
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    htmx.ajax('GET', '/api/ticket/' + tid, {target: '#ticket-panel-content', swap: 'innerHTML'});
+  };
+
+  window.closeTicketPanel = function() {
+    document.getElementById('ticket-panel').classList.remove('open');
+    document.getElementById('ticket-panel-backdrop').classList.remove('open');
+    document.querySelectorAll('tr.sp-ticket-row-active').forEach(function(r) {
+      r.classList.remove('sp-ticket-row-active');
+    });
+  };
+
+  /* ── Ticket panel resize ───────────────────────────── */
+  (function() {
+    var STORAGE_KEY = 'meTicketPanelWidth';
+    var MIN_WIDTH   = 280;
+    var MAX_FRAC    = 0.92;
+    var panel  = document.getElementById('ticket-panel');
+    var handle = document.getElementById('ticket-panel-resize');
+
+    function applyWidth(px) {
+      var max = Math.floor(window.innerWidth * MAX_FRAC);
+      px = Math.max(MIN_WIDTH, Math.min(px, max));
+      panel.style.width = px + 'px';
+      return px;
+    }
+
+    var saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+    if (!isNaN(saved)) applyWidth(saved);
+
+    handle.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      handle.classList.add('dragging');
+      panel.style.transition = 'none';
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'ew-resize';
+
+      function onMove(ev) { applyWidth(window.innerWidth - ev.clientX); }
+
+      function onUp() {
+        handle.classList.remove('dragging');
+        panel.style.transition = '';
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        var w = parseInt(panel.style.width, 10);
+        if (!isNaN(w)) localStorage.setItem(STORAGE_KEY, w);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+      }
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  })();
+
+  /* ── Student panel ─────────────────────────────────── */
+  window.openStudentPanel = function(studentId, name) {
+    var panel = document.getElementById('student-panel');
+    var backdrop = document.getElementById('student-panel-backdrop');
+    var nameEl = document.getElementById('student-panel-name');
+    if (nameEl) nameEl.textContent = name || '—';
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    // Clear old active row
+    document.querySelectorAll('tr.student-row-active').forEach(function(r) {
+      r.classList.remove('student-row-active');
+    });
+    var form = document.getElementById('filter-form');
+    var params = new URLSearchParams(form ? new FormData(form) : {});
+    htmx.ajax('GET', '/api/student/' + studentId + '/panel?' + params.toString(),
+              {target: '#student-panel-content', swap: 'innerHTML'});
+  };
+
+  window.closeStudentPanel = function() {
+    document.getElementById('student-panel').classList.remove('open');
+    document.getElementById('student-panel-backdrop').classList.remove('open');
+    document.querySelectorAll('tr.student-row-active').forEach(function(r) {
+      r.classList.remove('student-row-active');
+    });
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var tp = document.getElementById('ticket-panel');
+      if (tp && tp.classList.contains('open')) { closeTicketPanel(); }
+      else { closeStudentPanel(); }
+    }
+  });
+
+  /* ── Org link builder (carries filter params) ──────── */
+  window.goOrg = function(slug) {
+    var since = document.getElementById('since') ? document.getElementById('since').value : '';
+    var until = document.getElementById('until') ? document.getElementById('until').value : '';
+    var params = new URLSearchParams();
+    if (since) params.set('since', since);
+    if (until) params.set('until', until);
+    var qs = params.toString();
+    window.location.href = (window.SCRIPT_NAME || '') + '/org/' + slug + (qs ? '?' + qs : '');
+  };
+
+  /* ── Restore URL filter params into inputs ─────────── */
+  document.addEventListener('DOMContentLoaded', function() {
+    var params = new URLSearchParams(window.location.search);
+    var since = params.get('since') || '';
+    var until = params.get('until') || '';
+    var sinceEl = document.getElementById('since');
+    var untilEl = document.getElementById('until');
+    if (sinceEl && since) sinceEl.value = since;
+    if (untilEl && until) untilEl.value = until;
+  });
+
+})();
+</script>
+
+{% block extra_scripts %}{% endblock extra_scripts %}
+
+</body>
+</html>

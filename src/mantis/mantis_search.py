@@ -77,6 +77,59 @@ _DEST_IP_RE = re.compile(
 # Fields that carry structured source/dest labels (not free-form notes)
 _LABEL_FIELDS = ("description", "steps_to_reproduce", "additional_information")
 
+# Escalation detection — two-stage approach applied only to admin notes.
+#
+# Stage 1 (_CLIENT_CONTACT_RE): the handler directly contacted/informed the
+# client (past or present tense).  Any match whose 20-char prefix contains
+# "will" is treated as a future intent and skipped.
+#
+# Stage 2 (_ESC_PAST_TO_CLIENT_RE): the handler wrote "escalated [this/it] to
+# [the] client" in the past tense.  Matches whose 20-char prefix contains
+# "not" or "won't" are skipped (negated intent).
+#
+# Intentionally excluded:
+#   - bare "escalat*" words (privilege escalation, "no need to escalate", etc.)
+#   - future-tense client contact ("we will let the client know")
+#   - conditional escalation ("worth escalating", "if we see more, we'll…")
+_CLIENT_CONTACT_RE = re.compile(
+    r"(?:"
+    r"(?:informed|notif(?:ied|y))\s+(?:the\s+)?client"
+    r"|let\s+(?:the\s+)?client\s+know"
+    r"|message\s+to\s+(?:the\s+)?client"
+    r"|customer\s+communication"
+    r"|client\s+respond(?:ed|s)"
+    r"|reported\s+(?:this\s+)?to\s+(?:the\s+)?client"
+    r"|reached\s+out\s+to\s+(?:the\s+)?client"
+    r"|contacted\s+(?:the\s+)?client"
+    r")",
+    re.I,
+)
+_ESC_PAST_TO_CLIENT_RE = re.compile(
+    r"\bescalated\s+(?:(?:this|it)\s+)?to\s+(?:the\s+)?client\b",
+    re.I,
+)
+_WILL_RE = re.compile(r"\bwill\b", re.I)
+_NOT_RE = re.compile(r"\bnot\b|\bwon't\b", re.I)
+
+
+def _note_is_escalation(note: dict) -> bool:
+    """Return True if an admin note confirms the ticket was escalated to the client."""
+    text = note.get("text", "")
+    # Stage 1: client-contact phrases (skip future-tense occurrences)
+    for m in _CLIENT_CONTACT_RE.finditer(text):
+        prefix = text[max(0, m.start() - 20) : m.start()]
+        if _WILL_RE.search(prefix):
+            continue
+        return True
+    # Stage 2: past-tense "escalated [this/it] to [the] client"
+    for m in _ESC_PAST_TO_CLIENT_RE.finditer(text):
+        prefix = text[max(0, m.start() - 20) : m.start()]
+        if _NOT_RE.search(prefix):
+            continue
+        return True
+    return False
+
+
 _DASHBOARD_DOMAINS = {"kibana", "opensearch", "elastic"}
 _TI_DOMAINS = {"greynoise", "abuseipdb", "shodan", "virustotal"}
 
@@ -241,6 +294,11 @@ def _normalize_issue(
 
     admin_note_count = sum(1 for n in notes if n["is_admin_note"])
 
+    escalation_note = next(
+        (n for n in notes if n["is_admin_note"] and _note_is_escalation(n)),
+        None,
+    )
+
     return {
         "id": issue_id,
         "url": f"{api_url}/view.php?id={issue_id}",
@@ -270,6 +328,8 @@ def _normalize_issue(
         "ti_links": ti_links,
         "note_count": len(notes),
         "admin_note_count": admin_note_count,
+        "is_escalated": escalation_note is not None,
+        "escalated_by": escalation_note["reporter"]["name"] if escalation_note else None,
     }
 
 

@@ -1,0 +1,18 @@
+{% if rows %}
+{% for row in rows %}
+<tr onclick="goOrg('{{ row.slug }}')" title="{{ row.name }}">
+  <td class="name-cell">{{ row.name }}</td>
+  <td class="num">{{ row.student_count }}</td>
+  <td class="num">{{ row.ticket_count }}</td>
+  <td class="num {% if row.escalation_count == 0 %}zero{% endif %}">
+    {{ row.escalation_count }}
+  </td>
+  <td class="num {% if row.note_count == 0 %}zero{% endif %}">
+    {{ row.note_count }}
+  </td>
+  <td style="color:var(--on-surface-dim);font-size:0.78rem">{{ row.date_range or '—' }}</td>
+</tr>
+{% endfor %}
+{% else %}
+<tr class="loading-row"><td colspan="6">No institutions found.</td></tr>
+{% endif %}
