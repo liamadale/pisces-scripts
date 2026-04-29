@@ -14,6 +14,7 @@ _REPO = os.path.dirname(os.path.dirname(_HERE))
 # don't parse the JSON twice.  Falls back to loading independently when
 # running standalone (mantis_web.data will load itself in that process).
 # ---------------------------------------------------------------------------
+from apps.mantis_web.data import TICKETS_BY_ID  # noqa: E402, F401
 from apps.mantis_web.data import _raw_tickets as RAW_TICKETS  # noqa: E402
 from src.mantis.activity_report import (  # noqa: E402
     StudentStats,
