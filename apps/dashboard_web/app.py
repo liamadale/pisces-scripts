@@ -41,11 +41,31 @@ def create_app() -> Flask:
         dcache.invalidate()
         return "", 204
 
+    @app.route("/api/dashboard/sensors")
+    def api_sensor_summary():
+        """Sensor browser modal content — terms agg on host.name."""
+        from apps.dashboard_web.opensearch.aggregations import agg_opensearch_sensors
+
+        time_range = request.args.get("time_range", "now-24h")
+        data = agg_opensearch_sensors(time_range)
+        # Build bucket-like dicts matching the sensor_summary.html template
+        buckets = [
+            {"key": label, "doc_count": count}
+            for label, count in zip(data["labels"], data["counts"])
+        ]
+        current = [
+            s.strip()
+            for s in request.args.get("sensor", "").split(",")
+            if s.strip() and s.strip().lower() != "all"
+        ]
+        return render_template("sensor_summary.html", buckets=buckets, current_sensors=current)
+
     from apps.dashboard_web.mantis import bp as mantis_bp
     from apps.dashboard_web.opensearch import bp as opensearch_bp
     from apps.dashboard_web.overview import bp as overview_bp
+    from apps.dashboard_web.tickets import bp as tickets_bp
 
-    for bp in [overview_bp, opensearch_bp, mantis_bp]:
+    for bp in [overview_bp, opensearch_bp, mantis_bp, tickets_bp]:
         app.register_blueprint(bp)
 
     return app

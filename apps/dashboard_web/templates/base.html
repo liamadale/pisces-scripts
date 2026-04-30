@@ -24,10 +24,12 @@
     .dash-toolbar {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 1.25rem;
+      gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      margin: 1rem 1.25rem 0;
       background: var(--surface-container-low);
-      border-bottom: 1px solid var(--outline);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-md);
       flex-wrap: wrap;
     }
     .tab-bar {
@@ -36,13 +38,13 @@
       flex: 1;
     }
     .tab-btn {
-      padding: 0.45rem 1rem;
+      padding: 0.4rem 0.85rem;
       border: 1px solid var(--outline);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       background: transparent;
       color: var(--on-surface-dim);
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
     .tab-btn:hover {
@@ -59,41 +61,64 @@
       align-items: center;
       gap: 0.5rem;
       color: var(--on-surface-dim);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
-    .dash-controls select {
-      background: var(--surface-container);
+    .dash-controls label {
+      font-size: 0.78rem;
+      color: var(--on-surface-dim);
+      white-space: nowrap;
+    }
+    .dash-controls select,
+    .dash-controls input[type="date"] {
+      background: var(--surface-container-high);
       color: var(--on-surface);
       border: 1px solid var(--outline);
-      border-radius: 4px;
-      padding: 0.3rem 0.5rem;
-      font-size: 0.85rem;
+      border-radius: var(--radius-xs);
+      padding: 3px 7px;
+      font-size: 0.82rem;
+      height: 28px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      color-scheme: dark;
+    }
+    [data-theme="light"] .dash-controls select,
+    [data-theme="light"] .dash-controls input[type="date"] {
+      color-scheme: light;
+    }
+    .dash-controls select:focus,
+    .dash-controls input[type="date"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--focus-ring);
     }
     .tab-panel {
-      padding: 1.25rem;
+      padding: 1rem 1.25rem;
     }
     .sub-tab-bar {
-      display: flex;
+      display: inline-flex;
       gap: 0.25rem;
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-pill);
+      padding: 0.2rem;
     }
     .sub-tab-btn {
-      padding: 0.35rem 0.85rem;
-      border: 1px solid var(--outline);
-      border-radius: 5px;
+      padding: 0.3rem 0.9rem;
+      border: none;
+      border-radius: var(--radius-pill);
       background: transparent;
       color: var(--on-surface-dim);
       cursor: pointer;
-      font-size: 0.8rem;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      font-size: 0.78rem;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
     }
     .sub-tab-btn:hover {
       background: var(--state-hover);
       color: var(--on-surface);
     }
     .sub-tab-btn.active {
-      background: var(--secondary);
-      border-color: var(--secondary);
-      color: #0d0f14;
+      background: var(--primary);
+      color: #fff;
     }
     .loading-msg {
       color: var(--on-surface-dim);
@@ -194,6 +219,21 @@
     .ip-table tr:last-child td { border-bottom: none; }
     .ip-table tr:hover td { background: var(--state-hover); }
     .ip-mono { font-family: monospace; }
+
+    /* ── Sensor badge ──────────────────────────────────── */
+    .sensor-badge {
+      position: absolute;
+      top: -4px; right: -4px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 700;
+      min-width: 14px; height: 14px;
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 3px;
+    }
+    #sensor-btn { position: relative; overflow: visible; }
   </style>
 </head>
 <body>
@@ -215,6 +255,21 @@
 <main>
 {% block content %}{% endblock content %}
 </main>
+
+<!-- Sensor browser modal -->
+<div id="sensor-modal-backdrop" class="modal-backdrop"
+     onclick="if(event.target===this)closeSensorModal()"></div>
+<div id="sensor-modal" class="modal-panel" role="dialog" aria-modal="true" aria-label="Sensor browser">
+  <div class="modal-header">
+    <span class="modal-title"><i class="fa-solid fa-satellite-dish"></i> Filter by Sensor</span>
+    <button class="btn-icon" onclick="closeSensorModal()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div id="sensor-modal-body" class="modal-body" style="padding:12px;">
+    <p class="ss-empty">Loading&hellip;</p>
+  </div>
+</div>
 
 <script>
 (function () {

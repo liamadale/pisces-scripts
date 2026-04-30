@@ -12,6 +12,9 @@
     <button id="tab-btn-mantis" class="tab-btn" onclick="switchTab('mantis')">
       <i class="fa-solid fa-bug"></i> Threat Intel
     </button>
+    <button id="tab-btn-tickets" class="tab-btn" onclick="switchTab('tickets')">
+      <i class="fa-solid fa-ticket"></i> Tickets
+    </button>
   </div>
   <div class="dash-controls">
     <label for="time-range-select">Time</label>
@@ -25,9 +28,19 @@
       <option value="now-14d">14d</option>
       <option value="now-30d">30d</option>
     </select>
+    <button class="btn-icon" onclick="openSensorModal()" title="Filter by sensor" id="sensor-btn">
+      <i class="fa-solid fa-satellite-dish"></i>
+      <span id="sensor-badge" style="display:none;" class="sensor-badge"></span>
+    </button>
     <button class="btn-icon" onclick="reloadActive()" title="Refresh data">
       <i class="fa-solid fa-arrows-rotate"></i>
     </button>
+  </div>
+  <div class="dash-controls" id="date-controls" style="display:none;">
+    <label for="date-since">From</label>
+    <input type="date" id="date-since" onchange="reloadActive()">
+    <label for="date-until">To</label>
+    <input type="date" id="date-until" onchange="reloadActive()">
   </div>
 </div>
 
@@ -48,35 +61,74 @@
     <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Threat Intel data…</p>
   </div>
 </div>
+
+<div id="panel-tickets" class="tab-panel" style="display:none">
+  <div id="panel-tickets-content">
+    <p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading Tickets data…</p>
+  </div>
+</div>
 {% endblock content %}
 
 {% block extra_scripts %}
 <script>
 var _activeTab = 'overview';
 var _loaded = {};
+var _selectedSensors = '';  /* comma-separated or empty for 'all' */
 
 function getTimeRange() {
   return document.getElementById('time-range-select').value;
+}
+
+function getSensorParam() {
+  return _selectedSensors ? '&sensor=' + encodeURIComponent(_selectedSensors) : '';
+}
+
+function updateSensorBadge() {
+  var badge = document.getElementById('sensor-badge');
+  if (!badge) return;
+  if (_selectedSensors) {
+    var n = _selectedSensors.split(',').length;
+    badge.textContent = n;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function getDateParams() {
+  var since = document.getElementById('date-since').value;
+  var until = document.getElementById('date-until').value;
+  var p = '';
+  if (since) p += '&since=' + since;
+  if (until) p += '&until=' + until;
+  return p;
 }
 
 function loadSection(name) {
   var contentEl = document.getElementById('panel-' + name + '-content');
   if (!contentEl) return;
   contentEl.innerHTML = '<p class="loading-msg"><i class="fa-solid fa-spinner fa-spin"></i> Loading\u2026</p>';
+  var useDate = (name === 'mantis' || name === 'tickets');
+  var qs = useDate
+    ? '?_=1' + getDateParams()
+    : '?time_range=' + getTimeRange() + getSensorParam();
   htmx.ajax(
     'GET',
-    '/api/dashboard/' + name + '?time_range=' + getTimeRange(),
+    '/api/dashboard/' + name + qs,
     {target: '#panel-' + name + '-content', swap: 'innerHTML'}
   );
 }
 
 function switchTab(name) {
-  ['overview', 'opensearch', 'mantis'].forEach(function(t) {
+  ['overview', 'opensearch', 'mantis', 'tickets'].forEach(function(t) {
     var panel = document.getElementById('panel-' + t);
     var btn   = document.getElementById('tab-btn-' + t);
     if (panel) panel.style.display = (t === name) ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t === name);
   });
+  var useDate = (name === 'mantis' || name === 'tickets');
+  document.querySelector('.dash-controls').style.display = useDate ? 'none' : '';
+  document.getElementById('date-controls').style.display = useDate ? '' : 'none';
   _activeTab = name;
   if (!_loaded[name]) {
     _loaded[name] = true;
@@ -86,8 +138,46 @@ function switchTab(name) {
 
 function reloadActive() {
   _loaded = {};
+  /* Clear cached modal so it re-fetches with new time range */
+  var body = document.getElementById('sensor-modal-body');
+  if (body) body.innerHTML = '<p class="ss-empty">Loading\u2026</p>';
   loadSection(_activeTab);
 }
+
+/* ── Sensor modal ──────────────────────────────────── */
+window.openSensorModal = function() {
+  var body = document.getElementById('sensor-modal-body');
+  if (!body.querySelector('.ss-list')) {
+    htmx.ajax('GET',
+      '/api/dashboard/sensors?time_range=' + getTimeRange() + getSensorParam(),
+      {target: '#sensor-modal-body', swap: 'innerHTML'});
+  }
+  document.getElementById('sensor-modal-backdrop').classList.add('open');
+  document.getElementById('sensor-modal').classList.add('open');
+};
+window.closeSensorModal = function() {
+  document.getElementById('sensor-modal-backdrop').classList.remove('open');
+  document.getElementById('sensor-modal').classList.remove('open');
+};
+window.sensorSelectAll = function(state) {
+  document.querySelectorAll('#sensor-modal-body .ss-check')
+    .forEach(function(cb) { cb.checked = state; });
+};
+window.applySensorSelection = function() {
+  var checked = Array.from(
+    document.querySelectorAll('#sensor-modal-body .ss-check:checked')
+  ).map(function(cb) { return cb.value; });
+  var total = document.querySelectorAll('#sensor-modal-body .ss-check').length;
+  /* If all are checked or none, treat as 'all' */
+  _selectedSensors = (checked.length && checked.length < total) ? checked.join(',') : '';
+  updateSensorBadge();
+  closeSensorModal();
+  reloadActive();
+};
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeSensorModal();
+});
 
 /* Load overview on first page render */
 window.addEventListener('DOMContentLoaded', function() {
