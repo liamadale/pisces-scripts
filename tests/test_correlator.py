@@ -207,25 +207,25 @@ def test_investigate_both_private() -> None:
 
 
 def test_investigate_one_public() -> None:
-    """Private src → profiled; public dest → enriched, not profiled."""
+    """Private src → profiled; public dest → profiled (public) + enriched."""
     patches = _base_patches(enrichment=MOCK_ENRICHMENT)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         ctx = investigate(PRIVATE_SRC, PUBLIC_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.src_profile is not None
-    assert ctx.dest_profile is None
+    assert ctx.dest_profile is not None  # now a PublicIPProfile
     assert ctx.dest_enrichment is not None
     assert ctx.src_enrichment is None
 
 
 def test_investigate_both_public() -> None:
-    """Both public → no profiling, both enrichments populated."""
+    """Both public → both profiled (public) + both enrichments populated."""
     patches = _base_patches(enrichment=MOCK_ENRICHMENT)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         ctx = investigate(PUBLIC_SRC, PUBLIC_DEST, SENSOR, TIME_RANGE)
 
-    assert ctx.src_profile is None
-    assert ctx.dest_profile is None
+    assert ctx.src_profile is not None  # now a PublicIPProfile
+    assert ctx.dest_profile is not None  # now a PublicIPProfile
     assert ctx.src_enrichment is not None
     assert ctx.dest_enrichment is not None
 
