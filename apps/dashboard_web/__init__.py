@@ -13,7 +13,6 @@ def safe_date_param(value: str) -> str:
     if not v:
         return ""
     try:
-        date.fromisoformat(v)
-        return v
+        return date.fromisoformat(v).isoformat()
     except ValueError:
         return ""
