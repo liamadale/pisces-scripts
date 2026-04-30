@@ -182,6 +182,18 @@
   </a>
 </div>
 
+<footer style="text-align:center;padding:2.5rem 1rem 1.5rem;font-family:var(--sans);font-size:0.75rem;color:var(--on-surface-dim);">
+  PISCES Toolkit v{{ version }}
+  {% if git.behind is not none %}
+    <span style="margin-left:0.5rem;">·</span>
+    {% if git.behind == 0 %}
+      <span style="margin-left:0.5rem;color:var(--primary);">{{ git.branch }} up to date</span>
+    {% else %}
+      <span style="margin-left:0.5rem;color:var(--error, #f28b82);">{{ git.behind }} commit{{ 's' if git.behind != 1 }} behind {{ git.branch }}</span>
+    {% endif %}
+  {% endif %}
+</footer>
+
 <script>
 window.toggleTheme = function() {
   var html = document.documentElement;

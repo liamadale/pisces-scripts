@@ -2,9 +2,61 @@
 
 import json
 import os
+import subprocess
 import time
 
 from flask import Flask, render_template
+
+
+def _read_version() -> str:
+    """Read version from pyproject.toml without requiring package installation."""
+    toml = os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")
+    try:
+        with open(toml) as f:
+            for line in f:
+                if line.startswith("version"):
+                    return line.split('"')[1]
+    except OSError:
+        pass
+    return "unknown"
+
+
+def _git_update_info() -> dict:
+    """Fetch origin and return commits-behind count for the current branch.
+
+    Only compares HEAD against origin/<current_branch> so the count is
+    always meaningful. Runs once at startup.
+    """
+    repo = os.path.join(os.path.dirname(__file__), "..", "..")
+    info: dict = {"branch": "unknown", "behind": None}
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin"],
+            cwd=repo,
+            capture_output=True,
+            timeout=10,
+        )
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo,
+            text=True,
+            timeout=5,
+        ).strip()
+        info["branch"] = branch
+        result = subprocess.check_output(
+            ["git", "rev-list", f"HEAD..origin/{branch}", "--count"],
+            cwd=repo,
+            text=True,
+            timeout=5,
+        ).strip()
+        info["behind"] = int(result)
+    except (subprocess.SubprocessError, OSError, ValueError):
+        pass
+    return info
+
+
+_VERSION = _read_version()
+_GIT_INFO = _git_update_info()
 
 _DATA = os.path.join(os.path.dirname(__file__), "..", "..", "data", "tickets")
 _INDEX = os.path.join(_DATA, "indexed", "tickets_index.json")
@@ -58,6 +110,6 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
-        return render_template("index.html", stats=_gather_stats())
+        return render_template("index.html", stats=_gather_stats(), version=_VERSION, git=_GIT_INFO)
 
     return app
