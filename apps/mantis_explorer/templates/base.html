@@ -80,8 +80,41 @@
   </div>
 </aside>
 
+{# ── Notice modal ──────────────────────────────── #}
+<div id="notice-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <div class="modal-header">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>Notice — Escalated Counts</span>
+    </div>
+    <div class="modal-body">
+      <p>The <strong>escalated ticket count</strong> shown in this app is not yet tuned enough to be reasonably accurate. <strong>Do not rely on it for real reporting.</strong></p>
+      <p style="margin-top: 1rem; margin-bottom: 0.25rem; color: var(--on-surface-dim); font-size: 0.8rem; font-family: var(--sans);">
+        <i class="fa-solid fa-terminal" style="font-size: 0.7rem;"></i> First time running? Make sure to run:
+      </p>
+      <div class="modal-code-box">
+        <code>uv run src/mantis/mantis_index.py</code>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="dismissNotice()">
+        <i class="fa-solid fa-check"></i> Acknowledge
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
+
+  /* ── Notice Modal ──────────────────────────────────── */
+  window.dismissNotice = function() {
+    document.getElementById('notice-modal').classList.remove('show');
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('notice-modal').classList.add('show');
+  });
 
   /* ── Theme toggle ──────────────────────────────────── */
   window.toggleTheme = function() {

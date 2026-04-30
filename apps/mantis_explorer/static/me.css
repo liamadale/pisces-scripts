@@ -1106,3 +1106,80 @@ tr.sp-ticket-row-active {
   padding: 1.5rem;
   text-align: center;
 }
+
+/* ── 18. Notice Modal ─────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  backdrop-filter: blur(4px);
+}
+
+.modal-backdrop.show {
+  visibility: visible;
+  opacity: 1;
+}
+
+.modal-content {
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline);
+  border-top: 3px solid var(--orange);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  max-width: 550px;
+  width: 90%;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+}
+
+.modal-header {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--orange);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-body {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--on-surface);
+}
+
+.modal-body p { margin-bottom: 0.75rem; }
+
+.modal-code-box {
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 0.78rem;
+  border: 1px solid var(--outline);
+  margin: 0.5rem 0;
+  color: var(--secondary);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.modal-code-box code { color: inherit; display: inline; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
