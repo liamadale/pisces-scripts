@@ -5,30 +5,19 @@
  *   <head>: <script src="/shared/static/theme.js"></script>
  *   (the IIFE at the top applies the saved theme before CSS loads)
  *
- *   <body>: <button onclick="toggleTheme()">…</button>
+ *   Settings page: <select onchange="setTheme(this.value)">
  */
 
 /* Flash-prevention: apply saved theme immediately */
 (function () {
-  var t = localStorage.getItem('pisces-theme') || 'dark';
+  var MIGRATE = { 'dark': 'pisces-dark', 'light': 'pisces-light' };
+  var t = localStorage.getItem('pisces-theme') || 'pisces-dark';
+  if (MIGRATE[t]) { t = MIGRATE[t]; localStorage.setItem('pisces-theme', t); }
   document.documentElement.setAttribute('data-theme', t);
 })();
 
-/* Toggle between dark and light */
-window.toggleTheme = function () {
-  var html = document.documentElement;
-  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('pisces-theme', next);
-  updateThemeIcon(next);
+/* Set a specific theme by name */
+window.setTheme = function (theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('pisces-theme', theme);
 };
-
-/* Sync the icon to match the current theme */
-function updateThemeIcon(theme) {
-  var icon = document.getElementById('theme-icon');
-  if (!icon) return;
-  icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-}
-
-/* Set the correct icon on first load */
-updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');

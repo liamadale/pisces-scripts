@@ -184,8 +184,14 @@ main {
   transition: border-color 0.15s, box-shadow 0.15s;
   color-scheme: dark;
 }
-[data-theme="light"] .me-filter-bar input[type="date"],
-[data-theme="light"] .me-filter-bar input[type="text"] {
+[data-theme="pisces-light"] .me-filter-bar input[type="date"],
+[data-theme="pisces-light"] .me-filter-bar input[type="text"],
+[data-theme="gruvbox-light"] .me-filter-bar input[type="date"],
+[data-theme="gruvbox-light"] .me-filter-bar input[type="text"],
+[data-theme="tokyonight-light"] .me-filter-bar input[type="date"],
+[data-theme="tokyonight-light"] .me-filter-bar input[type="text"],
+[data-theme="catppuccin-latte"] .me-filter-bar input[type="date"],
+[data-theme="catppuccin-latte"] .me-filter-bar input[type="text"] {
   color-scheme: light;
 }
 
