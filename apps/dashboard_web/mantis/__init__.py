@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request
 
 from apps.dashboard_web import cache as dcache
+from apps.dashboard_web import safe_date_param
 from apps.dashboard_web.mantis.aggregations import (
     agg_mantis_attack_types,
     agg_mantis_infra_count,
@@ -13,8 +14,8 @@ bp = Blueprint("mantis", __name__, template_folder="templates")
 
 @bp.route("/api/dashboard/mantis")
 def section():
-    since = request.args.get("since", "")
-    until = request.args.get("until", "")
+    since = safe_date_param(request.args.get("since", ""))
+    until = safe_date_param(request.args.get("until", ""))
     cache_key = {"since": since, "until": until}
     cached = dcache.get("mantis", cache_key)
     if cached is not None:
