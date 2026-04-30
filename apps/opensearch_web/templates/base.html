@@ -4,14 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES · OpenSearch{% endblock title %}</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    /* Apply saved theme before CSS loads to prevent flash */
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}?v={{ css_version }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -28,7 +24,7 @@
 
     <!-- Brand — links to Hub when mounted, overview when standalone -->
     <a class="sidebar-brand" href="{{ '/' if script_name else script_name + '/' }}" title="{{ 'Hub' if script_name else 'Overview' }}">
-      <img src="{{ url_for('static', filename='pisces-logo.png') }}" class="brand-logo" alt="PISCES" height="32" width="auto">
+      <img src="/shared/static/pisces-logo.png" class="brand-logo" alt="PISCES" height="32" width="auto">
       <span class="sidebar-label">PISCES <span class="brand-sub">OpenSearch</span></span>
     </a>
 
@@ -209,30 +205,6 @@
 
 <script>
 (function () {
-  /* ── Theme toggle ────────────────────────────────────── */
-  window.toggleTheme = function() {
-    var html = document.documentElement;
-    var current = html.getAttribute('data-theme');
-    var next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('pisces-theme', next);
-    updateThemeIcon(next);
-  };
-
-  function updateThemeIcon(theme) {
-    var icon = document.getElementById('theme-icon');
-    if (!icon) return;
-    if (theme === 'dark') {
-      icon.classList.remove('fa-sun');
-      icon.classList.add('fa-moon');
-    } else {
-      icon.classList.remove('fa-moon');
-      icon.classList.add('fa-sun');
-    }
-  }
-
-  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
-
   /* ── Timestamp toggle (compact ↔ full) ──────────────── */
   window.toggleTimestamps = function() {
     var full = document.body.classList.toggle('ts-full-mode');

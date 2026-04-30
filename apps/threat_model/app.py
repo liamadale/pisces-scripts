@@ -152,6 +152,10 @@ def create_app() -> Flask:
         template_folder="templates",
     )
 
+    from apps.shared.blueprints import make_shared_static_blueprint
+
+    app.register_blueprint(make_shared_static_blueprint())
+
     # Jinja2 globals / filters
     app.jinja_env.globals["fmt_attack"] = fmt_attack
     app.jinja_env.globals["classify_ip"] = classify_ip

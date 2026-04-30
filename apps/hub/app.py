@@ -108,6 +108,10 @@ def _gather_stats() -> dict:
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
+    from apps.shared.blueprints import make_shared_static_blueprint
+
+    app.register_blueprint(make_shared_static_blueprint())
+
     @app.route("/")
     def index():
         return render_template("index.html", stats=_gather_stats(), version=_VERSION, git=_GIT_INFO)

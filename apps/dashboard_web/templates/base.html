@@ -4,14 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES · Dashboard{% endblock title %}</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    /* Apply saved theme before CSS loads to prevent flash */
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -240,7 +236,7 @@
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="{{ script_name }}/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Dashboard</span></a>
+  <a class="brand" href="{{ script_name }}/"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Dashboard</span></a>
   {% if script_name %}
   <a href="/" class="btn-icon" title="Back to PISCES Hub">
     <i class="fa-solid fa-house"></i>
@@ -273,23 +269,6 @@
 
 <script>
 (function () {
-  /* ── Theme toggle ────────────────────────────────────── */
-  window.toggleTheme = function() {
-    var html = document.documentElement;
-    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('pisces-theme', next);
-    updateThemeIcon(next);
-  };
-
-  function updateThemeIcon(theme) {
-    var icon = document.getElementById('theme-icon');
-    if (!icon) return;
-    icon.classList.toggle('fa-moon', theme === 'dark');
-    icon.classList.toggle('fa-sun',  theme !== 'dark');
-  }
-  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
-
   /* ── HTMX SCRIPT_NAME prefix (hub mode) ─────────────── */
   document.body.addEventListener('htmx:configRequest', function(evt) {
     if (window.SCRIPT_NAME && evt.detail.path.startsWith('/')) {

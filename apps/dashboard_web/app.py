@@ -68,4 +68,8 @@ def create_app() -> Flask:
     for bp in [overview_bp, opensearch_bp, mantis_bp, tickets_bp]:
         app.register_blueprint(bp)
 
+    from apps.shared.blueprints import make_shared_static_blueprint
+
+    app.register_blueprint(make_shared_static_blueprint())
+
     return app

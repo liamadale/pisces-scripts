@@ -4,13 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Mantis Explorer{% endblock title %}</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='me.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -24,7 +21,7 @@
 
 <nav>
   <a class="brand" href="{{ script_name }}/">
-    <img src="{{ url_for('static', filename='pisces-logo.png') }}"
+    <img src="/shared/static/pisces-logo.png"
          alt="PISCES" class="brand-logo" height="28" width="auto">
     PISCES <span class="brand-sub">Mantis Explorer</span>
   </a>
@@ -115,23 +112,6 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('notice-modal').classList.add('show');
   });
-
-  /* ── Theme toggle ──────────────────────────────────── */
-  window.toggleTheme = function() {
-    var html = document.documentElement;
-    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('pisces-theme', next);
-    updateThemeIcon(next);
-  };
-
-  function updateThemeIcon(theme) {
-    var icon = document.getElementById('theme-icon');
-    if (!icon) return;
-    icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-  }
-
-  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
 
   /* ── HTMX SCRIPT_NAME prefix (hub mode) ────────────── */
   document.body.addEventListener('htmx:configRequest', function(evt) {

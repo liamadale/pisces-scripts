@@ -4,13 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PISCES Hub</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -124,7 +121,7 @@
 </head>
 <body>
 <nav>
-  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Hub</span></a>
+  <a class="brand" href="/"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Hub</span></a>
   <div class="spacer"></div>
   <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
     <i class="fa-solid fa-moon" id="theme-icon"></i>
@@ -194,20 +191,5 @@
   {% endif %}
 </footer>
 
-<script>
-window.toggleTheme = function() {
-  var html = document.documentElement;
-  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('pisces-theme', next);
-  var icon = document.getElementById('theme-icon');
-  if (icon) icon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-};
-(function() {
-  var t = document.documentElement.getAttribute('data-theme') || 'dark';
-  var icon = document.getElementById('theme-icon');
-  if (icon) icon.className = t === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-})();
-</script>
 </body>
 </html>
