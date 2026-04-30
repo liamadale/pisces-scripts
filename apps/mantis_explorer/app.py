@@ -21,6 +21,10 @@ def create_app() -> Flask:
     """Create and configure the Mantis Explorer Flask app."""
     app = Flask(__name__, static_folder="static", template_folder="templates")
 
+    from apps.shared.blueprints import make_shared_static_blueprint
+
+    app.register_blueprint(make_shared_static_blueprint())
+
     @app.context_processor
     def inject_globals() -> dict:
         return {"script_name": request.environ.get("SCRIPT_NAME", "")}

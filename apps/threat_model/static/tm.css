@@ -1,103 +1,16 @@
 /* ================================================================
-   Threat Modeling App — Dark SOC Analyst Theme
-   Self-contained; does not depend on pisces.css
+   Threat Modeling App — App-specific styles
+   Requires: /shared/static/tokens.css, /shared/static/base.css
    ================================================================ */
 
-/* ── 1. Design Tokens ─────────────────────────────────── */
-
-[data-theme="dark"] {
-  --surface:                  #0d0f14;
-  --surface-container-low:    #161a24;
-  --surface-container:        #1a1f2e;
-  --surface-container-high:   #1e2433;
-  --surface-container-highest:#232840;
-  --outline:     #2a3045;
-  --outline-dim: #1e2233;
-  --on-surface:     #c8ccd8;
-  --on-surface-dim: #5a6278;
-  --primary:     #4f8ef7;
-  --primary-dim: #3a7ae8;
-  --secondary:   #7ec8e3;
-  --tertiary:    #bc8cff;
-  --green:  #3fb950; --yellow: #d29922;
-  --red:    #f85149; --orange: #e3763c; --purple: #bc8cff;
-  --state-hover: rgba(79,142,247,0.08);
-  --state-press: rgba(79,142,247,0.12);
-  --badge-green-bg:  rgba(63,185,80,0.2);
-  --badge-red-bg:    rgba(248,81,73,0.2);
-  --badge-yellow-bg: rgba(210,153,34,0.2);
-  --badge-blue-bg:   rgba(79,142,247,0.2);
-  --badge-gray-bg:   rgba(90,98,120,0.3);
-  --focus-ring: rgba(79,142,247,0.25);
-  --panel-shadow: rgba(0,0,0,0.45);
-}
-
-[data-theme="light"] {
-  --surface:                  #f8f9fc;
-  --surface-container-low:    #f0f1f5;
-  --surface-container:        #e8eaef;
-  --surface-container-high:   #e1e3e9;
-  --surface-container-highest:#d8dbe2;
-  --outline:     #c4c8d4;
-  --outline-dim: #dcdfe6;
-  --on-surface:     #1a1c24;
-  --on-surface-dim: #5c6070;
-  --primary:     #2563eb;
-  --primary-dim: #1d4fd8;
-  --secondary:   #0d7490;
-  --tertiary:    #7c3aed;
-  --green:  #16a34a; --yellow: #ca8a04;
-  --red:    #dc2626; --orange: #ea580c; --purple: #7c3aed;
-  --state-hover: rgba(37,99,235,0.06);
-  --state-press: rgba(37,99,235,0.10);
-  --badge-green-bg:  rgba(22,163,74,0.12);
-  --badge-red-bg:    rgba(220,38,38,0.12);
-  --badge-yellow-bg: rgba(202,138,4,0.12);
-  --badge-blue-bg:   rgba(37,99,235,0.10);
-  --badge-gray-bg:   rgba(92,96,112,0.12);
-  --focus-ring: rgba(37,99,235,0.25);
-  --panel-shadow: rgba(0,0,0,0.15);
-}
-
-:root {
-  --bg:      var(--surface);
-  --bg2:     var(--surface-container-low);
-  --bg3:     var(--surface-container-high);
-  --text:    var(--on-surface);
-  --text-dim:var(--on-surface-dim);
-  --border:  var(--outline);
-  --accent:  var(--primary);
-
-  --radius-xs:   4px;
-  --radius-sm:   8px;
-  --radius-md:   12px;
-  --radius-pill: 28px;
-
-  --font: "JetBrains Mono","Fira Mono","Courier New",monospace;
-  --sans: system-ui,-apple-system,sans-serif;
-}
-
-
-/* ── 2. Reset & Base ──────────────────────────────────── */
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { font-size: 14px; }
+/* ── Body layout ──────────────────────────────────────── */
 
 body {
-  background: var(--surface);
-  color: var(--on-surface);
-  font-family: var(--font);
   height: 100vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  line-height: 1.5;
 }
-
-a { color: var(--primary); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
 
 /* ── 3. Nav ───────────────────────────────────────────── */
 
@@ -206,6 +119,28 @@ nav .spacer { flex: 1; }
 }
 .btn-icon:hover { color: var(--primary); text-decoration: none; }
 
+.btn-notice {
+  background: transparent;
+  border: 1px solid var(--orange);
+  color: var(--orange);
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-notice:hover {
+  background: var(--orange);
+  color: var(--surface);
+}
+
 
 /* ── 4. Main scroll area ──────────────────────────────── */
 
@@ -250,39 +185,6 @@ main {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--focus-ring);
 }
-
-
-/* ── 6. Buttons ───────────────────────────────────────── */
-
-.btn {
-  position: relative;
-  font-family: var(--sans);
-  background: var(--surface-container-high);
-  border: 1px solid var(--outline);
-  color: var(--on-surface);
-  padding: 0 14px;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  font-size: 0.82rem;
-  height: 32px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  transition: border-color 0.15s, color 0.15s;
-}
-.btn:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-
-.btn-primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-.btn-primary:hover { background: var(--primary-dim); border-color: var(--primary-dim); color: #fff; }
-
-.btn-sm { padding: 0 10px; font-size: 0.78rem; height: 26px; }
 
 
 /* ── 7. Tab bar ───────────────────────────────────────── */
@@ -1114,6 +1016,16 @@ tr.ticket-row-active {
 .htmx-indicator { display: none; }
 .htmx-request .htmx-indicator { display: inline; }
 
+
+
+/* ── Spinner ──────────────────────────────────────────── */
+
+.loading-row td {
+  text-align: center;
+  color: var(--on-surface-dim);
+  padding: 20px;
+  font-style: italic;
+}
 
 /* ── 15. Ticket IP role groups ───────────────────────── */
 

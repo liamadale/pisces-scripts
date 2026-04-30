@@ -1,16 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="pisces-dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Mantis Explorer{% endblock title %}</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='me.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -23,18 +20,16 @@
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="{{ script_name }}/">
-    <img src="{{ url_for('static', filename='pisces-logo.png') }}"
+  <a class="brand" href="{{ '/' if script_name else script_name + '/' }}">
+    <img src="/shared/static/pisces-logo.png"
          alt="PISCES" class="brand-logo" height="28" width="auto">
     PISCES <span class="brand-sub">Mantis Explorer</span>
   </a>
-  {% if script_name %}
-  <a href="/" class="btn-icon" title="Back to PISCES Hub"><i class="fa-solid fa-house"></i></a>
-  {% endif %}
-  <div class="spacer"></div>
-  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
-    <i class="fa-solid fa-moon" id="theme-icon"></i>
+  <button class="btn-notice" onclick="document.getElementById('notice-modal').classList.add('show')"
+          title="Show notice">
+    <i class="fa-solid fa-triangle-exclamation"></i> NOTICE
   </button>
+  <div class="spacer"></div>
 </nav>
 
 <main>
@@ -80,25 +75,44 @@
   </div>
 </aside>
 
+{# ── Notice modal ──────────────────────────────── #}
+<div id="notice-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <div class="modal-header">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>Notice — Escalated Counts</span>
+    </div>
+    <div class="modal-body">
+      <p>The <strong>escalated ticket count</strong> shown in this app is not yet tuned enough to be reasonably accurate. <strong>Do not rely on it for real reporting.</strong></p>
+      <p style="margin-top: 1rem; margin-bottom: 0.25rem; color: var(--on-surface-dim); font-size: 0.8rem; font-family: var(--sans);">
+        <i class="fa-solid fa-terminal" style="font-size: 0.7rem;"></i> First time running? Make sure to run:
+      </p>
+      <div class="modal-code-box">
+        <code>uv run src/mantis/mantis_index.py</code>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="dismissNotice()">
+        <i class="fa-solid fa-check"></i> Acknowledge
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function() {
 
-  /* ── Theme toggle ──────────────────────────────────── */
-  window.toggleTheme = function() {
-    var html = document.documentElement;
-    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('pisces-theme', next);
-    updateThemeIcon(next);
+  /* ── Notice Modal ──────────────────────────────────── */
+  window.dismissNotice = function() {
+    document.getElementById('notice-modal').classList.remove('show');
+    sessionStorage.setItem('meNoticeDismissed', '1');
   };
 
-  function updateThemeIcon(theme) {
-    var icon = document.getElementById('theme-icon');
-    if (!icon) return;
-    icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-  }
-
-  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!sessionStorage.getItem('meNoticeDismissed')) {
+      document.getElementById('notice-modal').classList.add('show');
+    }
+  });
 
   /* ── HTMX SCRIPT_NAME prefix (hub mode) ────────────── */
   document.body.addEventListener('htmx:configRequest', function(evt) {

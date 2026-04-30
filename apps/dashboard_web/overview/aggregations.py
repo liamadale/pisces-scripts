@@ -1,13 +1,14 @@
 """Overview aggregation — cross-app stat row data."""
 
-import collections
 import concurrent.futures
 
 from apps.dashboard_web.opensearch.aggregations import (
-    agg_opensearch_notice_count,
+    agg_new_ips_delta,
+    agg_notice_over_time,
     agg_opensearch_sensors,
+    agg_suricata_over_time,
 )
-from apps.mantis_web.data import (
+from apps.threat_model.data import (
     FP_BY_IP,
     FP_ROWS,
     MALICIOUS_BY_IP,
@@ -17,7 +18,7 @@ from apps.mantis_web.data import (
 )
 
 
-def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
+def agg_cross_source_ips(time_range: str, sensors: list | None = None, limit: int = 25) -> dict:
     """Top IPs from OpenSearch as a ranked list.
 
     opensearch — top `limit` IPs by Zeek log hit count (public only),
@@ -26,10 +27,11 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
     from apps.opensearch_web.queries import run_cross_protocol_query
     from src.utils.ip_org import lookup_org
 
+    sensor_str = ",".join(sensors) if sensors else "all"
     rows = run_cross_protocol_query(
         {
             "time_range": time_range,
-            "sensor": "all",
+            "sensor": sensor_str,
             "limit": 500,
             "public_only": True,
             "src_ip": None,
@@ -38,7 +40,7 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
             "use_cache": True,
         }
     )
-    os_counts = {r["src_ip"]: r["total"] for r in rows}
+    os_counts = {r["src_ip"]: r for r in rows}
 
     def _verdict(ip: str) -> tuple[str, str]:
         if ip in MALICIOUS_BY_IP:
@@ -52,13 +54,16 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
         return "unknown", ""
 
     os_rows = []
-    for ip, os_n in os_counts.items():
+    for ip, r in os_counts.items():
         verdict, attack_str = _verdict(ip)
         org = lookup_org(ip)
+        pp = r.get("per_protocol", {})
         os_rows.append(
             {
                 "ip": ip,
-                "os_count": os_n,
+                "os_count": r["total"],
+                "notices": pp.get("notice", 0),
+                "suricata": pp.get("suricata_alert", 0),
                 "verdict": verdict,
                 "tickets": len(TICKETS_BY_IP.get(ip, [])),
                 "attack_str": attack_str,
@@ -68,34 +73,35 @@ def agg_cross_source_ips(time_range: str, limit: int = 25) -> dict:
         )
     os_rows.sort(key=lambda r: -r["os_count"])
 
-    return {"opensearch": os_rows[:limit]}
+    untriaged = [r for r in os_rows if r["verdict"] == "unknown"]
+    no_ticket = [r for r in os_rows if r["tickets"] == 0]
+
+    return {
+        "opensearch": os_rows[:limit],
+        "untriaged": untriaged[:15],
+        "no_ticket": no_ticket[:15],
+        "alerts_no_ticket": len(no_ticket),
+        "total_ips": len(os_rows),
+    }
 
 
-def agg_overview(time_range: str) -> dict:
-    """Stat row data + verdict counts + cross-source IP table for the Overview section."""
+def agg_overview(time_range: str, sensors: list | None = None) -> dict:
+    """Stat row data + cross-source IP table for the Overview section."""
     malicious_count = len(MALICIOUS_ROWS)
     fp_count = len(FP_ROWS)
     total_tickets = len(_raw_tickets)
 
-    all_ticket_ips = set(TICKETS_BY_IP.keys())
-    malicious_ips_set = {r["ip"] for r in MALICIOUS_ROWS}
-    fp_ips_set = {r["ip"] for r in FP_ROWS}
-    observed_only = len(all_ticket_ips - malicious_ips_set - fp_ips_set)
-
-    counter: collections.Counter = collections.Counter()
-    for row in MALICIOUS_ROWS:
-        for at in row.get("attack_types", []):
-            counter[at] += 1
-    top_attack = counter.most_common(1)
-    top_attack_type = top_attack[0][0].replace("_", " ").title() if top_attack else "—"
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
         f_sensors = ex.submit(agg_opensearch_sensors, time_range)
-        f_notices = ex.submit(agg_opensearch_notice_count, time_range)
-        f_table = ex.submit(agg_cross_source_ips, time_range)
+        f_table = ex.submit(agg_cross_source_ips, time_range, sensors)
+        f_notice_ts = ex.submit(agg_notice_over_time, time_range, sensors)
+        f_suricata_ts = ex.submit(agg_suricata_over_time, time_range, sensors)
+        f_new_ips = ex.submit(agg_new_ips_delta, time_range, sensors)
         sensors_data = f_sensors.result()
-        opensearch_notice_count = f_notices.result()
         cross_source_ips = f_table.result()
+        notice_over_time = f_notice_ts.result()
+        suricata_over_time = f_suricata_ts.result()
+        new_ips_delta = f_new_ips.result()
 
     active_sensors = len(sensors_data["labels"])
 
@@ -104,12 +110,8 @@ def agg_overview(time_range: str) -> dict:
         "malicious_count": malicious_count,
         "fp_count": fp_count,
         "active_sensors": active_sensors,
-        "opensearch_notice_count": opensearch_notice_count,
-        "top_attack_type": top_attack_type,
-        "verdict": {
-            "malicious": malicious_count,
-            "fp": fp_count,
-            "observed": observed_only,
-        },
+        "notice_over_time": notice_over_time,
+        "suricata_over_time": suricata_over_time,
+        "new_ips_delta": new_ips_delta,
         "cross_source_ips": cross_source_ips,
     }

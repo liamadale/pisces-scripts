@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Entrypoint: python apps/mantis_web/run.py"""
+"""Entrypoint: python apps/threat_model/run.py"""
 
 import os
 import sys
 
-# Ensure repo root is on the path so `from apps.mantis_web...` works
+# Ensure repo root is on the path so `from apps.threat_model...` works
 _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _repo not in sys.path:
     sys.path.insert(0, _repo)
 
-from apps.mantis_web.app import create_app
-from apps.mantis_web.data import FP_ROWS, MALICIOUS_ROWS, TICKETS_BY_ID
+from apps.threat_model.app import create_app
+from apps.threat_model.data import FP_ROWS, MALICIOUS_ROWS, TICKETS_BY_ID
 
 app = create_app()
 

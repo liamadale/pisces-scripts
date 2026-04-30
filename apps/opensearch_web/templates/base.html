@@ -1,17 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="pisces-dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PISCES · OpenSearch{% endblock title %}</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    /* Apply saved theme before CSS loads to prevent flash */
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}?v={{ css_version }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
@@ -28,7 +24,7 @@
 
     <!-- Brand — links to Hub when mounted, overview when standalone -->
     <a class="sidebar-brand" href="{{ '/' if script_name else script_name + '/' }}" title="{{ 'Hub' if script_name else 'Overview' }}">
-      <img src="{{ url_for('static', filename='pisces-logo.png') }}" class="brand-logo" alt="PISCES" height="32" width="auto">
+      <img src="/shared/static/pisces-logo.png" class="brand-logo" alt="PISCES" height="32" width="auto">
       <span class="sidebar-label">PISCES <span class="brand-sub">OpenSearch</span></span>
     </a>
 
@@ -63,10 +59,6 @@
 
     <!-- Footer: theme toggle + collapse -->
     <div class="sidebar-foot">
-      <button class="sidebar-link btn-theme" onclick="toggleTheme()" title="Toggle theme">
-        <i class="fa-solid fa-moon" id="theme-icon"></i>
-        <span class="sidebar-label">Theme</span>
-      </button>
       <button class="sidebar-link sidebar-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar">
         <i class="fa-solid fa-chevron-left" id="sidebar-collapse-icon"></i>
         <span class="sidebar-label">Collapse</span>
@@ -81,96 +73,96 @@
 
     {# Global search controls — persisted across pages via form GET #}
     <form class="search-bar" method="get" action="{{ script_name }}{{ request.path }}" id="global-search">
-      <label>Time</label>
-      <select name="time_range" onchange="this.form.submit()">
-        {% for tr in TIME_RANGES %}
-        <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
-          {{ tr.replace('now-', '') }}
-        </option>
-        {% endfor %}
-      </select>
+      <div class="search-bar-inputs">
+        <div class="search-pill">
+          <label><i class="fa-regular fa-clock"></i> Time</label>
+          <select name="time_range" onchange="this.form.submit()">
+            {% for tr in TIME_RANGES %}
+            <option value="{{ tr }}" {% if request.values.get('time_range', 'now-24h') == tr %}selected{% endif %}>
+              {{ tr.replace('now-', '') }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <div class="sep"></div>
+        <div class="search-pill sensor-pill" onclick="openSensorModal()" title="Browse sensors">
+          <label><i class="fa-solid fa-satellite-dish"></i> Sensor</label>
+          <input type="hidden" name="sensor" id="sensor-input"
+                 value="{{ request.values.get('sensor', 'all') }}">
+          <span id="sensor-label" class="sensor-btn-label">
+            {%- set _sv = request.values.get('sensor', 'all') -%}
+            {%- if not _sv or _sv.lower() == 'all' -%}
+              All Sensors
+            {%- elif ',' in _sv -%}
+              {{ _sv.split(',') | length }} sensors
+            {%- else -%}
+              {{ _sv | replace('hedgehog-', '') }}
+            {%- endif -%}
+          </span>
+          <i class="fa-solid fa-chevron-down sensor-btn-chevron"></i>
+        </div>
 
-      <label>Sensor</label>
-      <input type="text" name="sensor" id="sensor-input"
-             value="{{ request.values.get('sensor', 'all') }}"
-             placeholder="all">
-      <button type="button" class="btn-icon"
-              onclick="openSensorModal()"
-              title="Browse sensors">
-        <i class="fa-solid fa-list-check"></i>
-      </button>
+        <div class="search-pill pill-src">
+          <label class="label-src"><i class="fa-solid fa-arrow-right-from-bracket"></i> Src IP</label>
+          <input type="text" name="src_ip"
+                 value="{{ request.values.get('src_ip', '') }}"
+                 placeholder="any">
+        </div>
 
-      <div class="sep"></div>
+        <div class="search-pill pill-dst">
+          <label class="label-dst"><i class="fa-solid fa-arrow-right-to-bracket"></i> Dst IP</label>
+          <input type="text" name="dest_ip"
+                 value="{{ request.values.get('dest_ip', '') }}"
+                 placeholder="any">
+        </div>
 
-      <label>Src IP</label>
-      <input type="text" name="src_ip"
-             value="{{ request.values.get('src_ip', '') }}"
-             placeholder="any">
+        <div class="search-pill">
+          <label><i class="fa-solid fa-arrows-left-right"></i> Direction</label>
+          <select name="direction">
+            <option value="" {% if not request.values.get('direction') %}selected{% endif %}>any</option>
+            {% for d in ['inbound', 'outbound', 'internal', 'external'] %}
+            <option value="{{ d }}" {% if request.values.get('direction') == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <div class="sep"></div>
+        <div class="search-pill">
+          <label class="check-label">
+            <input type="checkbox" name="public_only" value="on"
+                   {% if request.values.get('public_only') in ('on', 'true', '1') %}checked{% endif %}>
+            <i class="fa-solid fa-globe"></i> Public&nbsp;only
+          </label>
+        </div>
 
-      <label>Dst IP</label>
-      <input type="text" name="dest_ip"
-             value="{{ request.values.get('dest_ip', '') }}"
-             placeholder="any">
+        <div class="search-pill">
+          <label><i class="fa-solid fa-hashtag"></i> Limit</label>
+          <input type="number" name="limit" min="1" max="10000"
+                 value="{{ request.values.get('limit', '500') }}"
+                 placeholder="500">
+        </div>
+      </div>
 
-      <div class="sep"></div>
-
-      <label>Direction</label>
-      <select name="direction">
-        <option value="" {% if not request.values.get('direction') %}selected{% endif %}>any</option>
-        {% for d in ['inbound', 'outbound', 'internal', 'external'] %}
-        <option value="{{ d }}" {% if request.values.get('direction') == d %}selected{% endif %}>{{ d }}</option>
-        {% endfor %}
-      </select>
-
-      <div class="sep"></div>
-
-      <label class="check-label">
-        <input type="checkbox" name="public_only" value="on"
-               {% if request.values.get('public_only') in ('on', 'true', '1') %}checked{% endif %}>
-        Public&nbsp;only
-      </label>
-
-      <div class="sep"></div>
-
-      <label>Limit</label>
-      <input type="number" name="limit" min="1" max="10000"
-             value="{{ request.values.get('limit', '500') }}"
-             placeholder="500">
-
-      <div class="sep"></div>
-
-      <button type="submit" class="btn btn-primary">
-        <i class="fa-solid fa-magnifying-glass"></i> Search
-      </button>
-
-      <div class="sep"></div>
-
-      <button type="button" class="btn-icon" id="ts-toggle"
-              onclick="toggleTimestamps()"
-              title="Toggle compact / full timestamps">
-        <i class="fa-regular fa-clock"></i>
-      </button>
-
-      <div class="share-wrapper">
-        <button type="button" class="btn-icon" id="share-btn"
-                onclick="toggleShareDropdown()"
-                title="Share this view">
-          <i class="fa-solid fa-share-nodes"></i>
+      <div class="search-bar-actions">
+        <button type="submit" class="btn btn-primary search-btn">
+          <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
-        <div id="share-dropdown" class="share-dropdown" style="display:none">
-          <button type="button" onclick="copyPiscesUrl()">
-            <i class="fa-solid fa-link"></i> Copy PISCES link
-          </button>
-          <button type="button" onclick="copyDashboardsUrl()">
-            <i class="fa-solid fa-copy"></i> Copy Dashboards link
-          </button>
-          <button type="button" onclick="openDashboardsUrl()">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Dashboards
-          </button>
+
+        <div class="search-pill share-pill share-wrapper"
+             onclick="toggleShareDropdown()" title="Share this view"
+             style="cursor:pointer">
+          <i class="fa-solid fa-share-nodes"></i>
+          <span class="search-pill-label">Share</span>
+          <div id="share-dropdown" class="share-dropdown" style="display:none">
+            <button type="button" onclick="copyPiscesUrl()">
+              <i class="fa-solid fa-link"></i> Copy PISCES link
+            </button>
+            <button type="button" onclick="copyDashboardsUrl()">
+              <i class="fa-solid fa-copy"></i> Copy Dashboards link
+            </button>
+            <button type="button" onclick="openDashboardsUrl()">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Dashboards
+            </button>
+          </div>
         </div>
       </div>
     </form>
@@ -209,39 +201,6 @@
 
 <script>
 (function () {
-  /* ── Theme toggle ────────────────────────────────────── */
-  window.toggleTheme = function() {
-    var html = document.documentElement;
-    var current = html.getAttribute('data-theme');
-    var next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('pisces-theme', next);
-    updateThemeIcon(next);
-  };
-
-  function updateThemeIcon(theme) {
-    var icon = document.getElementById('theme-icon');
-    if (!icon) return;
-    if (theme === 'dark') {
-      icon.classList.remove('fa-sun');
-      icon.classList.add('fa-moon');
-    } else {
-      icon.classList.remove('fa-moon');
-      icon.classList.add('fa-sun');
-    }
-  }
-
-  updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'dark');
-
-  /* ── Timestamp toggle (compact ↔ full) ──────────────── */
-  window.toggleTimestamps = function() {
-    var full = document.body.classList.toggle('ts-full-mode');
-    localStorage.setItem('pisces-ts-full', full ? '1' : '');
-  };
-  if (localStorage.getItem('pisces-ts-full') === '1') {
-    document.body.classList.add('ts-full-mode');
-  }
-
   /* ── Click-to-copy timestamp ────────────────────────── */
   window.copyTimestamp = function(td) {
     var iso = td.dataset.iso;
@@ -533,11 +492,20 @@
       .forEach(function(cb) { cb.checked = state; });
   };
   window.applySensorSelection = function() {
-    var checked = Array.from(
-      document.querySelectorAll('#sensor-modal-body .ss-check:checked')
-    ).map(function(cb) { return cb.value; });
+    var all = document.querySelectorAll('#sensor-modal-body .ss-check');
+    var checked = Array.from(all).filter(function(cb) { return cb.checked; });
     var input = document.getElementById('sensor-input');
-    input.value = checked.length ? checked.join(',') : 'all';
+    var label = document.getElementById('sensor-label');
+    var isAll = !checked.length || checked.length === all.length;
+    var val = isAll ? 'all' : checked.map(function(cb) { return cb.value; }).join(',');
+    input.value = val;
+    if (isAll) {
+      label.textContent = 'All Sensors';
+    } else if (checked.length === 1) {
+      label.textContent = checked[0].value.replace('hedgehog-', '');
+    } else {
+      label.textContent = checked.length + ' sensors';
+    }
     closeSensorModal();
     document.getElementById('global-search').submit();
   };

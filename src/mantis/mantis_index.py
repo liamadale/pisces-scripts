@@ -10,9 +10,11 @@ Usage:
 """
 
 import argparse
+import math
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 import urllib3
@@ -37,6 +39,39 @@ console = Console()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_FETCH_WORKERS = 8
+
+
+def _fetch_page(
+    session: requests.Session,
+    api_url: str,
+    page: int,
+    page_size: int,
+) -> tuple[int, list[dict] | None]:
+    """Fetch one page from MantisBT with a single retry on timeout.
+
+    Returns (page_number, issues) or (page_number, None) on failure.
+    Thread-safe — called from ThreadPoolExecutor workers.
+    """
+    for attempt in range(2):
+        try:
+            resp = session.get(
+                f"{api_url}/api/rest/issues",
+                params={"page_size": page_size, "page": page},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return page, resp.json().get("issues", [])
+        except requests.Timeout:
+            if attempt == 0:
+                time.sleep(2)
+                continue
+            console.print(f"[yellow]Page {page} timed out twice — skipping.[/yellow]")
+            return page, None
+        except requests.RequestException as exc:
+            console.print(f"[red]Page {page} failed: {exc}[/red]")
+            return page, None
+    return page, None  # unreachable but satisfies type checker
 
 
 def _fetch_all_raw(
@@ -46,117 +81,122 @@ def _fetch_all_raw(
     max_pages: int,
     estimated_total: int | None = None,
 ) -> list[dict]:
-    """Phase 1: paginate the MantisBT REST API and collect raw issue dicts."""
-    headers = {"Authorization": api_token}
-    all_raw: list[dict] = []
+    """Phase 1: paginate the MantisBT REST API and collect raw issue dicts.
 
-    # First request to discover total count
-    try:
-        resp = requests.get(
-            f"{api_url}/api/rest/issues",
-            headers=headers,
-            params={"page_size": page_size, "page": 1},
-            timeout=30,
-            verify=False,
-        )
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        console.print(f"[red]Initial API request failed: {exc}[/red]")
-        return []
+    Fetches page 1 sequentially to discover total_count, then fetches all
+    remaining pages in parallel using a ThreadPoolExecutor.  Falls back to
+    sequential pagination when total_count is unavailable and no max_pages cap
+    is set (can't know the page count upfront in that case).
+    """
+    with requests.Session() as session:
+        session.headers.update({"Authorization": api_token})
+        session.verify = False  # type: ignore[assignment]
 
-    data = resp.json()
-    issues = data.get("issues", [])
+        # Probe page 1 to discover total_count and prime the first batch.
+        try:
+            resp = session.get(
+                f"{api_url}/api/rest/issues",
+                params={"page_size": page_size, "page": 1},
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            console.print(f"[red]Initial API request failed: {exc}[/red]")
+            return []
 
-    if not issues:
-        console.print("[yellow]API returned no issues on page 1 — nothing to index.[/yellow]")
-        return []
+        data = resp.json()
+        issues = data.get("issues", [])
 
-    # Determine best total estimate for the progress bar
-    total_known = data.get("total_count")  # may be None
-    bar_total: int | None = None
-    if total_known:
-        bar_total = total_known
-        console.print(f"[dim]{total_known:,} total tickets reported by API[/dim]")
-    elif estimated_total:
-        bar_total = estimated_total
-        console.print(f"[dim]Estimated ~{estimated_total:,} tickets from existing index[/dim]")
-    else:
-        console.print("[dim]total_count not available — paginating until empty page[/dim]")
+        if not issues:
+            console.print("[yellow]API returned no issues on page 1 — nothing to index.[/yellow]")
+            return []
 
-    if max_pages:
-        bar_total = max_pages * page_size
-        console.print(f"[dim]Capped at {max_pages} pages (~{bar_total:,} tickets)[/dim]")
+        # Determine best total estimate for the progress bar
+        total_known = data.get("total_count")  # may be None
+        bar_total: int | None = None
+        if total_known:
+            bar_total = total_known
+            console.print(f"[dim]{total_known:,} total tickets reported by API[/dim]")
+        elif estimated_total:
+            bar_total = estimated_total
+            console.print(f"[dim]Estimated ~{estimated_total:,} tickets from existing index[/dim]")
+        else:
+            console.print("[dim]total_count not available — paginating until empty page[/dim]")
 
-    all_raw.extend(issues)
+        if max_pages:
+            bar_total = max_pages * page_size
+            console.print(f"[dim]Capped at {max_pages} pages (~{bar_total:,} tickets)[/dim]")
 
-    # Build progress columns — use ticket-count display when we have an estimate,
-    # otherwise just show count + spinner (no bar/ETA without a total).
-    columns = [
-        SpinnerColumn(),
-        "[progress.description]{task.description}",
-    ]
-    if bar_total is not None:
-        columns += [
-            BarColumn(),
-            TextColumn("[cyan]{task.completed:,}/{task.total:,} tickets[/cyan]"),
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
+        all_raw: list[dict] = list(issues)
+
+        # Determine the full set of remaining pages upfront when possible.
+        # Unknown total + no cap → sequential fallback (None sentinel).
+        if total_known:
+            total_pages = math.ceil(total_known / page_size)
+            if max_pages:
+                total_pages = min(total_pages, max_pages)
+            remaining: list[int] | None = list(range(2, total_pages + 1))
+        elif max_pages:
+            remaining = list(range(2, max_pages + 1))
+        else:
+            remaining = None
+
+        # Build progress columns — use ticket-count display when we have an estimate,
+        # otherwise just show count + spinner (no bar/ETA without a total).
+        columns = [
+            SpinnerColumn(),
+            "[progress.description]{task.description}",
         ]
-    else:
-        columns += [
-            TextColumn("[cyan]{task.completed:,} tickets[/cyan]"),
-            TimeElapsedColumn(),
-        ]
+        if bar_total is not None:
+            columns += [
+                BarColumn(),
+                TextColumn("[cyan]{task.completed:,}/{task.total:,} tickets[/cyan]"),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+            ]
+        else:
+            columns += [
+                TextColumn("[cyan]{task.completed:,} tickets[/cyan]"),
+                TimeElapsedColumn(),
+            ]
 
-    with Progress(*columns, console=console) as progress:
-        task = progress.add_task("Fetching...", total=bar_total)
-        progress.advance(task, advance=len(issues))
+        with Progress(*columns, console=console) as progress:
+            task = progress.add_task("Fetching...", total=bar_total)
+            progress.advance(task, advance=len(issues))
 
-        page = 2
-        while True:
-            if max_pages and page > max_pages:
-                break
+            if remaining is not None:
+                # Parallel fetch — submit all known pages at once, collect as they finish.
+                page_results: dict[int, list[dict]] = {}
+                with ThreadPoolExecutor(max_workers=_FETCH_WORKERS) as executor:
+                    futures = {
+                        executor.submit(_fetch_page, session, api_url, p, page_size): p
+                        for p in remaining
+                    }
+                    for future in as_completed(futures):
+                        pg, pg_issues = future.result()
+                        if pg_issues:
+                            page_results[pg] = pg_issues
+                            progress.advance(task, advance=len(pg_issues))
+                # Assemble in page order so the index is chronologically stable.
+                for p in sorted(page_results):
+                    all_raw.extend(page_results[p])
+            else:
+                # Sequential fallback: total unknown, no page cap.
+                page = 2
+                while True:
+                    pg, pg_issues = _fetch_page(session, api_url, page, page_size)
+                    if pg_issues is None:
+                        progress.update(task, total=len(all_raw))
+                        break
+                    if not pg_issues:
+                        break
+                    all_raw.extend(pg_issues)
+                    progress.advance(task, advance=len(pg_issues))
+                    if len(pg_issues) < page_size:
+                        break
+                    page += 1
 
-            retried = False
-            while True:
-                try:
-                    resp = requests.get(
-                        f"{api_url}/api/rest/issues",
-                        headers=headers,
-                        params={"page_size": page_size, "page": page},
-                        timeout=30,
-                        verify=False,
-                    )
-                    resp.raise_for_status()
-                    break
-                except requests.Timeout:
-                    if not retried:
-                        retried = True
-                        console.print(f"[yellow]Timeout on page {page}, retrying...[/yellow]")
-                        time.sleep(2)
-                        continue
-                    console.print(f"[red]Page {page} timed out twice — stopping.[/red]")
-                    progress.update(task, total=len(all_raw))
-                    return all_raw
-                except requests.RequestException as exc:
-                    console.print(f"[red]Page {page} failed: {exc}[/red]")
-                    progress.update(task, total=len(all_raw))
-                    return all_raw
-
-            page_issues = resp.json().get("issues", [])
-            if not page_issues:
-                break
-
-            all_raw.extend(page_issues)
-            progress.advance(task, advance=len(page_issues))
-
-            if len(page_issues) < page_size:
-                break
-
-            page += 1
-
-        # Snap to exact total now that we know the real count
-        progress.update(task, completed=len(all_raw), total=len(all_raw))
+            progress.update(task, completed=len(all_raw), total=len(all_raw))
 
     return all_raw
 

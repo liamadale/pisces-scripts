@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="pisces-dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PISCES · Settings</title>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <style>
+    .settings-header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      font-family: var(--sans);
+    }
+    .settings-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .settings-header p {
+      color: var(--on-surface-dim);
+      font-size: 0.85rem;
+      margin: 0.4rem 0 0;
+    }
+    .settings-list {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .settings-item {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.4rem 1.5rem;
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-dim);
+      border-radius: var(--radius-md);
+    }
+    .settings-item-icon {
+      font-size: 1.2rem;
+      color: var(--primary);
+      width: 2.8rem;
+      height: 2.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-container);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .settings-item-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .settings-item-title {
+      font-family: var(--sans);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .settings-item-desc {
+      font-family: var(--sans);
+      font-size: 0.82rem;
+      color: var(--on-surface-dim);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    .settings-item select {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-xs);
+      padding: 5px 10px;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      height: 34px;
+      cursor: pointer;
+      outline: none;
+      flex-shrink: 0;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .settings-item select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--focus-ring);
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Settings</span></a>
+  <div class="spacer"></div>
+  <a href="/" class="btn-icon" title="Back to Hub">
+    <i class="fa-solid fa-house"></i>
+  </a>
+</nav>
+
+<div class="settings-header">
+  <h1><i class="fa-solid fa-gear"></i> Settings</h1>
+  <p>Preferences are saved locally and apply across all PISCES apps</p>
+</div>
+
+<div class="settings-list">
+  <div class="settings-item">
+    <div class="settings-item-icon"><i class="fa-solid fa-palette"></i></div>
+    <div class="settings-item-body">
+      <div class="settings-item-title">Theme</div>
+      <div class="settings-item-desc">Controls the colour scheme for all apps</div>
+    </div>
+    <select id="theme-select" onchange="setTheme(this.value)">
+      <optgroup label="PISCES">
+        <option value="pisces-dark">PISCES Dark</option>
+        <option value="pisces-light">PISCES Light</option>
+      </optgroup>
+      <optgroup label="Gruvbox">
+        <option value="gruvbox-dark">Gruvbox Dark</option>
+        <option value="gruvbox-light">Gruvbox Light</option>
+      </optgroup>
+      <optgroup label="Tokyo Night">
+        <option value="tokyonight-dark">Tokyo Night Dark</option>
+        <option value="tokyonight-light">Tokyo Night Light</option>
+      </optgroup>
+      <optgroup label="Catppuccin">
+        <option value="catppuccin-latte">Catppuccin Latte</option>
+        <option value="catppuccin-frappe">Catppuccin Frappé</option>
+        <option value="catppuccin-macchiato">Catppuccin Macchiato</option>
+        <option value="catppuccin-mocha">Catppuccin Mocha</option>
+      </optgroup>
+    </select>
+  </div>
+</div>
+
+<script>
+(function () {
+  var sel = document.getElementById('theme-select');
+  sel.value = localStorage.getItem('pisces-theme') || 'dark';
+
+  window.setTheme = function (theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('pisces-theme', theme);
+  };
+})();
+</script>
+
+</body>
+</html>

@@ -9,6 +9,21 @@ from flask import Blueprint, render_template, request
 from src.querier.zeek_modules.base import is_private
 
 _TEMPLATES = os.path.join(os.path.dirname(__file__), "templates")
+_STATIC = os.path.join(os.path.dirname(__file__), "static")
+
+
+def make_shared_static_blueprint() -> Blueprint:
+    """Blueprint serving shared static assets (tokens.css, base.css, theme.js, logos).
+
+    Mounts at ``/shared/static/`` so templates can use absolute paths like
+    ``/shared/static/tokens.css`` regardless of which app is serving.
+    """
+    return Blueprint(
+        "shared_static",
+        __name__,
+        static_folder=_STATIC,
+        static_url_path="/shared/static",
+    )
 
 
 def make_enrich_blueprint() -> Blueprint:

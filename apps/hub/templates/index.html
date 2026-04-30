@@ -1,130 +1,197 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="pisces-dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PISCES Hub</title>
-  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='pisces-logo.ico') }}">
-  <script>
-    (function() {
-      var t = localStorage.getItem('pisces-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <link rel="icon" type="image/x-icon" href="/shared/static/pisces-logo.ico">
+  <script src="/shared/static/theme.js"></script>
+  <link rel="stylesheet" href="/shared/static/tokens.css">
+  <link rel="stylesheet" href="/shared/static/base.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='pisces.css') }}">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer">
   <style>
-    .hub-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      padding: 2rem;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    .hub-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      text-decoration: none;
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .hub-card:hover {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px var(--primary-dim);
-      text-decoration: none;
-      color: var(--text);
-    }
-    .hub-card-icon {
-      font-size: 2.5rem;
-      color: var(--primary);
-    }
-    .hub-card-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-    }
-    .hub-card-desc {
-      font-size: 0.875rem;
-      color: var(--text-dim);
-      text-align: center;
-    }
     .hub-header {
       text-align: center;
-      padding: 2.5rem 1rem 1rem;
-    }
-    .hub-header img {
-      height: 48px;
-      margin-bottom: 0.75rem;
+      padding: 2rem 1rem 1rem;
+      font-family: var(--sans);
     }
     .hub-header h1 {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
+      font-weight: 700;
       margin: 0;
     }
     .hub-header p {
-      color: var(--text-dim);
-      margin: 0.5rem 0 0;
+      color: var(--on-surface-dim);
+      font-size: 0.85rem;
+      margin: 0.4rem 0 0;
+    }
+    .hub-list {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .hub-item {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.8rem 1.5rem;
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-dim);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--on-surface);
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .hub-item:hover {
+      background: var(--state-hover);
+      border-color: var(--outline);
+      text-decoration: none;
+      color: var(--on-surface);
+    }
+    .hub-item-icon {
+      font-size: 1.4rem;
+      color: var(--primary);
+      width: 2.8rem;
+      height: 2.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-container);
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .hub-item-body { flex: 1; min-width: 0; }
+    .hub-item-title {
+      font-family: var(--sans);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .hub-item-desc {
+      font-family: var(--sans);
+      font-size: 0.85rem;
+      color: var(--on-surface-dim);
+      margin-top: 5px;
+      line-height: 1.45;
+    }
+    .hub-item-arrow {
+      color: var(--on-surface-dim);
+      font-size: 0.7rem;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .hub-item:hover .hub-item-arrow { color: var(--primary); }
+    .hub-ts-row {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 1.25rem;
+      padding: 0 2.5rem;
+      font-family: var(--sans);
+    }
+    .hub-ts-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1.5rem;
+      text-align: center;
+      flex: 1;
+      max-width: 340px;
+    }
+    .hub-ts-label {
+      font-size: 0.68rem;
+      color: var(--on-surface-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.3rem;
+    }
+    .hub-ts-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--on-surface);
     }
   </style>
 </head>
 <body>
 <nav>
-  <a class="brand" href="/"><img src="{{ url_for('static', filename='pisces-logo.png') }}" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Hub</span></a>
+  <a class="brand" href="/"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Hub</span></a>
   <div class="spacer"></div>
-  <button class="btn-theme" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
-    <i class="fa-solid fa-moon" id="theme-icon"></i>
-  </button>
+  <a href="/settings" class="btn-icon" title="Settings">
+    <i class="fa-solid fa-gear"></i>
+  </a>
 </nav>
 
 <div class="hub-header">
-  <h1>PISCES Security Dashboard</h1>
+  <h1><i class="fa-solid fa-toolbox"></i> PISCES Toolkit</h1>
   <p>Select an application to get started</p>
 </div>
 
-<div class="hub-grid">
-  <a class="hub-card" href="/opensearch">
-    <div class="hub-card-icon"><i class="fa-solid fa-network-wired"></i></div>
-    <div class="hub-card-title">OpenSearch</div>
-    <div class="hub-card-desc">Malcolm/Zeek log analysis across 10 protocols. Cross-protocol IP activity matrix, drill-downs, and enrichment.</div>
+<div class="hub-ts-row">
+  <div class="hub-ts-card">
+    <div class="hub-ts-label"><i class="fa-solid fa-database"></i> Tickets Indexed</div>
+    <div class="hub-ts-value">{{ stats.index_age }}</div>
+  </div>
+  <div class="hub-ts-card">
+    <div class="hub-ts-label"><i class="fa-solid fa-shield-halved"></i> Threat Model Updated</div>
+    <div class="hub-ts-value">{{ stats.model_age }}</div>
+  </div>
+</div>
+
+<div class="hub-list">
+  <a class="hub-item" href="/opensearch">
+    <div class="hub-item-icon"><i class="fa-solid fa-network-wired"></i></div>
+    <div class="hub-item-body">
+      <div class="hub-item-title">OpenSearch</div>
+      <div class="hub-item-desc">Malcolm/Zeek log analysis across 10 protocols. Cross-protocol IP activity matrix, drill-downs, and enrichment.</div>
+    </div>
+    <div class="hub-item-arrow"><i class="fa-solid fa-chevron-right"></i></div>
   </a>
-  <a class="hub-card" href="/mantis">
-    <div class="hub-card-icon"><i class="fa-solid fa-bug"></i></div>
-    <div class="hub-card-title">Threat Intel</div>
-    <div class="hub-card-desc">Threat modeling and Mantis ticket integration. True positive and false positive IP classification with verdicts.</div>
+  <a class="hub-item" href="/threat-model">
+    <div class="hub-item-icon"><i class="fa-solid fa-bug"></i></div>
+    <div class="hub-item-body">
+      <div class="hub-item-title">Threat Intel</div>
+      <div class="hub-item-desc">Threat modeling and Mantis ticket integration. True positive and false positive IP classification with verdicts.</div>
+    </div>
+    <div class="hub-item-arrow"><i class="fa-solid fa-chevron-right"></i></div>
   </a>
-  <a class="hub-card" href="/dashboard">
-    <div class="hub-card-icon"><i class="fa-solid fa-chart-line"></i></div>
-    <div class="hub-card-title">Dashboard</div>
-    <div class="hub-card-desc">Analytics and visualizations across all data sources.</div>
+  <a class="hub-item" href="/dashboard">
+    <div class="hub-item-icon"><i class="fa-solid fa-chart-line"></i></div>
+    <div class="hub-item-body">
+      <div class="hub-item-title">Dashboard</div>
+      <div class="hub-item-desc">Analytics and visualizations across all data sources.</div>
+    </div>
+    <div class="hub-item-arrow"><i class="fa-solid fa-chevron-right"></i></div>
   </a>
-  <a class="hub-card" href="/mantis-explorer">
-    <div class="hub-card-icon"><i class="fa-solid fa-user-graduate"></i></div>
-    <div class="hub-card-title">Mantis Explorer</div>
-    <div class="hub-card-desc">Student activity by institution. Tickets, escalations, and notes with date-range filtering.</div>
+  <a class="hub-item" href="/mantis-explorer">
+    <div class="hub-item-icon"><i class="fa-solid fa-user-graduate"></i></div>
+    <div class="hub-item-body">
+      <div class="hub-item-title">Mantis Explorer</div>
+      <div class="hub-item-desc">Student activity by institution. Tickets, escalations, and notes with date-range filtering.</div>
+    </div>
+    <div class="hub-item-arrow"><i class="fa-solid fa-chevron-right"></i></div>
   </a>
 </div>
 
-<script>
-window.toggleTheme = function() {
-  var html = document.documentElement;
-  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('pisces-theme', next);
-  var icon = document.getElementById('theme-icon');
-  if (icon) icon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-};
-(function() {
-  var t = document.documentElement.getAttribute('data-theme') || 'dark';
-  var icon = document.getElementById('theme-icon');
-  if (icon) icon.className = t === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-})();
-</script>
+<footer style="text-align:center;padding:2.5rem 1rem 1.5rem;font-family:var(--sans);font-size:0.75rem;color:var(--on-surface-dim);">
+  PISCES Toolkit v{{ version }}
+  {% if git.behind is not none %}
+    <span style="margin-left:0.5rem;">·</span>
+    {% if git.behind == 0 %}
+      <span style="margin-left:0.5rem;color:var(--primary);">{{ git.branch }} up to date</span>
+    {% else %}
+      <span style="margin-left:0.5rem;color:var(--error, #f28b82);">{{ git.behind }} commit{{ 's' if git.behind != 1 }} behind {{ git.branch }}</span>
+    {% endif %}
+  {% endif %}
+  <br>
+  Made by <a href="https://github.com/liamadale" style="color:inherit;text-decoration:underline;">Liam Dale</a>
+</footer>
+
 </body>
 </html>

@@ -1,0 +1,117 @@
+{% if data.error is defined %}
+<div class="chart-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ data.error }}</div>
+{% else %}
+{% set s = data.stats %}
+
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="stat-label">Total Tickets</div>
+    <div class="stat-value">{{ s.ticket_count | intcomma }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Escalated</div>
+    <div class="stat-value red">{{ s.escalation_count | intcomma }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Escalation Rate</div>
+    <div class="stat-value {{ 'red' if s.ticket_count and (s.escalation_count / s.ticket_count) > 0.15 else 'yellow' }}">
+      {{ '%.1f' | format(s.escalation_count / s.ticket_count * 100 if s.ticket_count else 0) }}%
+    </div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Institutions</div>
+    <div class="stat-value">{{ s.institution_count }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Analysts</div>
+    <div class="stat-value">{{ s.student_count }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Date Range</div>
+    <div class="stat-value text">{{ s.date_range or '—' }}</div>
+  </div>
+</div>
+
+<div class="chart-grid">
+
+  <div class="chart-card" style="grid-column:1/-1;">
+    <div class="chart-title">Escalation by Institution (total vs escalated)</div>
+    {% if not data.escalation.orgs %}
+    <div class="chart-empty">No escalation data</div>
+    {% else %}
+    <div id="chart-tk-escalation" style="height:{{ [data.escalation.orgs|length * 36 + 60, 250]|max }}px;"></div>
+    {% endif %}
+  </div>
+
+  <div class="chart-card" style="grid-column:1/-1;">
+    <div class="chart-title">Ticket Volume ({{ data.timeline.granularity }})</div>
+    {% if not data.timeline.labels %}
+    <div class="chart-empty">No timeline data</div>
+    {% else %}
+    <div id="chart-tk-timeline" style="height:240px;"></div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+(function() {
+  var ESC = {{ data.escalation | tojson }};
+  var TL  = {{ data.timeline   | tojson }};
+
+  var S = getComputedStyle(document.documentElement);
+  var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+  var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+  var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+  var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+
+  var ADM = { color: C_TEXT_DIM, fontSize: 11 };
+  var GL  = { lineStyle: { color: C_OUTLINE } };
+  var TT  = { trigger: 'axis', axisPointer: { type: 'shadow' },
+              backgroundColor: C_SURFACE, borderColor: C_OUTLINE,
+              textStyle: { color: C_TEXT } };
+
+  /* Escalation grouped bar */
+  if (ESC.orgs.length) {
+    var c1 = echarts.init(document.getElementById('chart-tk-escalation'));
+    c1.setOption({
+      backgroundColor: 'transparent',
+      tooltip: TT,
+      legend: { data: ['Total', 'Escalated'], textStyle: { color: C_TEXT, fontSize: 11 }, top: 0 },
+      grid: { left: 10, right: 20, top: 30, bottom: 10, containLabel: true },
+      xAxis: { type: 'value', axisLabel: ADM, splitLine: GL },
+      yAxis: { type: 'category', data: ESC.orgs.slice().reverse(),
+               axisLabel: { color: C_TEXT, fontSize: 11, overflow: 'truncate', width: 200 } },
+      series: [
+        { name: 'Total', type: 'bar', data: ESC.totals.slice().reverse(),
+          itemStyle: { color: '#4f8ef7' }, barMaxWidth: 20 },
+        { name: 'Escalated', type: 'bar', data: ESC.escalated.slice().reverse(),
+          itemStyle: { color: '#f85149' }, barMaxWidth: 20 }
+      ]
+    });
+    window.addEventListener('resize', function() { c1.resize(); });
+  }
+
+  /* Timeline area chart */
+  if (TL.labels.length) {
+    var c2 = echarts.init(document.getElementById('chart-tk-timeline'));
+    c2.setOption({
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
+      grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
+      xAxis: { type: 'category', data: TL.labels,
+               axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35 },
+               axisLine: { lineStyle: { color: C_OUTLINE } } },
+      yAxis: { type: 'value', axisLabel: ADM, splitLine: GL },
+      series: [{ type: 'line', data: TL.counts, smooth: true,
+        lineStyle: { color: '#4f8ef7', width: 2 }, itemStyle: { color: '#4f8ef7' },
+        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1,
+          colorStops: [{ offset:0, color:'rgba(79,142,247,0.35)' },
+                       { offset:1, color:'rgba(79,142,247,0.02)' }] } }
+      }]
+    });
+    window.addEventListener('resize', function() { c2.resize(); });
+  }
+})();
+</script>
+{% endif %}

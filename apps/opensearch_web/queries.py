@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from apps.opensearch_web import cache as wcache
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import run_query
+from src.querier.zeek_modules.base import console, run_query
 
 
 def build_search_params_from_request(request, extra_keys=None) -> dict:
@@ -52,8 +52,9 @@ def run_cross_protocol_query(search_params: dict) -> list:
             lt = futures[f]
             try:
                 results_by_type[lt] = f.result()
-            except Exception:
+            except Exception as exc:
                 results_by_type[lt] = []
+                console.print(f"[yellow]Cross-protocol query failed for {lt}: {exc}[/yellow]")
 
     ip_data: dict = defaultdict(lambda: {"per_protocol": {lt: 0 for lt in ip_modules}, "total": 0})
     for lt, records in results_by_type.items():

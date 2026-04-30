@@ -4,7 +4,7 @@ import math
 
 from flask import Flask, render_template, request
 
-from apps.mantis_web.data import (
+from apps.threat_model.data import (
     ALL_ATTACK_TYPES,
     ALL_BLOCKLISTS,
     ALL_FP_CATEGORIES,
@@ -151,6 +151,10 @@ def create_app() -> Flask:
         static_folder="static",
         template_folder="templates",
     )
+
+    from apps.shared.blueprints import make_shared_static_blueprint
+
+    app.register_blueprint(make_shared_static_blueprint())
 
     # Jinja2 globals / filters
     app.jinja_env.globals["fmt_attack"] = fmt_attack

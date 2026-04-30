@@ -1,0 +1,230 @@
+/* ================================================================
+   PISCES Base Styles — Shared component styles for all web apps
+   Requires tokens.css to be loaded first.
+   ================================================================ */
+
+/* ── Reset ────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font);
+  line-height: 1.5;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.ip-link { color: var(--secondary); font-weight: 600; }
+
+
+/* ── Typography ───────────────────────────────────────── */
+
+h1 {
+  font-family: var(--sans);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--secondary);
+  margin-bottom: 0.3rem;
+}
+
+h2 {
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+  margin-bottom: 1rem;
+}
+
+
+/* ── Badges ───────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-green  { background: var(--badge-green-bg);  color: var(--green); }
+.badge-red    { background: var(--badge-red-bg);    color: var(--red); }
+.badge-yellow { background: var(--badge-yellow-bg); color: var(--yellow); }
+.badge-blue   { background: var(--badge-blue-bg);   color: var(--primary); }
+.badge-gray   { background: var(--badge-gray-bg);   color: var(--on-surface-dim); }
+
+
+/* ── Buttons ──────────────────────────────────────────── */
+
+.btn {
+  position: relative;
+  font-family: var(--sans);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  color: var(--on-surface);
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 0.82rem;
+  height: 32px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  transition: background 0.15s;
+  pointer-events: none;
+}
+
+.btn:hover::before  { background: var(--state-hover); }
+.btn:active::before { background: var(--state-press); }
+.btn:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--primary-dim);
+  border-color: var(--primary-dim);
+  color: #fff;
+}
+.btn-primary:hover::before { background: transparent; }
+
+.btn-sm { padding: 0 10px; font-size: 0.78rem; height: 26px; }
+
+/* Icon-only circle button */
+.btn-icon {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--on-surface-dim);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+
+.btn-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.15s;
+  pointer-events: none;
+}
+
+.btn-icon:hover::before  { background: var(--state-hover); }
+.btn-icon:active::before { background: var(--state-press); }
+.btn-icon:hover { color: var(--primary); text-decoration: none; }
+
+/* Chevron rotates when expand button is active */
+.btn-icon.active { color: var(--primary); }
+.btn-icon .fa-chevron-down { transition: transform 0.2s ease; display: block; }
+.btn-icon.active .fa-chevron-down { transform: rotate(180deg); }
+
+
+/* ── Org identity icons ───────────────────────────────── */
+
+.org-icon {
+  font-size: 0.72rem;
+  margin-right: 3px;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+.org-icon.org-cdn      { color: var(--primary); }
+.org-icon.org-cloud    { color: var(--secondary); }
+.org-icon.org-scanner  { color: var(--yellow); }
+.org-icon.org-research { color: var(--purple); }
+.org-icon.org-private  { color: var(--on-surface-dim); }
+
+
+/* ── Empty state ──────────────────────────────────────── */
+
+.empty-note {
+  color: var(--on-surface-dim);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+
+/* ── HTMX indicators ─────────────────────────────────── */
+
+.htmx-indicator {
+  display: none;
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+  padding: 4px 8px;
+}
+.htmx-request .htmx-indicator { display: inline; }
+
+/* Global HTMX progress bar */
+#htmx-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+}
+#htmx-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 45%;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+  transform: translateX(-120%);
+}
+#htmx-bar.htmx-bar-active::after {
+  animation: htmx-sweep 1.4s ease-in-out infinite;
+}
+#htmx-bar.htmx-bar-done::after {
+  animation: none;
+  transform: translateX(280%);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
+}
+@keyframes htmx-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
+
+
+/* ── Utility spacing ──────────────────────────────────── */
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 0.5rem; }

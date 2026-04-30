@@ -15,6 +15,7 @@ from apps.shared.blueprints import (
     make_cache_blueprint,
     make_enrich_blueprint,
     make_mantis_blueprint,
+    make_shared_static_blueprint,
 )
 from apps.shared.jinja_globals import register_shared_helpers
 from src.querier.zeek_modules import (
@@ -80,6 +81,7 @@ def create_app() -> Flask:
     app.jinja_env.globals["fmt_time_window"] = fmt_time_window
 
     # Register shared blueprints
+    app.register_blueprint(make_shared_static_blueprint())
     app.register_blueprint(make_enrich_blueprint())
     app.register_blueprint(make_mantis_blueprint(_resolve_city))
     app.register_blueprint(make_cache_blueprint(wcache))

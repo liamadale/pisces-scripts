@@ -8,19 +8,37 @@
     <i class="fa-solid fa-chart-bar"></i> Stats
   </button>
   <button id="os-sub-btn-malcolm" class="sub-tab-btn" onclick="switchOsSub('malcolm')">
-    <i class="fa-solid fa-table-cells-large"></i> Malcolm Dashboards
+    <i class="fa-solid fa-chart-column"></i> Malcolm Dashboards
   </button>
 </div>
 
 <div id="os-sub-stats">
   <div class="chart-grid">
 
-    <div class="chart-card">
-      <div class="chart-title">Protocol Breakdown (top 10)</div>
-      {% if not data.protocols.labels %}
-      <div class="chart-empty">No data — OpenSearch may be unreachable</div>
+    <div class="chart-card" style="grid-column:1/-1;">
+      <div class="chart-title">Notice Count Over Time ({{ data.notice_over_time.interval }} intervals)</div>
+      {% if not data.notice_over_time.timestamps %}
+      <div class="chart-empty">No notice data in this window</div>
       {% else %}
-      <div id="chart-protocols" style="height:{{ [data.protocols.labels|length * 36 + 40, 200]|max }}px;"></div>
+      <div id="chart-notice-ts" style="height:220px;"></div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card" style="grid-column:1/-1;">
+      <div class="chart-title">Suricata Alerts Over Time ({{ data.suricata_over_time.interval }} intervals)</div>
+      {% if not data.suricata_over_time.timestamps %}
+      <div class="chart-empty">No Suricata alert data in this window</div>
+      {% else %}
+      <div id="chart-suricata-ts" style="height:220px;"></div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card" style="grid-column:1/-1;">
+      <div class="chart-title">Connection Volume Over Time ({{ data.conn_over_time.interval }} intervals)</div>
+      {% if not data.conn_over_time.timestamps %}
+      <div class="chart-empty">No connection data in this window</div>
+      {% else %}
+      <div id="chart-conn-ts" style="height:220px;"></div>
       {% endif %}
     </div>
 
@@ -33,7 +51,7 @@
       {% endif %}
     </div>
 
-    <div class="chart-card" style="grid-column: 1 / -1;">
+    <div class="chart-card">
       <div class="chart-title">Top Source IPs (cross-protocol)</div>
       {% if not data.top_ips.ips %}
       <div class="chart-empty">No data — OpenSearch may be unreachable</div>
@@ -46,18 +64,48 @@
 
   <script>
   (function() {
-    var PROTOCOLS = {{ data.protocols | tojson }};
+    var NOTICE_TS = {{ data.notice_over_time | tojson }};
+    var SURICATA_TS = {{ data.suricata_over_time | tojson }};
+    var CONN_TS   = {{ data.conn_over_time   | tojson }};
     var SENSORS   = {{ data.sensors   | tojson }};
     var TOP_IPS   = {{ data.top_ips   | tojson }};
 
-    var AXIS_LABEL = { color: '#c8ccd8', fontSize: 12 };
-    var AXIS_DIM   = { color: '#5a6278', fontSize: 11 };
-    var GRID_LINE  = { lineStyle: { color: '#2a3045' } };
+    var S = getComputedStyle(document.documentElement);
+    var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+    var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+    var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+    var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+
+    var AXIS_LABEL = { color: C_TEXT, fontSize: 12 };
+    var AXIS_DIM   = { color: C_TEXT_DIM, fontSize: 11 };
+    var GRID_LINE  = { lineStyle: { color: C_OUTLINE } };
     var TOOLTIP_STYLE = {
       trigger: 'axis', axisPointer: { type: 'shadow' },
-      backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-      textStyle: { color: '#c8ccd8' }
+      backgroundColor: C_SURFACE, borderColor: C_OUTLINE,
+      textStyle: { color: C_TEXT }
     };
+
+    function tsLabel(v) {
+      var d = new Date(v);
+      return d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+
+    function areaChart(id, ts, counts, color) {
+      var el = document.getElementById(id);
+      if (!el || !ts.length) return;
+      var c = echarts.init(el);
+      c.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
+        grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
+        xAxis: { type: 'category', data: ts, axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35, formatter: tsLabel }, axisLine: { lineStyle: { color: C_OUTLINE } } },
+        yAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
+        series: [{ type: 'line', data: counts, smooth: true, lineStyle: { color: color, width: 2 }, itemStyle: { color: color },
+          areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset:0, color: color.replace(')', ',0.3)').replace('rgb','rgba') }, { offset:1, color: color.replace(')', ',0.02)').replace('rgb','rgba') }] } }
+        }]
+      });
+      window.addEventListener('resize', function() { c.resize(); });
+    }
 
     function hBarOption(labels, counts, color) {
       return {
@@ -70,11 +118,9 @@
       };
     }
 
-    if (PROTOCOLS.labels.length) {
-      var c1 = echarts.init(document.getElementById('chart-protocols'));
-      c1.setOption(hBarOption(PROTOCOLS.labels, PROTOCOLS.counts, '#4f8ef7'));
-      window.addEventListener('resize', function() { c1.resize(); });
-    }
+    areaChart('chart-notice-ts', NOTICE_TS.timestamps, NOTICE_TS.counts, '#f85149');
+    areaChart('chart-suricata-ts', SURICATA_TS.timestamps, SURICATA_TS.counts, '#d29922');
+    areaChart('chart-conn-ts', CONN_TS.timestamps, CONN_TS.counts, '#4f8ef7');
 
     if (SENSORS.labels.length) {
       var c2 = echarts.init(document.getElementById('chart-sensors'));

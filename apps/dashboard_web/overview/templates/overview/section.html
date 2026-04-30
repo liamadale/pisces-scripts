@@ -1,6 +1,7 @@
 {% if data.error is defined %}
 <div class="chart-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ data.error }}</div>
 {% else %}
+{% set cross = data.cross_source_ips %}
 
 <div class="stat-row">
   <div class="stat-box">
@@ -19,58 +20,28 @@
     <div class="stat-label">Active Sensors</div>
     <div class="stat-value">{{ data.active_sensors | intcomma }}</div>
   </div>
+  {% set nip = data.new_ips_delta %}
   <div class="stat-box">
-    <div class="stat-label">OS Notices ({{ time_range.replace('now-', '') }})</div>
-    <div class="stat-value">{{ data.opensearch_notice_count | intcomma }}</div>
-  </div>
-  <div class="stat-box">
-    <div class="stat-label">Top Attack Type</div>
-    <div class="stat-value text">{{ data.top_attack_type }}</div>
+    <div class="stat-label">Unique Src IPs ({{ time_range.replace('now-', '') }})</div>
+    <div class="stat-value">{{ nip.current | intcomma }}</div>
   </div>
 </div>
 
-<div class="chart-grid" style="grid-template-columns: 1fr 1fr; max-width: 900px;">
-  <div class="chart-card">
-    <div class="chart-title">IP Verdict Distribution</div>
-    {% if data.verdict.malicious + data.verdict.fp + data.verdict.observed == 0 %}
-    <div class="chart-empty">No data</div>
-    {% else %}
-    <div id="chart-verdict" style="height:280px;"></div>
-    {% endif %}
+<!-- Alerts trend chart (Notices + Suricata) -->
+<div class="chart-card" style="margin-bottom:1.25rem;">
+  <div class="chart-title">
+    <i class="fa-solid fa-bell" style="color:var(--primary); margin-right:.4rem;"></i>
+    Alert Trend &mdash; Zeek Notices + Suricata ({{ data.notice_over_time.interval }} intervals)
   </div>
-  <div class="chart-card">
-    <div class="chart-title">Summary</div>
-    <table class="ip-table">
-      <tbody>
-        <tr>
-          <td>Malicious IPs classified</td>
-          <td style="color:var(--red);font-weight:600;">{{ data.verdict.malicious }}</td>
-        </tr>
-        <tr>
-          <td>False Positive IPs classified</td>
-          <td style="color:var(--green);font-weight:600;">{{ data.verdict.fp }}</td>
-        </tr>
-        <tr>
-          <td>Observed-only IPs (in tickets, unclassified)</td>
-          <td style="color:var(--yellow);font-weight:600;">{{ data.verdict.observed }}</td>
-        </tr>
-        <tr>
-          <td>Total Mantis tickets</td>
-          <td style="font-weight:600;">{{ data.total_tickets }}</td>
-        </tr>
-        <tr>
-          <td>Active sensors ({{ time_range.replace('now-', '') }})</td>
-          <td style="font-weight:600;">{{ data.active_sensors }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  {% if not data.notice_over_time.timestamps and not data.suricata_over_time.timestamps %}
+  <div class="chart-empty">No alert data in this window</div>
+  {% else %}
+  <div id="chart-alerts-trend" style="height:240px;"></div>
+  {% endif %}
 </div>
 
-{% set cross = data.cross_source_ips %}
-
-<!-- OpenSearch top IPs -->
-<div class="chart-card" style="margin-top:1.25rem;">
+<!-- Top IPs -->
+<div class="chart-card" style="margin-bottom:1.25rem;">
   <div class="chart-title">
     <i class="fa-solid fa-database" style="color:var(--primary); margin-right:.5rem;"></i>
     Top IPs &mdash; OpenSearch / Zeek
@@ -88,6 +59,8 @@
         <th>Org</th>
         <th>Verdict</th>
         <th title="Zeek log hits across all protocols">Zeek Hits</th>
+        <th>Notices</th>
+        <th>Suricata</th>
         <th>Tickets</th>
         <th>Attack Types</th>
       </tr>
@@ -110,6 +83,8 @@
           {{ row.verdict | title }}
         </td>
         <td style="text-align:right; font-weight:700; color:var(--primary);">{{ row.os_count | intcomma }}</td>
+        <td style="text-align:right;{{ ' color:var(--red); font-weight:600;' if row.notices else '' }}">{{ row.notices if row.notices else '—' }}</td>
+        <td style="text-align:right;{{ ' color:var(--yellow); font-weight:600;' if row.suricata else '' }}">{{ row.suricata if row.suricata else '—' }}</td>
         <td style="text-align:right;">{{ row.tickets if row.tickets else '—' }}</td>
         <td style="color:var(--on-surface-dim); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
             title="{{ row.attack_str or '' }}">
@@ -123,38 +98,127 @@
   {% endif %}
 </div>
 
-{% if data.verdict.malicious + data.verdict.fp + data.verdict.observed > 0 %}
+<!-- IPs Without Tickets -->
+<div class="chart-card" style="margin-bottom:1.25rem;">
+  <div class="chart-title">
+    <i class="fa-solid fa-file-circle-xmark" style="color:var(--red); margin-right:.4rem;"></i>
+    IPs Without Tickets
+    <span style="font-weight:400; color:var(--on-surface-dim); margin-left:.5rem;">({{ cross.alerts_no_ticket }} of {{ cross.total_ips }} active IPs have no Mantis ticket)</span>
+  </div>
+  {% if not cross.no_ticket %}
+  <div class="chart-empty">All active IPs have tickets <i class="fa-solid fa-check" style="color:var(--green);"></i></div>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="ip-table" style="font-size:0.82rem;">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>IP Address</th>
+        <th>Org</th>
+        <th>Verdict</th>
+        <th title="Zeek log hits across all protocols">Zeek Hits</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in cross.no_ticket %}
+      {% set vc = {'malicious': 'var(--red)', 'fp': 'var(--green)', 'observed': 'var(--yellow)'}.get(row.verdict, 'var(--on-surface-dim)') %}
+      <tr>
+        <td style="color:var(--on-surface-dim);">{{ loop.index }}</td>
+        <td class="ip-mono">{{ row.ip }}</td>
+        <td style="white-space:nowrap;">
+          {% if row.org_icon %}<i class="{{ row.org_icon }}" style="color:var(--on-surface-dim); margin-right:.3rem;"></i>{% endif %}
+          {{ row.org_name or '—' }}
+        </td>
+        <td style="color:{{ vc }}; font-weight:600; white-space:nowrap;">
+          {% if row.verdict == 'malicious' %}<i class="fa-solid fa-skull-crossbones"></i>
+          {% elif row.verdict == 'fp' %}<i class="fa-solid fa-circle-check"></i>
+          {% else %}<i class="fa-solid fa-circle-question"></i>{% endif %}
+          {{ row.verdict | title }}
+        </td>
+        <td style="text-align:right; font-weight:700; color:var(--primary);">{{ row.os_count | intcomma }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Untriaged high-activity IPs -->
+<div class="chart-card">
+  <div class="chart-title">
+    <i class="fa-solid fa-circle-question" style="color:var(--yellow); margin-right:.4rem;"></i>
+    Untriaged High-Activity IPs
+    <span style="font-weight:400; color:var(--on-surface-dim); margin-left:.5rem;">(no verdict, no ticket — needs triage)</span>
+  </div>
+  {% if not cross.untriaged %}
+  <div class="chart-empty">All active IPs have been triaged <i class="fa-solid fa-check" style="color:var(--green);"></i></div>
+  {% else %}
+  <div style="overflow-x:auto;">
+  <table class="ip-table" style="font-size:0.82rem;">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>IP Address</th>
+        <th>Org</th>
+        <th title="Zeek log hits across all protocols">Zeek Hits</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in cross.untriaged %}
+      <tr>
+        <td style="color:var(--on-surface-dim);">{{ loop.index }}</td>
+        <td class="ip-mono">{{ row.ip }}</td>
+        <td style="white-space:nowrap;">
+          {% if row.org_icon %}<i class="{{ row.org_icon }}" style="color:var(--on-surface-dim); margin-right:.3rem;"></i>{% endif %}
+          {{ row.org_name or '—' }}
+        </td>
+        <td style="text-align:right; font-weight:700; color:var(--yellow);">{{ row.os_count | intcomma }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{% if data.notice_over_time.timestamps or data.suricata_over_time.timestamps %}
 <script>
 (function() {
-  var VERDICT = {{ data.verdict | tojson }};
-  var chart = echarts.init(document.getElementById('chart-verdict'));
+  var NOTICE = {{ data.notice_over_time | tojson }};
+  var SURICATA = {{ data.suricata_over_time | tojson }};
+  var TS = NOTICE.timestamps.length >= SURICATA.timestamps.length ? NOTICE.timestamps : SURICATA.timestamps;
+  var S = getComputedStyle(document.documentElement);
+  var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+  var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+  var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+  var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+  var chart = echarts.init(document.getElementById('chart-alerts-trend'));
   chart.setOption({
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: '#1a1f2e',
-      borderColor: '#2a3045',
-      textStyle: { color: '#c8ccd8' },
-      formatter: '{b}: {c} ({d}%)'
+    tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
+    legend: { data: ['Zeek Notices', 'Suricata Alerts'], textStyle: { color: C_TEXT, fontSize: 11 }, top: 0 },
+    grid: { left: 10, right: 20, top: 30, bottom: 10, containLabel: true },
+    xAxis: {
+      type: 'category', data: TS,
+      axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35,
+        formatter: function(v) { var d = new Date(v); return d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+      },
+      axisLine: { lineStyle: { color: C_OUTLINE } }
     },
-    legend: {
-      orient: 'vertical',
-      right: '5%',
-      top: 'center',
-      textStyle: { color: '#c8ccd8' }
-    },
-    series: [{
-      type: 'pie',
-      radius: ['40%', '68%'],
-      center: ['38%', '50%'],
-      data: [
-        { name: 'Malicious',     value: VERDICT.malicious, itemStyle: { color: '#f85149' } },
-        { name: 'False Positive',value: VERDICT.fp,         itemStyle: { color: '#3fb950' } },
-        { name: 'Observed Only', value: VERDICT.observed,   itemStyle: { color: '#d29922' } }
-      ],
-      itemStyle: { borderColor: '#0d1117', borderWidth: 2 },
-      label: { show: false }
-    }]
+    yAxis: { type: 'value', axisLabel: { color: C_TEXT_DIM, fontSize: 11 }, splitLine: { lineStyle: { color: C_OUTLINE } } },
+    series: [
+      { name: 'Zeek Notices', type: 'line', data: NOTICE.counts, smooth: true,
+        lineStyle: { color: '#f85149', width: 2 }, itemStyle: { color: '#f85149' },
+        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1,
+          colorStops: [{ offset:0, color:'rgba(248,81,73,0.25)' }, { offset:1, color:'rgba(248,81,73,0.02)' }] } }
+      },
+      { name: 'Suricata Alerts', type: 'line', data: SURICATA.counts, smooth: true,
+        lineStyle: { color: '#d29922', width: 2 }, itemStyle: { color: '#d29922' },
+        areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1,
+          colorStops: [{ offset:0, color:'rgba(210,153,34,0.25)' }, { offset:1, color:'rgba(210,153,34,0.02)' }] } }
+      }
+    ]
   });
   window.addEventListener('resize', function() { chart.resize(); });
 })();

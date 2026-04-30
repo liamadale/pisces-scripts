@@ -128,6 +128,11 @@ def _build_parser(module) -> argparse.ArgumentParser:
         action="store_true",
         help="Use cached OpenSearch response if available",
     )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Add profile:true to the ES query and display per-shard timing after results",
+    )
 
     # Protocol-specific args from the module
     module.add_args(parser)
@@ -185,7 +190,7 @@ def main() -> None:
         if args.sensor and args.sensor.lower() != "all":
             sensors = [s.strip() for s in args.sensor.split(",")]
 
-        extra_must = module.build_extra_must(search_params)
+        extra_must, _ = module.build_extra_must(search_params)
         body, _ = build_base_query(
             must_not=must_not,
             extra_must=extra_must,

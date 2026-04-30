@@ -23,14 +23,14 @@ from werkzeug.serving import run_simple
 from apps.dashboard_web.app import create_app as create_dashboard
 from apps.hub.app import create_app as create_hub
 from apps.mantis_explorer.app import create_app as create_mantis_explorer
-from apps.mantis_web.app import create_app as create_mantis
 from apps.opensearch_web.app import create_app as create_opensearch
+from apps.threat_model.app import create_app as create_threat_model
 
 application = DispatcherMiddleware(
     create_hub(),
     {
         "/opensearch": create_opensearch(),
-        "/mantis": create_mantis(),
+        "/threat-model": create_threat_model(),
         "/dashboard": create_dashboard(),
         "/mantis-explorer": create_mantis_explorer(),
     },

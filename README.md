@@ -31,14 +31,21 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 <img src="docs/assets/pisces-scripts-opensearch-webapp.png" width="700" alt="OpenSearch Web UI">
 
-**Mantis** — ticket browser with threat modelling dashboard, disposition scoring, and known malicious IP tracking.
+**Threat Model** — threat modelling dashboard with disposition scoring and known malicious IP tracking.
 
-<img src="docs/assets/pisces-scripts-mantis-webapp.png" width="700" alt="Mantis Web UI">
+<img src="docs/assets/pisces-scripts-threatmodel-one-webapp.png" width="700" alt="Threat Model Web UI — overview">
+<img src="docs/assets/pisces-scripts-threatmodel-two-webapp.png" width="700" alt="Threat Model Web UI — detail">
+
+**Dashboard** — aggregated analytics dashboard.
+
+<img src="docs/assets/pisces-scripts-dashboard-webapp.png" width="700" alt="Dashboard Web UI">
 
 | App | What it's for |
 |---|---|
 | **OpenSearch** | Cross-protocol IP activity matrix, per-protocol drill-down, inline enrichment |
-| **Mantis** | Ticket browser with disposition scoring and known malicious IP tracking |
+| **Threat Model** | Threat modelling dashboard with disposition scoring and known malicious IP tracking |
+| **Dashboard** | Aggregated analytics dashboard |
+| **Mantis Explorer** | Ticket browser and search across the PISCES ticket history |
 
 ---
 
@@ -46,7 +53,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Setup**
 
-| | |
+| Guide | Description |
 |---|---|
 | [VM Setup](docs/vm-setup.md) | Create an Ubuntu VM and connect to the cyber range network |
 | [Getting Started](docs/getting-started.md) | Install, configure, and launch the toolkit on Ubuntu |
@@ -54,7 +61,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Using the toolkit**
 
-| | |
+| Guide | Description |
 |---|---|
 | [Web UI Workflow](docs/workflow.md) | End-to-end triage walkthrough using the browser-based UI |
 | [CLI Workflow](docs/cli-workflow.md) | Terminal-based querier walkthrough — alerts, enrichment, filters, tickets |
@@ -64,7 +71,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Reference**
 
-| | |
+| Guide | Description |
 |---|---|
 | [Advanced Usage](docs/advanced-usage.md) | Full CLI flag reference for all tools |
 | [MCP Server Reference](docs/mcp-servers.md) | Full tool reference for all three MCP servers |

@@ -26,14 +26,6 @@ uv run run_all.py --debug
 uv run run_all.py --host 127.0.0.1 --port 8080
 ```
 
-Or run each app standalone:
-
-```bash
-uv run opensearch_web_run.py    # http://0.0.0.0:5001
-uv run mantis_web_run.py        # http://0.0.0.0:5003
-uv run dashboard_web_run.py     # http://0.0.0.0:5004
-```
-
 All launchers accept `--host`, `--port`, and `--debug` flags.
 
 ## Standalone Enrichment

@@ -4,8 +4,13 @@
 {% set max_count = buckets[0].doc_count %}
 <div class="ss-meta">
   {{ buckets|length }} sensor(s) &middot;
-  <button class="ss-link" onclick="sensorSelectAll(false)">clear</button>
+  <button class="ss-link" onclick="sensorSelectAll(true)">all</button> /
+  <button class="ss-link" onclick="sensorSelectAll(false)">none</button>
 </div>
+<p style="font-size:0.75rem; color:var(--on-surface-dim); margin:0.25rem 0 0.5rem;">
+  <i class="fa-solid fa-circle-info" style="margin-right:.3rem;"></i>
+  Sensor filter applies to OpenSearch data only (notices, alerts, connections). Mantis ticket data is not sensor-scoped.
+</p>
 <div class="ss-list">
   {% for b in buckets %}
   {% set display = b.key | replace('hedgehog-', '') %}

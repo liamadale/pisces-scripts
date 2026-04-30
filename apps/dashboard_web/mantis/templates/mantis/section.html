@@ -3,9 +3,9 @@
 {% else %}
 
 <div class="stat-row">
-  <div class="stat-card">
+  <div class="stat-box">
     <div class="stat-label">Infrastructure IPs</div>
-    <div class="stat-value">{{ data.infra_count }}</div>
+    <div class="stat-value">{{ data.infra_count | intcomma }}</div>
   </div>
 </div>
 
@@ -21,20 +21,11 @@
   </div>
 
   <div class="chart-card">
-    <div class="chart-title">Blocklist Sources</div>
-    {% if not data.blocklists.labels %}
-    <div class="chart-empty">No blocklist data</div>
-    {% else %}
-    <div id="chart-blocklists" style="height:{{ [data.blocklists.labels|length * 36 + 40, 200]|max }}px;"></div>
-    {% endif %}
-  </div>
-
-  <div class="chart-card" style="grid-column: 1 / -1;">
     <div class="chart-title">Ticket Volume Timeline (monthly)</div>
     {% if not data.timeline.months %}
     <div class="chart-empty">No ticket data</div>
     {% else %}
-    <div id="chart-timeline" style="height:220px;"></div>
+    <div id="chart-timeline" style="height:320px;"></div>
     {% endif %}
   </div>
 
@@ -79,17 +70,17 @@
 <script>
 (function() {
   var ATTACK_TYPES = {{ data.attack_types | tojson }};
-  var BLOCKLISTS   = {{ data.blocklists   | tojson }};
   var TIMELINE     = {{ data.timeline     | tojson }};
 
-  var AXIS_LABEL = { color: '#c8ccd8', fontSize: 12 };
-  var AXIS_DIM   = { color: '#5a6278', fontSize: 11 };
-  var GRID_LINE  = { lineStyle: { color: '#2a3045' } };
-  var TOOLTIP_STYLE = {
-    trigger: 'axis', axisPointer: { type: 'shadow' },
-    backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-    textStyle: { color: '#c8ccd8' }
-  };
+  var S = getComputedStyle(document.documentElement);
+  var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+  var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+  var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+  var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+  var C_BG       = S.getPropertyValue('--surface').trim();
+
+  var AXIS_DIM   = { color: C_TEXT_DIM, fontSize: 11 };
+  var GRID_LINE  = { lineStyle: { color: C_OUTLINE } };
 
   /* Attack type donut */
   if (ATTACK_TYPES.length) {
@@ -99,13 +90,13 @@
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'item',
-        backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-        textStyle: { color: '#c8ccd8' },
+        backgroundColor: C_SURFACE, borderColor: C_OUTLINE,
+        textStyle: { color: C_TEXT },
         formatter: '{b}: {c} ({d}%)'
       },
       legend: {
         type: 'scroll', orient: 'vertical', right: '2%', top: 'middle',
-        textStyle: { color: '#c8ccd8', fontSize: 11 }
+        textStyle: { color: C_TEXT, fontSize: 11 }
       },
       series: [{
         type: 'pie',
@@ -114,25 +105,11 @@
         data: ATTACK_TYPES.map(function(d, i) {
           return { name: d.name, value: d.value, itemStyle: { color: DONUT_COLORS[i % DONUT_COLORS.length] } };
         }),
-        itemStyle: { borderColor: '#0d1117', borderWidth: 2 },
+        itemStyle: { borderColor: C_BG, borderWidth: 2 },
         label: { show: false }
       }]
     });
     window.addEventListener('resize', function() { c1.resize(); });
-  }
-
-  /* Blocklists bar */
-  if (BLOCKLISTS.labels.length) {
-    var c2 = echarts.init(document.getElementById('chart-blocklists'));
-    c2.setOption({
-      backgroundColor: 'transparent',
-      tooltip: TOOLTIP_STYLE,
-      grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
-      xAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
-      yAxis: { type: 'category', data: BLOCKLISTS.labels.slice().reverse(), axisLabel: AXIS_LABEL },
-      series: [{ type: 'bar', data: BLOCKLISTS.counts.slice().reverse(), itemStyle: { color: '#d29922' }, barMaxWidth: 28 }]
-    });
-    window.addEventListener('resize', function() { c2.resize(); });
   }
 
   /* Timeline area chart */
@@ -140,12 +117,12 @@
     var c3 = echarts.init(document.getElementById('chart-timeline'));
     c3.setOption({
       backgroundColor: 'transparent',
-      tooltip: { trigger: 'axis', backgroundColor: '#1a1f2e', borderColor: '#2a3045', textStyle: { color: '#c8ccd8' } },
+      tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
       grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
       xAxis: {
         type: 'category', data: TIMELINE.months,
-        axisLabel: { color: '#5a6278', rotate: 35, fontSize: 11 },
-        axisLine: { lineStyle: { color: '#2a3045' } }
+        axisLabel: { color: C_TEXT_DIM, rotate: 35, fontSize: 11 },
+        axisLine: { lineStyle: { color: C_OUTLINE } }
       },
       yAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
       series: [{
