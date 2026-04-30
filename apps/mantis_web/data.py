@@ -248,11 +248,31 @@ def _undetermined_row(r: dict) -> dict:
     }
 
 
-MALICIOUS_ROWS: list[dict] = [_malicious_row(r) for r in _raw_malicious]
-FP_ROWS: list[dict] = [_fp_row(r) for r in _raw_fp]
-INFRA_ROWS: list[dict] = [_infra_row(r) for r in _raw_infra]
-DNS_RESOLVER_ROWS: list[dict] = [_dns_resolver_row(r) for r in DNS_RESOLVER_BY_IP.values()]
-UNDETERMINED_ROWS: list[dict] = [_undetermined_row(r) for r in _raw_undetermined]
+MALICIOUS_ROWS: list[dict] = sorted(
+    [_malicious_row(r) for r in _raw_malicious],
+    key=lambda r: r["ticket_count"],
+    reverse=True,
+)
+FP_ROWS: list[dict] = sorted(
+    [_fp_row(r) for r in _raw_fp],
+    key=lambda r: r["score"],
+    reverse=True,
+)
+INFRA_ROWS: list[dict] = sorted(
+    [_infra_row(r) for r in _raw_infra],
+    key=lambda r: r["ticket_count"],
+    reverse=True,
+)
+DNS_RESOLVER_ROWS: list[dict] = sorted(
+    [_dns_resolver_row(r) for r in DNS_RESOLVER_BY_IP.values()],
+    key=lambda r: r["ticket_count"],
+    reverse=True,
+)
+UNDETERMINED_ROWS: list[dict] = sorted(
+    [_undetermined_row(r) for r in _raw_undetermined],
+    key=lambda r: r["score"],
+    reverse=True,
+)
 
 # ---------------------------------------------------------------------------
 # Filter facets
@@ -272,11 +292,9 @@ ALL_INFRA_CATEGORIES: list[str] = sorted(
 # ---------------------------------------------------------------------------
 def get_tickets_for_ip(ip: str) -> list[dict]:
     """Return full ticket dicts for an IP, sorted newest-first."""
-    return sorted(
-        [t for t in _raw_tickets if ip in (t.get("ips") or [])],
-        key=lambda t: t.get("created_at", ""),
-        reverse=True,
-    )
+    ticket_ids = TICKETS_BY_IP.get(ip, [])
+    tickets = [TICKETS_BY_ID[tid] for tid in ticket_ids if tid in TICKETS_BY_ID]
+    return sorted(tickets, key=lambda t: t.get("created_at", ""), reverse=True)
 
 
 def classify_ip(ip: str) -> str:
