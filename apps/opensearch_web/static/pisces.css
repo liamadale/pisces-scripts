@@ -327,16 +327,112 @@ thead .col-total {
 tbody tr:hover .col-total        { background: var(--surface-container-highest); }
 tbody tr.row-selected .col-total { background: var(--surface-container-highest); }
 
-/* Search bar */
+/* Search bar — two-row layout */
 .search-bar {
   flex-shrink: 0;
   background: var(--surface-container-low);
   border-bottom: 1px solid var(--outline);
-  padding: 0.6rem 1.5rem;
+  padding: 0.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.search-bar-inputs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: center;
+  justify-content: space-between;
+}
+
+/* Subtle pill container around each filter group */
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-dim, var(--outline));
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+}
+
+/* Muted tint on src/dst pills */
+.search-pill.pill-src {
+  border-color: color-mix(in srgb, var(--red) 25%, var(--outline));
+  background: color-mix(in srgb, var(--red) 4%, var(--surface-container));
+}
+.search-pill.pill-dst {
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--outline));
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface-container));
+}
+
+/* Inputs inside pills lose their own border — the pill provides it */
+.search-pill select,
+.search-pill input[type="text"],
+.search-pill input[type="number"] {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  height: 24px;
+}
+.search-pill select:focus,
+.search-pill input:focus {
+  box-shadow: none;
+}
+
+.search-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Icon buttons inside the search bar get a visible border to match inputs */
+.search-bar .btn-icon {
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-xs);
+  width: 28px;
+  height: 28px;
+}
+.search-bar .btn-icon:hover {
+  border-color: var(--primary);
+}
+
+/* Sensor browse btn inside pill — smaller, no extra border */
+.search-pill .btn-icon {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+}
+
+/* Checkbox label inside pill — match other pill labels */
+.search-pill .check-label {
+  opacity: 1;
+  font-size: 0.78rem;
+  color: var(--on-surface-dim);
+  height: 24px;
+}
+
+/* Share pill — whole pill is clickable, matches search button height */
+.share-pill {
+  color: var(--on-surface-dim);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  height: 26px;
+  padding: 0 10px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.share-pill:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Wider search button */
+.search-btn {
+  padding: 0 28px;
+  height: 26px;
 }
 
 .search-bar label {
@@ -344,7 +440,14 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
   font-size: 0.78rem;
   color: var(--on-surface-dim);
   margin-right: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
+
+/* Muted src/dst IP label accents — same hues as threat model but subdued */
+.search-bar .label-src { color: color-mix(in srgb, var(--red) 50%, var(--on-surface-dim)); }
+.search-bar .label-dst { color: color-mix(in srgb, var(--primary) 50%, var(--on-surface-dim)); }
 
 .search-bar select,
 .search-bar input[type="text"],
@@ -369,13 +472,6 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
 
 .search-bar input[type="number"] { width: 70px; }
 .search-bar input[type="text"]   { width: 140px; }
-
-.search-bar .sep {
-  width: 1px;
-  height: 20px;
-  background: var(--outline);
-  margin: 0 4px;
-}
 
 /* Main content area */
 main {
@@ -1227,12 +1323,9 @@ tr.detail-row td {
   margin-left: 0.25rem;
 }
 
-/* Timestamp cells — compact/full toggle + click-to-copy */
+/* Timestamp cells — click-to-copy */
 .ts-cell { cursor: pointer; }
 .ts-cell:hover { text-decoration: underline dotted; }
-.ts-full { display: none; }
-.ts-full-mode .ts-compact { display: none; }
-.ts-full-mode .ts-full { display: inline; }
 .ts-copied { background: var(--primary-container); transition: background 0.15s; }
 
 /* Share dropdown */
@@ -1291,6 +1384,8 @@ tr.detail-row td {
   gap: 5px;
   font-size: 0.82rem;
   opacity: 0.85;
+}
+
 .org-icon.org-scanner  { color: var(--yellow); }
 .org-icon.org-research { color: var(--purple); }
 .org-icon.org-private  { color: var(--on-surface-dim); }

@@ -74,8 +74,7 @@
             onclick="if(!event.target.closest('a')) handleDetailToggle(this)">
           <td class="num">{{ idx }}</td>
           <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
-            <span class="ts-compact">{{ rec.get('timestamp') | fmt_ts }}</span>
-            <span class="ts-full">{{ rec.get('timestamp') | fmt_ts(full=True) }}</span>
+            {{ rec.get('timestamp') | fmt_ts(full=True) }}
           </td>
           <td>
             {% set sensors = rec.get('sensors') %}
