@@ -110,7 +110,7 @@
 [data-theme="gruvbox-dark"] {
   --surface:                  #282828;
   --surface-container-low:    #3c3836;
-  --surface-container:        #3c3836;
+  --surface-container:        #45403d;
   --surface-container-high:   #504945;
   --surface-container-highest:#665c54;
 
@@ -155,7 +155,7 @@
 
 [data-theme="gruvbox-light"] {
   --surface:                  #fbf1c7;
-  --surface-container-low:    #ebdbb2;
+  --surface-container-low:    #f2e5bc;
   --surface-container:        #ebdbb2;
   --surface-container-high:   #d5c4a1;
   --surface-container-highest:#bdae93;
@@ -294,7 +294,7 @@
 [data-theme="catppuccin-latte"] {
   --surface:                  #eff1f5;
   --surface-container-low:    #e6e9ef;
-  --surface-container:        #e6e9ef;
+  --surface-container:        #dce0e8;
   --surface-container-high:   #ccd0da;
   --surface-container-highest:#bcc0cc;
 
@@ -384,9 +384,9 @@
 /* Source: catppuccin/catppuccin — Macchiato flavor         */
 
 [data-theme="catppuccin-macchiato"] {
-  --surface:                  #24273a;
+  --surface:                  #181926;
   --surface-container-low:    #1e2030;
-  --surface-container:        #1e2030;
+  --surface-container:        #24273a;
   --surface-container-high:   #363a4f;
   --surface-container-highest:#494d64;
 
