@@ -1,5 +1,6 @@
 {# Investigate — device profiles partial.
-   Receives: src_ip, dest_ip, src_profile, dest_profile, src_error, dest_error #}
+   Receives: src_ip, dest_ip, src_profile, dest_profile,
+             src_enrichment, dest_enrichment, src_error, dest_error #}
 <div class="investigate-profiles-grid">
 
   {# Source IP #}
@@ -11,11 +12,24 @@
     {% if src_error %}
     <p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ src_error }}</p>
     {% elif src_profile %}
-    {% with profile=src_profile, compact=False %}
-    {% include "partials/device_card.html" %}
-    {% endwith %}
+      {% if is_private(src_ip) %}
+        {% with profile=src_profile, compact=False %}
+        {% include "partials/device_card.html" %}
+        {% endwith %}
+      {% else %}
+        {% with profile=src_profile, compact=False %}
+        {% include "partials/public_device_card.html" %}
+        {% endwith %}
+      {% endif %}
     {% else %}
-    <p class="empty-note">Public IP — device profiling not available.</p>
+    <p class="empty-note">No profile data available.</p>
+    {% endif %}
+    {% if src_enrichment %}
+    <div class="investigate-enrichment-inline">
+      {% with result=src_enrichment, urls=src_urls, ip=src_ip %}
+      {% include "partials/enrich_card.html" ignore missing %}
+      {% endwith %}
+    </div>
     {% endif %}
   </div>
 
@@ -28,11 +42,24 @@
     {% if dest_error %}
     <p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ dest_error }}</p>
     {% elif dest_profile %}
-    {% with profile=dest_profile, compact=False %}
-    {% include "partials/device_card.html" %}
-    {% endwith %}
+      {% if is_private(dest_ip) %}
+        {% with profile=dest_profile, compact=False %}
+        {% include "partials/device_card.html" %}
+        {% endwith %}
+      {% else %}
+        {% with profile=dest_profile, compact=False %}
+        {% include "partials/public_device_card.html" %}
+        {% endwith %}
+      {% endif %}
     {% else %}
-    <p class="empty-note">Public IP — device profiling not available.</p>
+    <p class="empty-note">No profile data available.</p>
+    {% endif %}
+    {% if dest_enrichment %}
+    <div class="investigate-enrichment-inline">
+      {% with result=dest_enrichment, urls=dest_urls, ip=dest_ip %}
+      {% include "partials/enrich_card.html" ignore missing %}
+      {% endwith %}
+    </div>
     {% endif %}
   </div>
 

@@ -23,6 +23,18 @@ def register_shared_helpers(app: Flask) -> None:
         "unknown": "circle-question",
     }.get(role, "circle-question")
 
+    app.jinja_env.globals["public_role_icon"] = lambda role: {
+        "web_server": "globe",
+        "scanner": "radar",
+        "cdn_node": "cloud",
+        "mail_server": "envelope",
+        "dns_server": "server",
+        "ssh_server": "terminal",
+        "vpn_endpoint": "shield-halved",
+        "c2_suspect": "skull-crossbones",
+        "unknown": "circle-question",
+    }.get(role, "circle-question")
+
     from src.profiler.ja4_decoder import decode_ja4
 
     app.jinja_env.globals["decode_ja4"] = decode_ja4

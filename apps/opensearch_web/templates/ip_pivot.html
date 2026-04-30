@@ -8,19 +8,18 @@
     <i class="fa-regular fa-clock"></i>
     {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
   </span>
-  {% if is_private(ip) %}
   <button class="btn"
           hx-post="/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
-          hx-target="#enrich-panel"
+          hx-target="#profile-slot"
           hx-swap="innerHTML"
           hx-indicator="#profile-spinner">
-    <i class="fa-solid fa-fingerprint"></i> Profile Device
+    <i class="fa-solid fa-fingerprint"></i> {{ 'Profile Device' if is_private(ip) else 'Profile' }}
     <span id="profile-spinner" class="htmx-indicator"><i class="fa-solid fa-spinner fa-spin"></i></span>
   </button>
-  {% else %}
+  {% if not is_private(ip) %}
   <button class="btn"
           hx-post="/api/enrich/{{ ip }}"
-          hx-target="#enrich-panel"
+          hx-target="#enrich-slot"
           hx-swap="innerHTML">
     <i class="fa-solid fa-shield-halved"></i> Enrich
   </button>
@@ -30,7 +29,10 @@
   </button>
 </div>
 
-<div id="enrich-panel"></div>
+<div id="enrich-panel">
+  <div id="profile-slot"></div>
+  <div id="enrich-slot"></div>
+</div>
 
 {% for lt, records in results.items() %}
 {% set mod = MODULES[lt] %}

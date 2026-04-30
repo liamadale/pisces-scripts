@@ -593,17 +593,22 @@ def create_app() -> Flask:
     def api_profile(ip: str):
         from src.querier.zeek_modules.base import is_private
 
-        if not is_private(ip):
-            return '<p class="empty-note">Device profiling is for private IPs only.</p>'
-
-        from src.profiler.device_profiler import profile_device
-
         sensor = request.args.get("sensor", "all")
         time_range = request.args.get("time_range", "now-7d")
         compact = request.args.get("compact") == "1"
 
-        profile = profile_device(ip, time_range=time_range, sensor=sensor)
-        return render_template("partials/device_card.html", profile=profile, compact=compact)
+        if is_private(ip):
+            from src.profiler.device_profiler import profile_device
+
+            profile = profile_device(ip, time_range=time_range, sensor=sensor)
+            return render_template("partials/device_card.html", profile=profile, compact=compact)
+        else:
+            from src.profiler.public_ip_profiler import profile_public_ip
+
+            profile = profile_public_ip(ip, time_range=time_range)
+            return render_template(
+                "partials/public_device_card.html", profile=profile, compact=compact
+            )
 
     # ------------------------------------------------------------------
     # GET /investigate/<src_ip>/<dest_ip>  — one-click incident context page
@@ -625,7 +630,9 @@ def create_app() -> Flask:
     def api_investigate_profiles():
         from concurrent.futures import ThreadPoolExecutor
 
+        from src.enricher.threat_intel import enrich_ip
         from src.profiler.device_profiler import profile_device
+        from src.profiler.public_ip_profiler import profile_public_ip
         from src.querier.zeek_modules.base import is_private
 
         src_ip = request.args.get("src_ip", "")
@@ -635,25 +642,47 @@ def create_app() -> Flask:
 
         src_profile = None
         dest_profile = None
+        src_enrichment = None
+        dest_enrichment = None
         src_error = None
         dest_error = None
 
-        def _profile(ip: str):  # type: ignore[no-untyped-def]
-            return profile_device(ip, time_range=time_range, sensor=sensor)
+        def _do_src():
+            nonlocal src_profile, src_enrichment, src_error
+            try:
+                if is_private(src_ip):
+                    src_profile = profile_device(src_ip, time_range=time_range, sensor=sensor)
+                else:
+                    src_profile = profile_public_ip(src_ip, time_range=time_range)
+                    src_enrichment = enrich_ip(src_ip, offer_fp=False)
+            except Exception as exc:
+                src_error = str(exc)
+
+        def _do_dest():
+            nonlocal dest_profile, dest_enrichment, dest_error
+            try:
+                if is_private(dest_ip):
+                    dest_profile = profile_device(dest_ip, time_range=time_range, sensor=sensor)
+                else:
+                    dest_profile = profile_public_ip(dest_ip, time_range=time_range)
+                    dest_enrichment = enrich_ip(dest_ip, offer_fp=False)
+            except Exception as exc:
+                dest_error = str(exc)
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            f_src = pool.submit(_profile, src_ip) if is_private(src_ip) else None
-            f_dest = pool.submit(_profile, dest_ip) if is_private(dest_ip) else None
-            if f_src is not None:
-                try:
-                    src_profile = f_src.result()
-                except Exception as exc:
-                    src_error = str(exc)
-            if f_dest is not None:
-                try:
-                    dest_profile = f_dest.result()
-                except Exception as exc:
-                    dest_error = str(exc)
+            pool.submit(_do_src)
+            f_dest = pool.submit(_do_dest)
+            f_dest.result()  # wait for both
+
+        def _enrich_urls(ip: str) -> dict:
+            from src.enricher import abuseipdb, greynoise, shodan, virustotal
+
+            return {
+                "greynoise": greynoise.URL.format(ip=ip),
+                "abuseipdb": abuseipdb.URL.format(ip=ip),
+                "shodan": shodan.URL.format(ip=ip),
+                "virustotal": virustotal.URL.format(ip=ip),
+            }
 
         return render_template(
             "partials/investigate_profiles.html",
@@ -661,6 +690,10 @@ def create_app() -> Flask:
             dest_ip=dest_ip,
             src_profile=src_profile,
             dest_profile=dest_profile,
+            src_enrichment=src_enrichment,
+            dest_enrichment=dest_enrichment,
+            src_urls=_enrich_urls(src_ip) if src_enrichment else None,
+            dest_urls=_enrich_urls(dest_ip) if dest_enrichment else None,
             src_error=src_error,
             dest_error=dest_error,
         )
@@ -713,6 +746,95 @@ def create_app() -> Flask:
             "partials/investigate_chain.html",
             attack_chain=chain,
             src_ip=src_ip,
+            error=error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/notices  — HTMX: Zeek notices for IP pair
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/notices")
+    def api_investigate_notices():
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        try:
+            from src.querier.zeek_modules.base import run_query
+
+            base = {
+                "sensor": sensor,
+                "time_range": time_range,
+                "limit": 200,
+                "no_filters": False,
+                "public_only": False,
+                "raise_on_error": False,
+            }
+            fwd = run_query(MODULES["notice"], {**base, "src_ip": src_ip})
+            fwd = [r for r in fwd if r.get("dest_ip") == dest_ip]
+            rev = run_query(MODULES["notice"], {**base, "src_ip": dest_ip})
+            rev = [r for r in rev if r.get("dest_ip") == src_ip]
+            records = fwd + rev
+            records.sort(key=lambda r: r.get("timestamp", ""))
+            error = None
+        except Exception as exc:
+            records, error = [], str(exc)
+
+        return render_template(
+            "partials/investigate_notices.html",
+            notices=records,
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            error=error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/suricata  — HTMX: Suricata alerts for IP pair
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/suricata")
+    def api_investigate_suricata():
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        try:
+            from src.querier.zeek_modules.base import run_query
+
+            base = {
+                "sensor": sensor,
+                "time_range": time_range,
+                "limit": 200,
+                "no_filters": False,
+                "public_only": False,
+                "raise_on_error": False,
+                "exclude_stream": True,
+            }
+            # src→dest direction
+            fwd = run_query(MODULES["suricata_alert"], {**base, "src_ip": src_ip})
+            fwd = [r for r in fwd if r.get("dest_ip") == dest_ip]
+            # dest→src direction
+            rev = run_query(MODULES["suricata_alert"], {**base, "src_ip": dest_ip})
+            rev = [r for r in rev if r.get("dest_ip") == src_ip]
+            records = fwd + rev
+            records.sort(key=lambda r: r.get("timestamp", ""))
+            error = None
+        except Exception as exc:
+            records, error = [], str(exc)
+
+        return render_template(
+            "partials/investigate_suricata.html",
+            alerts=records,
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            error=error,
+        )
+
+        return render_template(
+            "partials/investigate_suricata.html",
+            alerts=records,
+            src_ip=src_ip,
+            dest_ip=dest_ip,
             error=error,
         )
 

@@ -149,6 +149,7 @@
 
   {# Footer #}
   <div class="device-card-footer">
+    <button class="btn-link expand-all-btn" onclick="toggleDetailsAll(this)">Expand all</button>
     {% if profile.first_seen %}
     First: {{ profile.first_seen[:16] }} · Last: {{ profile.last_seen[:16] }}
     {% endif %}

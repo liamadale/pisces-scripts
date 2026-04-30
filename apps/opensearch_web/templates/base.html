@@ -334,6 +334,14 @@
     });
   };
 
+  window.toggleDetailsAll = function(btn) {
+    var card = btn.closest(".device-card");
+    var details = card.querySelectorAll("details");
+    var allOpen = Array.from(details).every(function(d) { return d.open; });
+    details.forEach(function(d) { d.open = !allOpen; });
+    btn.textContent = allOpen ? "Expand all" : "Collapse all";
+  };
+
   window.handleDetailToggle = function(el) {
     var row = el.tagName === "TR" ? el : el.closest("tr");
     var isSelected = row.classList.contains("row-selected");
