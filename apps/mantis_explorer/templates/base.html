@@ -20,14 +20,11 @@
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="{{ script_name }}/">
+  <a class="brand" href="{{ '/' if script_name else script_name + '/' }}">
     <img src="/shared/static/pisces-logo.png"
          alt="PISCES" class="brand-logo" height="28" width="auto">
     PISCES <span class="brand-sub">Mantis Explorer</span>
   </a>
-  {% if script_name %}
-  <a href="/" class="btn-icon" title="Back to PISCES Hub"><i class="fa-solid fa-house"></i></a>
-  {% endif %}
   <button class="btn-notice" onclick="document.getElementById('notice-modal').classList.add('show')"
           title="Show notice">
     <i class="fa-solid fa-triangle-exclamation"></i> NOTICE

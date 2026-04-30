@@ -242,12 +242,7 @@
 <div id="htmx-bar"></div>
 
 <nav>
-  <a class="brand" href="{{ script_name }}/"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Dashboard</span></a>
-  {% if script_name %}
-  <a href="/" class="btn-icon" title="Back to PISCES Hub">
-    <i class="fa-solid fa-house"></i>
-  </a>
-  {% endif %}
+  <a class="brand" href="{{ '/' if script_name else script_name + '/' }}"><img src="/shared/static/pisces-logo.png" alt="PISCES" class="brand-logo" height="32" width="auto">PISCES <span class="brand-sub">Dashboard</span></a>
   <div class="spacer"></div>
 </nav>
 
