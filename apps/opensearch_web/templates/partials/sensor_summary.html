@@ -4,8 +4,7 @@
 {% set max_count = buckets[0].doc_count %}
 <div class="ss-meta">
   {{ buckets|length }} sensor(s) &middot;
-  <button class="ss-link" onclick="sensorSelectAll(true)">all</button> /
-  <button class="ss-link" onclick="sensorSelectAll(false)">none</button>
+  <button class="ss-link" onclick="sensorSelectAll(false)">clear</button>
 </div>
 <div class="ss-list">
   {% for b in buckets %}

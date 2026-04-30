@@ -355,6 +355,8 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
   border: 1px solid var(--outline-dim, var(--outline));
   border-radius: var(--radius-pill);
   padding: 3px 10px;
+  height: 32px;
+  box-sizing: border-box;
 }
 
 /* Muted tint on src/dst pills */
@@ -407,6 +409,33 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
   background: transparent;
 }
 
+/* Sensor pill — clickable button that opens the sensor modal */
+.sensor-pill {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.sensor-pill:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface-container));
+}
+.sensor-btn-label {
+  font-family: var(--font);
+  font-size: 0.82rem;
+  color: var(--on-surface);
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sensor-btn-chevron {
+  font-size: 0.6rem;
+  color: var(--on-surface-dim);
+  transition: transform 0.15s;
+  margin-left: 2px;
+}
+.sensor-pill:hover .sensor-btn-chevron { color: var(--primary); }
+
 /* Checkbox label inside pill — match other pill labels */
 .search-pill .check-label {
   opacity: 1;
@@ -420,7 +449,7 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
   color: var(--on-surface-dim);
   font-family: var(--sans);
   font-size: 0.78rem;
-  height: 26px;
+  height: 32px;
   padding: 0 10px;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -432,7 +461,7 @@ tbody tr.row-selected .col-total { background: var(--surface-container-highest);
 /* Wider search button */
 .search-btn {
   padding: 0 28px;
-  height: 26px;
+  height: 32px;
 }
 
 .search-bar label {

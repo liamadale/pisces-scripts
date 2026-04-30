@@ -85,16 +85,21 @@
           </select>
         </div>
 
-        <div class="search-pill">
+        <div class="search-pill sensor-pill" onclick="openSensorModal()" title="Browse sensors">
           <label><i class="fa-solid fa-satellite-dish"></i> Sensor</label>
-          <input type="text" name="sensor" id="sensor-input"
-                 value="{{ request.values.get('sensor', 'all') }}"
-                 placeholder="all">
-          <button type="button" class="btn-icon"
-                  onclick="openSensorModal()"
-                  title="Browse sensors">
-            <i class="fa-solid fa-list-check"></i>
-          </button>
+          <input type="hidden" name="sensor" id="sensor-input"
+                 value="{{ request.values.get('sensor', 'all') }}">
+          <span id="sensor-label" class="sensor-btn-label">
+            {%- set _sv = request.values.get('sensor', 'all') -%}
+            {%- if not _sv or _sv.lower() == 'all' -%}
+              All Sensors
+            {%- elif ',' in _sv -%}
+              {{ _sv.split(',') | length }} sensors
+            {%- else -%}
+              {{ _sv | replace('hedgehog-', '') }}
+            {%- endif -%}
+          </span>
+          <i class="fa-solid fa-chevron-down sensor-btn-chevron"></i>
         </div>
 
         <div class="search-pill pill-src">
@@ -487,11 +492,20 @@
       .forEach(function(cb) { cb.checked = state; });
   };
   window.applySensorSelection = function() {
-    var checked = Array.from(
-      document.querySelectorAll('#sensor-modal-body .ss-check:checked')
-    ).map(function(cb) { return cb.value; });
+    var all = document.querySelectorAll('#sensor-modal-body .ss-check');
+    var checked = Array.from(all).filter(function(cb) { return cb.checked; });
     var input = document.getElementById('sensor-input');
-    input.value = checked.length ? checked.join(',') : 'all';
+    var label = document.getElementById('sensor-label');
+    var isAll = !checked.length || checked.length === all.length;
+    var val = isAll ? 'all' : checked.map(function(cb) { return cb.value; }).join(',');
+    input.value = val;
+    if (isAll) {
+      label.textContent = 'All Sensors';
+    } else if (checked.length === 1) {
+      label.textContent = checked[0].value.replace('hedgehog-', '');
+    } else {
+      label.textContent = checked.length + ' sensors';
+    }
     closeSensorModal();
     document.getElementById('global-search').submit();
   };
