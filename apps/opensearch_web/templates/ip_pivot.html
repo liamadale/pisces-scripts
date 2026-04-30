@@ -25,6 +25,9 @@
     <i class="fa-solid fa-shield-halved"></i> Enrich
   </button>
   {% endif %}
+  <button class="btn" onclick="promptInvestigate('{{ ip }}', '{{ request.query_string.decode() }}')">
+    <i class="fa-solid fa-magnifying-glass-chart"></i> Investigate...
+  </button>
 </div>
 
 <div id="enrich-panel"></div>
@@ -96,4 +99,13 @@
   {% endif %}
 </div>
 {% endfor %}
+
+<script>
+window.promptInvestigate = function(srcIp, qs) {
+  var dest = window.prompt('Investigate ' + srcIp + ' against which destination IP?');
+  if (dest && dest.trim()) {
+    window.location.href = window.SCRIPT_NAME + '/investigate/' + encodeURIComponent(srcIp) + '/' + encodeURIComponent(dest.trim()) + (qs ? '?' + qs : '');
+  }
+};
+</script>
 {% endblock content %}

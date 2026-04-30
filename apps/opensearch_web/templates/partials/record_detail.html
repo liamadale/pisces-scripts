@@ -30,6 +30,12 @@
               hx-swap="innerHTML">
         <i class="fa-solid fa-filter-circle-xmark"></i> Create FP Filter
       </button>
+      {% if log_type == "notice" and record.get('src_ip') and record.get('dest_ip') %}
+      <a class="btn btn-sm"
+         href="{{ script_name }}/investigate/{{ record.get('src_ip') }}/{{ record.get('dest_ip') }}?{{ request.query_string.decode() }}">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Investigate
+      </a>
+      {% endif %}
     </div>
     {% endif %}
   </div>
