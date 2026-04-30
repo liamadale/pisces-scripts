@@ -53,7 +53,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Setup**
 
-| | |
+| Guide | Description |
 |---|---|
 | [VM Setup](docs/vm-setup.md) | Create an Ubuntu VM and connect to the cyber range network |
 | [Getting Started](docs/getting-started.md) | Install, configure, and launch the toolkit on Ubuntu |
@@ -61,7 +61,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Using the toolkit**
 
-| | |
+| Guide | Description |
 |---|---|
 | [Web UI Workflow](docs/workflow.md) | End-to-end triage walkthrough using the browser-based UI |
 | [CLI Workflow](docs/cli-workflow.md) | Terminal-based querier walkthrough — alerts, enrichment, filters, tickets |
@@ -71,7 +71,7 @@ Four browser-based apps served from a central hub. Launch everything with one co
 
 **Reference**
 
-| | |
+| Guide | Description |
 |---|---|
 | [Advanced Usage](docs/advanced-usage.md) | Full CLI flag reference for all tools |
 | [MCP Server Reference](docs/mcp-servers.md) | Full tool reference for all three MCP servers |
