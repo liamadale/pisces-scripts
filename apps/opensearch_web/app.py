@@ -605,4 +605,200 @@ def create_app() -> Flask:
         profile = profile_device(ip, time_range=time_range, sensor=sensor)
         return render_template("partials/device_card.html", profile=profile, compact=compact)
 
+    # ------------------------------------------------------------------
+    # GET /investigate/<src_ip>/<dest_ip>  — one-click incident context page
+    # ------------------------------------------------------------------
+    @app.route("/investigate/<src_ip>/<dest_ip>")
+    def investigate_view(src_ip: str, dest_ip: str):
+        search_params = build_search_params_from_request(request)
+        return render_template(
+            "investigate.html",
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            search_params=search_params,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/profiles  — HTMX: device profiles for src + dest
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/profiles")
+    def api_investigate_profiles():
+        from src.profiler.device_profiler import profile_device
+        from src.querier.zeek_modules.base import is_private
+
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        src_profile = None
+        dest_profile = None
+        src_error = None
+        dest_error = None
+
+        if is_private(src_ip):
+            try:
+                src_profile = profile_device(src_ip, time_range=time_range, sensor=sensor)
+            except Exception as exc:
+                src_error = str(exc)
+
+        if is_private(dest_ip):
+            try:
+                dest_profile = profile_device(dest_ip, time_range=time_range, sensor=sensor)
+            except Exception as exc:
+                dest_error = str(exc)
+
+        return render_template(
+            "partials/investigate_profiles.html",
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            src_profile=src_profile,
+            dest_profile=dest_profile,
+            src_error=src_error,
+            dest_error=dest_error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/auth  — HTMX: Kerberos + NTLM auth history
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/auth")
+    def api_investigate_auth():
+        from src.correlator.incident_context import query_auth_history
+
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        try:
+            kerberos, ntlm = query_auth_history(src_ip, dest_ip, sensor, time_range)
+            error = None
+        except Exception as exc:
+            kerberos, ntlm, error = [], [], str(exc)
+
+        return render_template(
+            "partials/investigate_auth.html",
+            kerberos_history=kerberos,
+            ntlm_history=ntlm,
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            error=error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/chain  — HTMX: ATTACK::* notice chain for src_ip
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/chain")
+    def api_investigate_chain():
+        from src.correlator.incident_context import query_attack_chain
+
+        src_ip = request.args.get("src_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        try:
+            chain = query_attack_chain(src_ip, sensor, time_range)
+            error = None
+        except Exception as exc:
+            chain, error = [], str(exc)
+
+        return render_template(
+            "partials/investigate_chain.html",
+            attack_chain=chain,
+            src_ip=src_ip,
+            error=error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/tickets  — HTMX: Mantis tickets for src + dest
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/tickets")
+    def api_investigate_tickets():
+        from src.mantis.mantis_search import search as search_tickets
+
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+
+        try:
+            src_tickets = search_tickets(src_ip) if src_ip else []
+            dest_tickets = search_tickets(dest_ip) if dest_ip else []
+            error = None
+        except Exception as exc:
+            src_tickets, dest_tickets, error = [], [], str(exc)
+
+        return render_template(
+            "partials/investigate_tickets.html",
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            src_tickets=src_tickets,
+            dest_tickets=dest_tickets,
+            error=error,
+        )
+
+    # ------------------------------------------------------------------
+    # GET /api/investigate/timeline  — HTMX: merged chronological event list
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/timeline")
+    def api_investigate_timeline():
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import as_completed as _as_completed
+
+        from src.correlator.incident_context import (
+            IncidentContext,
+            build_timeline,
+            query_attack_chain,
+            query_auth_history,
+        )
+
+        src_ip = request.args.get("src_ip", "")
+        dest_ip = request.args.get("dest_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        kerberos: list[dict] = []
+        ntlm: list[dict] = []
+        chain: list[dict] = []
+        errors: dict[str, str] = {}
+
+        def _auth() -> tuple[list[dict], list[dict]]:
+            return query_auth_history(src_ip, dest_ip, sensor, time_range)
+
+        def _chain() -> list[dict]:
+            return query_attack_chain(src_ip, sensor, time_range)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_auth = pool.submit(_auth)
+            f_chain = pool.submit(_chain)
+            for fut in _as_completed([f_auth, f_chain]):
+                if fut is f_auth:
+                    try:
+                        kerberos, ntlm = fut.result()
+                    except Exception as exc:
+                        errors["auth"] = str(exc)
+                else:
+                    try:
+                        chain = fut.result()
+                    except Exception as exc:
+                        errors["chain"] = str(exc)
+
+        ctx = IncidentContext(
+            trigger_type="ip_pair",
+            trigger={},
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            sensor=sensor,
+            time_range=time_range,
+            kerberos_history=kerberos,
+            ntlm_history=ntlm,
+            attack_chain=chain,
+            errors=errors,
+        )
+        timeline = build_timeline(ctx)
+
+        return render_template(
+            "partials/investigate_timeline.html",
+            timeline=timeline,
+            errors=errors,
+        )
+
     return app

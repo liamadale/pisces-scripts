@@ -1,0 +1,50 @@
+{# Investigate — attack chain partial.
+   Receives: attack_chain (list[dict]), src_ip, error #}
+
+{% if error %}
+<p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</p>
+{% elif not attack_chain %}
+<p class="empty-note">No ATTACK::* notices detected for {{ src_ip }} in this window.</p>
+{% else %}
+<div class="table-wrap">
+  <table class="no-resize">
+    <thead>
+      <tr>
+        <th class="num">#</th>
+        <th class="sortable">Time</th>
+        <th class="sortable">Sensor</th>
+        <th class="sortable">Dst IP</th>
+        <th class="sortable">Notice</th>
+        <th class="sortable">Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rec in attack_chain %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+          {{ rec.get('timestamp') | fmt_ts(full=True) }}
+        </td>
+        <td>{{ rec.get('sensor', '—') }}</td>
+        <td>
+          {% if rec.get('dest_ip') %}
+          <a class="ip-link" href="{{ script_name }}/ip/{{ rec.dest_ip }}?{{ request.query_string.decode() }}">
+            {{ rec.dest_ip }}
+          </a>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <span class="attack-note-badge">{{ rec.get('notice_note', '—') }}</span>
+        </td>
+        <td style="font-size:0.8rem; color:var(--on-surface-dim)">
+          {{ (rec.get('notice_msg', '') or '')[:100] or '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p style="font-size:0.75rem; color:var(--on-surface-dim); margin-top:6px;">
+  {{ attack_chain | length }} notice{{ 's' if attack_chain | length != 1 else '' }}
+</p>
+{% endif %}

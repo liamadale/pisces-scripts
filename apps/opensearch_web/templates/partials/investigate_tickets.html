@@ -1,0 +1,74 @@
+{# Investigate — related Mantis tickets partial.
+   Receives: src_ip, dest_ip, src_tickets, dest_tickets, error #}
+
+{% if error %}
+<p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> Mantis unavailable: {{ error }}</p>
+{% else %}
+<div class="investigate-tickets-grid">
+
+  {# Source IP tickets #}
+  <div class="investigate-ticket-col">
+    <h3 class="investigate-auth-proto-label">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i> {{ src_ip }}
+      <span class="count-note">{{ src_tickets | length }} ticket(s)</span>
+    </h3>
+    {% if src_tickets %}
+    <div class="mantis-ticket-list">
+      {% for t in src_tickets %}
+      <div class="mantis-ticket-card">
+        <div class="mantis-ticket-header">
+          <a class="mantis-ticket-id" href="{{ t.url }}" target="_blank" rel="noopener">#{{ t.id }}</a>
+          <span class="mantis-ticket-summary" title="{{ t.summary }}">{{ t.summary }}</span>
+          <span class="badge {{ mantis_status_badge(t.status) }}">{{ t.status or '—' }}</span>
+          {% if t.severity %}<span class="badge {{ mantis_sev_badge(t.severity) }}">{{ t.severity }}</span>{% endif %}
+        </div>
+        <div class="mantis-ticket-meta">
+          {% if t.handler %}<span><i class="fa-solid fa-shield-halved"></i> {{ t.handler.name }}</span>{% endif %}
+          {% if t.project %}<span>{{ t.project }}</span>{% endif %}
+          <span><i class="fa-regular fa-clock"></i> {{ t.last_updated or t.updated_at or '—' }}</span>
+        </div>
+        {% for n in t.notes %}{% if n.is_admin_note %}
+        <div class="mantis-admin-note"><strong>★ {{ n.reporter.name }}:</strong> {{ n.text[:200] }}{% if n.text|length > 200 %}…{% endif %}</div>
+        {% endif %}{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-note">No tickets found for {{ src_ip }}.</p>
+    {% endif %}
+  </div>
+
+  {# Destination IP tickets #}
+  <div class="investigate-ticket-col">
+    <h3 class="investigate-auth-proto-label">
+      <i class="fa-solid fa-arrow-right-to-bracket"></i> {{ dest_ip }}
+      <span class="count-note">{{ dest_tickets | length }} ticket(s)</span>
+    </h3>
+    {% if dest_tickets %}
+    <div class="mantis-ticket-list">
+      {% for t in dest_tickets %}
+      <div class="mantis-ticket-card">
+        <div class="mantis-ticket-header">
+          <a class="mantis-ticket-id" href="{{ t.url }}" target="_blank" rel="noopener">#{{ t.id }}</a>
+          <span class="mantis-ticket-summary" title="{{ t.summary }}">{{ t.summary }}</span>
+          <span class="badge {{ mantis_status_badge(t.status) }}">{{ t.status or '—' }}</span>
+          {% if t.severity %}<span class="badge {{ mantis_sev_badge(t.severity) }}">{{ t.severity }}</span>{% endif %}
+        </div>
+        <div class="mantis-ticket-meta">
+          {% if t.handler %}<span><i class="fa-solid fa-shield-halved"></i> {{ t.handler.name }}</span>{% endif %}
+          {% if t.project %}<span>{{ t.project }}</span>{% endif %}
+          <span><i class="fa-regular fa-clock"></i> {{ t.last_updated or t.updated_at or '—' }}</span>
+        </div>
+        {% for n in t.notes %}{% if n.is_admin_note %}
+        <div class="mantis-admin-note"><strong>★ {{ n.reporter.name }}:</strong> {{ n.text[:200] }}{% if n.text|length > 200 %}…{% endif %}</div>
+        {% endif %}{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-note">No tickets found for {{ dest_ip }}.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endif %}

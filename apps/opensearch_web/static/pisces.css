@@ -1460,3 +1460,145 @@ tr.detail-row td {
 .device-card-compact .device-card-grid { grid-template-columns: 1fr; }
 .device-card-compact .device-card-header { flex-direction: column; align-items: flex-start; }
 .device-card-compact .device-card-identity { font-size: .95rem; }
+
+/* ── Investigate page ─────────────────────────────────────────────── */
+.investigate-arrow { color: var(--on-surface-dim); margin: 0 .25rem; }
+
+.investigate-section {
+  margin-bottom: 2rem;
+}
+
+.investigate-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.investigate-section-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--on-surface);
+}
+
+.investigate-section-sub {
+  font-size: .8rem;
+  color: var(--on-surface-dim);
+}
+
+/* Side-by-side device profile columns */
+.investigate-profiles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.investigate-profile-col {
+  min-width: 0;
+}
+
+.investigate-profile-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--on-surface-dim);
+  margin-bottom: .5rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+/* Auth history protocol sub-headers */
+.investigate-auth-protocol {
+  margin-bottom: 1.25rem;
+}
+
+.investigate-auth-proto-label {
+  font-size: .875rem;
+  font-weight: 600;
+  margin: 0 0 .5rem;
+  color: var(--on-surface);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+/* Two-column ticket grid */
+.investigate-tickets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.investigate-ticket-col {
+  min-width: 0;
+}
+
+/* Attack chain notice badge */
+.attack-note-badge {
+  font-size: .75rem;
+  font-family: var(--font-mono, monospace);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Error state */
+.investigate-error {
+  color: var(--red);
+  font-size: .85rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.investigate-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  margin-bottom: .75rem;
+}
+
+/* Skeleton loaders */
+.investigate-skeleton { opacity: .5; }
+
+.skeleton-card {
+  height: 140px;
+  background: var(--surface-dim);
+  border-radius: 6px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-table {
+  height: 80px;
+  background: var(--surface-dim);
+  border-radius: 4px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-list {
+  height: 60px;
+  background: var(--surface-dim);
+  border-radius: 4px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.investigate-profiles-skeleton {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: .5; }
+  50%       { opacity: .25; }
+}
+
+@media (max-width: 900px) {
+  .investigate-profiles-grid,
+  .investigate-tickets-grid { grid-template-columns: 1fr; }
+  .investigate-profiles-skeleton { grid-template-columns: 1fr; }
+}

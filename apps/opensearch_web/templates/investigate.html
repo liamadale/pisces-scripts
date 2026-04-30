@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}PISCES · Investigate — {{ src_ip }} → {{ dest_ip }}{% endblock title %}
+
+{% block content %}
+<div class="page-header">
+  <h1>
+    <i class="fa-solid fa-magnifying-glass-chart"></i>
+    {{ src_ip }}
+    <span class="investigate-arrow">→</span>
+    {{ dest_ip }}
+  </h1>
+  <span class="time-window">
+    <i class="fa-regular fa-clock"></i>
+    {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
+  </span>
+  <a class="btn btn-sm"
+     href="{{ script_name }}/ip/{{ src_ip }}?{{ request.query_string.decode() }}">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i> Src Pivot
+  </a>
+  <a class="btn btn-sm"
+     href="{{ script_name }}/ip/{{ dest_ip }}?{{ request.query_string.decode() }}">
+    <i class="fa-solid fa-arrow-right-to-bracket"></i> Dst Pivot
+  </a>
+</div>
+
+{# Lazy-load query string shared across all sections #}
+{% set qs = "src_ip=" ~ src_ip ~ "&dest_ip=" ~ dest_ip ~ "&sensor=" ~ search_params.get('sensor', 'all') ~ "&time_range=" ~ search_params.get('time_range', 'now-24h') %}
+
+{# ── Device Profiles ──────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-fingerprint"></i> Device Profiles</h2>
+  </div>
+  <div hx-get="{{ script_name }}/api/investigate/profiles?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton investigate-profiles-skeleton">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Authentication History ───────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-key"></i> Authentication History</h2>
+    <span class="investigate-section-sub">Kerberos + NTLM between {{ src_ip }} ↔ {{ dest_ip }}</span>
+  </div>
+  <div hx-get="{{ script_name }}/api/investigate/auth?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Attack Chain ─────────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-link"></i> Attack Chain</h2>
+    <span class="investigate-section-sub">ATTACK::* notices from {{ src_ip }}</span>
+  </div>
+  <div hx-get="{{ script_name }}/api/investigate/chain?src_ip={{ src_ip }}&sensor={{ search_params.get('sensor', 'all') }}&time_range={{ search_params.get('time_range', 'now-24h') }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Related Tickets ──────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-ticket"></i> Related Tickets</h2>
+    <span class="investigate-section-sub">Mantis tickets mentioning either IP</span>
+  </div>
+  <div hx-get="{{ script_name }}/api/investigate/tickets?src_ip={{ src_ip }}&dest_ip={{ dest_ip }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-list"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Timeline ─────────────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-clock-rotate-left"></i> Timeline</h2>
+    <span class="investigate-section-sub">Merged chronological events</span>
+  </div>
+  <div hx-get="{{ script_name }}/api/investigate/timeline?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+{% endblock content %}
