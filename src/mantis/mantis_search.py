@@ -391,7 +391,6 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
     if not api_url or not api_token:
         return []
 
-    headers = {"Authorization": api_token}
     query_lower = query.lower()
     ip_query = _is_ip_query(query)
     ip_re = re.compile(r"\b" + re.escape(query) + r"\b") if ip_query else None
@@ -399,65 +398,67 @@ def search_via_api(query: str, city: str | None = None, max_pages: int = 10) -> 
 
     console.print(f"[dim]Querying Mantis REST API for '{query}'...[/dim]")
 
-    for page in range(1, max_pages + 1):
-        try:
-            resp = requests.get(
-                f"{api_url}/api/rest/issues",
-                headers=headers,
-                params={"page_size": 100, "page": page},
-                timeout=20,
-                verify=False,
-            )
-        except requests.RequestException as exc:
-            console.print(f"[red]Mantis API request failed: {exc}[/red]")
-            break
+    with requests.Session() as session:
+        session.headers.update({"Authorization": api_token})
+        session.verify = False  # type: ignore[assignment]
 
-        if resp.status_code == 401:
-            console.print("[red]Mantis API auth failed — check MANTIS_API_TOKEN[/red]")
-            break
+        for page in range(1, max_pages + 1):
+            try:
+                resp = session.get(
+                    f"{api_url}/api/rest/issues",
+                    params={"page_size": 100, "page": page},
+                    timeout=20,
+                )
+            except requests.RequestException as exc:
+                console.print(f"[red]Mantis API request failed: {exc}[/red]")
+                break
 
-        if not resp.ok:
-            console.print(f"[red]Mantis API error {resp.status_code}[/red]")
-            break
+            if resp.status_code == 401:
+                console.print("[red]Mantis API auth failed — check MANTIS_API_TOKEN[/red]")
+                break
 
-        data = resp.json()
-        issues = data.get("issues", [])
-        if not issues:
-            break
+            if not resp.ok:
+                console.print(f"[red]Mantis API error {resp.status_code}[/red]")
+                break
 
-        for issue in issues:
-            text = (
-                issue.get("summary", "")
-                + " "
-                + issue.get("description", "")
-                + " "
-                + (issue.get("steps_to_reproduce") or "")
-                + " "
-                + (issue.get("additional_information") or "")
-                + " "
-                + " ".join(n.get("text", "") for n in issue.get("notes", []))
-            )
+            data = resp.json()
+            issues = data.get("issues", [])
+            if not issues:
+                break
 
-            if ip_query:
-                # Word-boundary match to avoid 8.8.8.8 matching 108.8.8.8 or 8.8.8.80
-                if not ip_re.search(text):
-                    continue
-            else:
-                if query_lower not in text.lower():
-                    continue
+            for issue in issues:
+                text = (
+                    issue.get("summary", "")
+                    + " "
+                    + issue.get("description", "")
+                    + " "
+                    + (issue.get("steps_to_reproduce") or "")
+                    + " "
+                    + (issue.get("additional_information") or "")
+                    + " "
+                    + " ".join(n.get("text", "") for n in issue.get("notes", []))
+                )
 
-            if city:
-                project_name = issue.get("project", {}).get("name", "").lower()
-                if city.lower() not in project_name:
-                    continue
+                if ip_query:
+                    # Word-boundary match to avoid 8.8.8.8 matching 108.8.8.8 or 8.8.8.80
+                    if not ip_re.search(text):
+                        continue
+                else:
+                    if query_lower not in text.lower():
+                        continue
 
-            results.append(_normalize_issue(issue, api_url))
+                if city:
+                    project_name = issue.get("project", {}).get("name", "").lower()
+                    if city.lower() not in project_name:
+                        continue
 
-        total = data.get("total_count") or None
-        if total is not None and page * 100 >= total:
-            break
-        if len(issues) < 100:
-            break
+                results.append(_normalize_issue(issue, api_url))
+
+            total = data.get("total_count") or None
+            if total is not None and page * 100 >= total:
+                break
+            if len(issues) < 100:
+                break
 
     return results
 
