@@ -3,9 +3,9 @@
 {% else %}
 
 <div class="stat-row">
-  <div class="stat-card">
+  <div class="stat-box">
     <div class="stat-label">Infrastructure IPs</div>
-    <div class="stat-value">{{ data.infra_count }}</div>
+    <div class="stat-value">{{ data.infra_count | intcomma }}</div>
   </div>
 </div>
 
@@ -21,20 +21,11 @@
   </div>
 
   <div class="chart-card">
-    <div class="chart-title">Blocklist Sources</div>
-    {% if not data.blocklists.labels %}
-    <div class="chart-empty">No blocklist data</div>
-    {% else %}
-    <div id="chart-blocklists" style="height:{{ [data.blocklists.labels|length * 36 + 40, 200]|max }}px;"></div>
-    {% endif %}
-  </div>
-
-  <div class="chart-card" style="grid-column: 1 / -1;">
     <div class="chart-title">Ticket Volume Timeline (monthly)</div>
     {% if not data.timeline.months %}
     <div class="chart-empty">No ticket data</div>
     {% else %}
-    <div id="chart-timeline" style="height:220px;"></div>
+    <div id="chart-timeline" style="height:320px;"></div>
     {% endif %}
   </div>
 
@@ -79,17 +70,10 @@
 <script>
 (function() {
   var ATTACK_TYPES = {{ data.attack_types | tojson }};
-  var BLOCKLISTS   = {{ data.blocklists   | tojson }};
   var TIMELINE     = {{ data.timeline     | tojson }};
 
-  var AXIS_LABEL = { color: '#c8ccd8', fontSize: 12 };
   var AXIS_DIM   = { color: '#5a6278', fontSize: 11 };
   var GRID_LINE  = { lineStyle: { color: '#2a3045' } };
-  var TOOLTIP_STYLE = {
-    trigger: 'axis', axisPointer: { type: 'shadow' },
-    backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-    textStyle: { color: '#c8ccd8' }
-  };
 
   /* Attack type donut */
   if (ATTACK_TYPES.length) {
@@ -119,20 +103,6 @@
       }]
     });
     window.addEventListener('resize', function() { c1.resize(); });
-  }
-
-  /* Blocklists bar */
-  if (BLOCKLISTS.labels.length) {
-    var c2 = echarts.init(document.getElementById('chart-blocklists'));
-    c2.setOption({
-      backgroundColor: 'transparent',
-      tooltip: TOOLTIP_STYLE,
-      grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
-      xAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
-      yAxis: { type: 'category', data: BLOCKLISTS.labels.slice().reverse(), axisLabel: AXIS_LABEL },
-      series: [{ type: 'bar', data: BLOCKLISTS.counts.slice().reverse(), itemStyle: { color: '#d29922' }, barMaxWidth: 28 }]
-    });
-    window.addEventListener('resize', function() { c2.resize(); });
   }
 
   /* Timeline area chart */
