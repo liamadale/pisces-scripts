@@ -90,7 +90,7 @@
   <div class="enrich-cols">
     <div class="enrich-col">
       {% if src_ip %}
-      <div class="enrich-col-header">
+      <div class="enrich-col-header enrich-col-src">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
         Source —
         <a class="ip-link" href="{{ script_name }}/ip/{{ src_ip }}?{{ request.query_string.decode() }}">{{ src_ip }}</a>
@@ -133,7 +133,7 @@
     </div>
     <div class="enrich-col">
       {% if dest_ip %}
-      <div class="enrich-col-header">
+      <div class="enrich-col-header enrich-col-dst">
         <i class="fa-solid fa-arrow-right-to-bracket"></i>
         Destination —
         <a class="ip-link" href="{{ script_name }}/ip/{{ dest_ip }}?{{ request.query_string.decode() }}">{{ dest_ip }}</a>

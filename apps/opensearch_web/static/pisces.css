@@ -804,6 +804,20 @@ tr.detail-row td {
   align-items: center;
   gap: 6px;
 }
+.enrich-col-header.enrich-col-src,
+.enrich-col-header.enrich-col-dst {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--outline);
+}
+.enrich-col-header.enrich-col-src {
+  border-color: color-mix(in srgb, var(--red) 25%, var(--outline));
+  background: color-mix(in srgb, var(--red) 4%, var(--surface-container));
+}
+.enrich-col-header.enrich-col-dst {
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--outline));
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface-container));
+}
 
 /* Legacy enrich triggers */
 .enrich-triggers { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
