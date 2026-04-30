@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.profiler.device_profiler import DeviceProfile
+    from src.profiler.public_ip_profiler import PublicIPProfile
 
 
 @dataclass
@@ -24,9 +25,9 @@ class IncidentContext:
     sensor: str
     time_range: str
 
-    # Device profiles (None if IP is public or profiling failed)
-    src_profile: DeviceProfile | None = None
-    dest_profile: DeviceProfile | None = None
+    # Device profiles (None if profiling failed)
+    src_profile: DeviceProfile | PublicIPProfile | None = None
+    dest_profile: DeviceProfile | PublicIPProfile | None = None
 
     # Auth history between src ↔ dest
     kerberos_history: list[dict] = field(default_factory=list)
@@ -57,6 +58,7 @@ class IncidentContext:
 from src.enricher.threat_intel import enrich_ip  # noqa: E402
 from src.mantis.mantis_search import search as search_tickets  # noqa: E402
 from src.profiler.device_profiler import profile_device  # noqa: E402
+from src.profiler.public_ip_profiler import profile_public_ip  # noqa: E402
 from src.querier.zeek_modules import MODULES  # noqa: E402
 from src.querier.zeek_modules.base import (  # noqa: E402
     INDEX,
@@ -155,10 +157,14 @@ def investigate(
     def _profile_src() -> None:
         if is_private(src_ip):
             ctx.src_profile = profile_device(src_ip, time_range=time_range, sensor=sensor)
+        else:
+            ctx.src_profile = profile_public_ip(src_ip, time_range=time_range)
 
     def _profile_dest() -> None:
         if is_private(dest_ip):
             ctx.dest_profile = profile_device(dest_ip, time_range=time_range, sensor=sensor)
+        else:
+            ctx.dest_profile = profile_public_ip(dest_ip, time_range=time_range)
 
     def _auth_history() -> None:
         ctx.kerberos_history, ctx.ntlm_history = query_auth_history(

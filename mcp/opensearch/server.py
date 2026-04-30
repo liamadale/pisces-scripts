@@ -1214,29 +1214,35 @@ def create_fp_filter(
 @mcp.tool()
 def profile_device(
     ip: str,
-    sensor: str,
+    sensor: str = "all",
     time_range: str = "now-7d",
 ) -> str:
-    """Profile a private IP by aggregating cross-protocol Zeek signals into a device card.
+    """Profile an IP by aggregating cross-protocol Zeek signals into a device card.
 
-    Runs 9 parallel aggregation queries (conn, DNS, SSL, HTTP, SMB, RDP, SSH)
-    to identify the device's role, OS, installed software, inbound services,
-    hostnames, fingerprints, and behavioral patterns — all from network
-    telemetry without endpoint agents.
+    For private IPs: runs 9 parallel aggregation queries (conn, DNS, SSL, HTTP,
+    SMB, RDP, SSH) to identify the device's role, OS, installed software, inbound
+    services, hostnames, fingerprints, and behavioral patterns.
 
-    The sensor parameter is required because private IPs overlap across sensors.
+    For public IPs: runs 8 parallel queries to build a network-perspective profile
+    showing sensor presence, reverse DNS, services exposed, TLS/cert info, and
+    inbound attack signals. Sensor is optional for public IPs.
 
     Args:
-        ip: Private IP address to profile (e.g. 10.0.0.50).
-        sensor: Sensor hostname — required, not optional.
+        ip: IP address to profile (private or public).
+        sensor: Sensor hostname — required for private IPs, optional for public.
         time_range: ES date-math range (default: now-7d).
     """
     try:
         from dataclasses import asdict
 
-        from src.profiler.device_profiler import profile_device as _profile_device
+        if is_private(ip):
+            from src.profiler.device_profiler import profile_device as _profile_device
 
-        profile = _profile_device(ip, time_range=time_range, sensor=sensor)
+            profile = _profile_device(ip, time_range=time_range, sensor=sensor)
+        else:
+            from src.profiler.public_ip_profiler import profile_public_ip
+
+            profile = profile_public_ip(ip, time_range=time_range)
         return _ok(asdict(profile))
     except Exception as exc:
         return _err(str(exc))
