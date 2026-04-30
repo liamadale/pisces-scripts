@@ -116,4 +116,8 @@ def create_app() -> Flask:
     def index():
         return render_template("index.html", stats=_gather_stats(), version=_VERSION, git=_GIT_INFO)
 
+    @app.route("/settings")
+    def settings():
+        return render_template("settings.html")
+
     return app
