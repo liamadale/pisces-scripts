@@ -27,6 +27,10 @@
   {% endif %}
   <span class="nav-badge danger">{{ tp_total|default(0) }} malicious</span>
   <span class="nav-badge success">{{ fp_total|default(0) }} FP</span>
+  <button class="btn-notice" onclick="document.getElementById('notice-modal').classList.add('show')"
+          title="Show notice">
+    <i class="fa-solid fa-triangle-exclamation"></i> NOTICE
+  </button>
   <div class="spacer"></div>
 </nav>
 
