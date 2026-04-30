@@ -15,10 +15,11 @@
     {% if src_tickets %}
     <div class="mantis-ticket-list">
       {% for t in src_tickets %}
-      <div class="mantis-ticket-card">
+      <div class="mantis-ticket-card {{ 'mantis-ticket-escalated' if t.is_escalated else '' }}">
         <div class="mantis-ticket-header">
           <a class="mantis-ticket-id" href="{{ t.url }}" target="_blank" rel="noopener">#{{ t.id }}</a>
           <span class="mantis-ticket-summary" title="{{ t.summary }}">{{ t.summary }}</span>
+          {% if t.is_escalated %}<span class="badge badge-red"><i class="fa-solid fa-arrow-up"></i> Escalated{% if t.escalated_by %} by {{ t.escalated_by }}{% endif %}</span>{% endif %}
           <span class="badge {{ mantis_status_badge(t.status) }}">{{ t.status or '—' }}</span>
           {% if t.severity %}<span class="badge {{ mantis_sev_badge(t.severity) }}">{{ t.severity }}</span>{% endif %}
         </div>
@@ -47,10 +48,11 @@
     {% if dest_tickets %}
     <div class="mantis-ticket-list">
       {% for t in dest_tickets %}
-      <div class="mantis-ticket-card">
+      <div class="mantis-ticket-card {{ 'mantis-ticket-escalated' if t.is_escalated else '' }}">
         <div class="mantis-ticket-header">
           <a class="mantis-ticket-id" href="{{ t.url }}" target="_blank" rel="noopener">#{{ t.id }}</a>
           <span class="mantis-ticket-summary" title="{{ t.summary }}">{{ t.summary }}</span>
+          {% if t.is_escalated %}<span class="badge badge-red"><i class="fa-solid fa-arrow-up"></i> Escalated{% if t.escalated_by %} by {{ t.escalated_by }}{% endif %}</span>{% endif %}
           <span class="badge {{ mantis_status_badge(t.status) }}">{{ t.status or '—' }}</span>
           {% if t.severity %}<span class="badge {{ mantis_sev_badge(t.severity) }}">{{ t.severity }}</span>{% endif %}
         </div>

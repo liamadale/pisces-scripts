@@ -911,6 +911,10 @@ tr.detail-row td {
   border: 1px solid var(--outline);
   background: var(--surface-container-highest);
 }
+.mantis-ticket-card.mantis-ticket-escalated {
+  border-color: var(--red);
+  border-width: 2px;
+}
 .mantis-ticket-header {
   display: flex;
   align-items: center;
