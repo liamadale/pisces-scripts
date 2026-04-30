@@ -228,6 +228,60 @@ class TestPageArgs:
         assert per_page == 50
 
 
+# ---------------------------------------------------------------------------
+# get_tickets_for_ip — must use TICKETS_BY_IP index, not scan _raw_tickets
+# ---------------------------------------------------------------------------
+
+
+class TestGetTicketsForIp:
+    def test_returns_ticket_for_known_ip(self) -> None:
+        import apps.mantis_web.data as data_mod
+
+        ticket = {"id": "1", "created_at": "2024-01-01", "ips": ["1.2.3.4"]}
+        with (
+            patch.object(data_mod, "TICKETS_BY_IP", {"1.2.3.4": ["1"]}),
+            patch.object(data_mod, "TICKETS_BY_ID", {"1": ticket}),
+        ):
+            result = data_mod.get_tickets_for_ip("1.2.3.4")
+        assert result == [ticket]
+
+    def test_returns_empty_for_unknown_ip(self) -> None:
+        import apps.mantis_web.data as data_mod
+
+        with (
+            patch.object(data_mod, "TICKETS_BY_IP", {}),
+            patch.object(data_mod, "TICKETS_BY_ID", {}),
+        ):
+            result = data_mod.get_tickets_for_ip("9.9.9.9")
+        assert result == []
+
+    def test_sorted_newest_first(self) -> None:
+        import apps.mantis_web.data as data_mod
+
+        t1 = {"id": "1", "created_at": "2024-01-01"}
+        t2 = {"id": "2", "created_at": "2024-06-01"}
+        t3 = {"id": "3", "created_at": "2024-03-01"}
+        with (
+            patch.object(data_mod, "TICKETS_BY_IP", {"1.2.3.4": ["1", "2", "3"]}),
+            patch.object(data_mod, "TICKETS_BY_ID", {"1": t1, "2": t2, "3": t3}),
+        ):
+            result = data_mod.get_tickets_for_ip("1.2.3.4")
+        assert result[0]["id"] == "2"
+        assert result[-1]["id"] == "1"
+
+    def test_skips_missing_ticket_ids(self) -> None:
+        import apps.mantis_web.data as data_mod
+
+        ticket = {"id": "1", "created_at": "2024-01-01"}
+        with (
+            patch.object(data_mod, "TICKETS_BY_IP", {"1.2.3.4": ["1", "999"]}),
+            patch.object(data_mod, "TICKETS_BY_ID", {"1": ticket}),
+        ):
+            result = data_mod.get_tickets_for_ip("1.2.3.4")
+        assert len(result) == 1
+        assert result[0]["id"] == "1"
+
+
 class TestSortRows:
     def setup_method(self) -> None:
         _, self._sort_rows = _get_app_helpers()
