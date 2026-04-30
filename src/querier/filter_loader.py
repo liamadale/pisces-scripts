@@ -11,6 +11,24 @@ import sys
 
 import yaml
 
+# Module-level cache: (filters_dir, municipality) → {"mtime": float, "result": dict}
+_filter_cache: dict[tuple, dict] = {}
+
+
+def _max_mtime(filters_dir: str) -> float:
+    """Return the highest mtime across all *.yaml files under filters_dir."""
+    max_t = 0.0
+    for root, _dirs, files in os.walk(filters_dir):
+        for fname in files:
+            if fname.endswith(".yaml") or fname.endswith(".yml"):
+                try:
+                    t = os.path.getmtime(os.path.join(root, fname))
+                    if t > max_t:
+                        max_t = t
+                except OSError:
+                    pass
+    return max_t
+
 
 def load_filters(
     filters_dir: str,
@@ -30,6 +48,12 @@ def load_filters(
             "errors": [str, ...]    # parse/schema errors
         }
     """
+    cache_key = (filters_dir, municipality)
+    current_mtime = _max_mtime(filters_dir)
+    cached = _filter_cache.get(cache_key)
+    if cached is not None and cached["mtime"] == current_mtime:
+        return cached["result"]
+
     must_not_clauses: list[dict] = []
     errors: list[str] = []
     filter_count = 0
@@ -88,11 +112,13 @@ def load_filters(
                 must_not_clauses.append(entry)
             filter_count += 1
 
-    return {
+    result = {
         "must_not": must_not_clauses,
         "filter_count": filter_count,
         "errors": errors,
     }
+    _filter_cache[cache_key] = {"mtime": current_mtime, "result": result}
+    return result
 
 
 if __name__ == "__main__":
