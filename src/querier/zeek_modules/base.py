@@ -43,6 +43,10 @@ FILTERS_DIR = os.path.join(_BASE, "filters")
 # Constants
 # ---------------------------------------------------------------------------
 
+# Fetch this many times the requested limit when post-filters are active so
+# truncation still yields enough rows after Python-side filtering discards hits.
+_OVERFETCH_MULTIPLIER = 3
+
 OPENSEARCH_URL = os.environ.get("OPENSEARCH_URL", "https://pisces-opensearch.cyberrangepoulsbo.com")
 INDEX = "arkime_sessions3-*"
 
@@ -233,6 +237,90 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# Profile display
+# ---------------------------------------------------------------------------
+
+
+def _walk_clauses(node: dict, acc: list) -> None:
+    """DFS walk of an ES profile query node, collecting (type, description, time_ms)."""
+    if not isinstance(node, dict):
+        return
+    time_ms = node.get("time_in_nanos", 0) / 1_000_000
+    acc.append((node.get("type", ""), node.get("description", ""), time_ms))
+    for child in node.get("children", []):
+        _walk_clauses(child, acc)
+
+
+def display_profile(raw: dict) -> None:
+    """Render OpenSearch profile data: per-shard timing and slowest query clauses."""
+    profile = raw.get("profile")
+    if not profile:
+        console.print("[yellow]No profile data in response.[/yellow]")
+        return
+
+    shards = profile.get("shards", [])
+    if not shards:
+        console.print("[yellow]Profile present but no shard data.[/yellow]")
+        return
+
+    # --- Shard summary table ---
+    shard_table = Table(title="Profile — per-shard timing", box=box.SIMPLE_HEAVY)
+    shard_table.add_column("Shard", style="cyan", no_wrap=True)
+    shard_table.add_column("Query (ms)", justify="right")
+    shard_table.add_column("Fetch (ms)", justify="right")
+
+    total_query_ms = 0.0
+    total_fetch_ms = 0.0
+    all_clauses: list = []
+
+    for shard in shards:
+        shard_id = shard.get("id", "?")
+        query_ms = 0.0
+        fetch_ms = 0.0
+
+        for search in shard.get("searches", []):
+            for q in search.get("query", []):
+                query_ms += q.get("time_in_nanos", 0) / 1_000_000
+                _walk_clauses(q, all_clauses)
+            for collector in search.get("collector", []):
+                fetch_ms += collector.get("time_in_nanos", 0) / 1_000_000
+
+        total_query_ms += query_ms
+        total_fetch_ms += fetch_ms
+        shard_table.add_row(shard_id, f"{query_ms:.2f}", f"{fetch_ms:.2f}")
+
+    shard_table.add_section()
+    shard_table.add_row(
+        "[bold]Total[/bold]",
+        f"[bold]{total_query_ms:.2f}[/bold]",
+        f"[bold]{total_fetch_ms:.2f}[/bold]",
+    )
+    console.print(shard_table)
+
+    # --- Slowest clauses table (top 15, aggregated across shards) ---
+    from collections import defaultdict
+
+    clause_totals: dict = defaultdict(float)
+    clause_types: dict = {}
+    for ctype, desc, ms in all_clauses:
+        key = desc or ctype
+        clause_totals[key] += ms
+        clause_types[key] = ctype
+
+    top = sorted(clause_totals.items(), key=lambda kv: -kv[1])[:15]
+    if top:
+        clause_table = Table(
+            title="Profile — slowest clauses (all shards combined)", box=box.SIMPLE_HEAVY
+        )
+        clause_table.add_column("Type", style="dim", no_wrap=True)
+        clause_table.add_column("Description", overflow="fold")
+        clause_table.add_column("Total (ms)", justify="right")
+        for desc, ms in top:
+            clause_table.add_row(clause_types.get(desc, ""), desc, f"{ms:.2f}")
+        console.print(clause_table)
+
+
+# ---------------------------------------------------------------------------
 # Filter loading
 # ---------------------------------------------------------------------------
 
@@ -308,7 +396,7 @@ def build_base_query(
         "sort": [{"@timestamp": {"order": "desc"}}],
         "query": {
             "bool": {
-                "must": must_clauses,
+                "filter": must_clauses,
                 "must_not": effective_must_not,
             }
         },
@@ -316,7 +404,7 @@ def build_base_query(
     }
 
     params = {
-        "path": f"{INDEX}/_search",
+        "path": f"{INDEX}/_search?timeout=30s",
         "method": "POST",
     }
 
@@ -383,7 +471,9 @@ def run_query(module, search_params: dict) -> list:
 
     # Over-fetch when post-filters are active so truncation still yields enough rows.
     requested_limit = search_params.get("limit", 500)
-    query_limit = min(requested_limit * 3, 5000) if post_filters else requested_limit
+    query_limit = (
+        min(requested_limit * _OVERFETCH_MULTIPLIER, 5000) if post_filters else requested_limit
+    )
 
     body, params = build_base_query(
         must_not=must_not,
@@ -401,8 +491,11 @@ def run_query(module, search_params: dict) -> list:
         time_to=search_params.get("time_to"),
     )
 
-    # Cache handling
-    use_cache = search_params.get("use_cache", False)
+    if search_params.get("profile"):
+        body["profile"] = True
+
+    # Cache is meaningless for profile runs (timing data is request-specific).
+    use_cache = search_params.get("use_cache", False) and not search_params.get("profile")
     raw = None
     cache_key = hashlib.md5(json.dumps(body, sort_keys=True).encode()).hexdigest()[:10]
     cpath = _cache_path(cache_key)
@@ -422,7 +515,11 @@ def run_query(module, search_params: dict) -> list:
             if search_params.get("raise_on_error"):
                 raise RuntimeError("OpenSearch query failed — check credentials and OPENSEARCH_URL")
             return []
-        _save_cache(raw, cpath)
+        if not search_params.get("profile"):
+            _save_cache(raw, cpath)
+
+    if search_params.get("profile"):
+        display_profile(raw)
 
     hits = raw.get("hits", {}).get("hits", [])
     if not hits:
@@ -650,7 +747,7 @@ def list_sensors(time_range: str = "now-7d") -> None:
         "size": 0,
         "query": {
             "bool": {
-                "must": [
+                "filter": [
                     {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
                     {"exists": {"field": "event.dataset"}},
                 ]
@@ -701,7 +798,7 @@ def list_log_types(time_range: str = "now-7d") -> None:
         "size": 0,
         "query": {
             "bool": {
-                "must": [
+                "filter": [
                     {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
                     {"exists": {"field": "event.dataset"}},
                 ]
