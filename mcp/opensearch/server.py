@@ -1341,6 +1341,56 @@ def build_share_urls(
 
 
 # ---------------------------------------------------------------------------
+# Incident correlator
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def investigate(
+    src_ip: str,
+    dest_ip: str,
+    sensor: str = "all",
+    time_range: str = "now-24h",
+) -> str:
+    """Build full incident context for a source/destination IP pair.
+
+    Runs device profiling, auth history, attack chain, Mantis ticket search,
+    and threat intel enrichment in parallel. Returns a unified context bundle
+    for incident investigation.
+
+    Args:
+        src_ip: Source IP address (the actor / attacker).
+        dest_ip: Destination IP address (the target / victim).
+        sensor: Sensor hostname — required for private IP profiling.
+        time_range: ES date-math range (default: now-24h).
+    """
+    try:
+        from dataclasses import asdict
+
+        from src.correlator.incident_context import investigate as _investigate
+
+        ctx = _investigate(src_ip, dest_ip, sensor, time_range)
+        data = asdict(ctx)
+        # Trim raw profile dicts to a compact summary for LLM context
+        for key in ("src_profile", "dest_profile"):
+            p = data.get(key)
+            if p is not None:
+                data[key] = {
+                    "ip": p["ip"],
+                    "hostname": p.get("hostname"),
+                    "role": p["role"],
+                    "confidence": p["confidence"],
+                    "os_family": p.get("os_family"),
+                    "software": p.get("software", []),
+                    "users": p.get("users", []),
+                    "inbound_services": p.get("inbound_services", []),
+                }
+        return _ok(data)
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
 
