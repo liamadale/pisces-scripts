@@ -188,20 +188,25 @@
   var NOTICE = {{ data.notice_over_time | tojson }};
   var SURICATA = {{ data.suricata_over_time | tojson }};
   var TS = NOTICE.timestamps.length >= SURICATA.timestamps.length ? NOTICE.timestamps : SURICATA.timestamps;
+  var S = getComputedStyle(document.documentElement);
+  var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+  var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+  var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+  var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
   var chart = echarts.init(document.getElementById('chart-alerts-trend'));
   chart.setOption({
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis', backgroundColor: '#1a1f2e', borderColor: '#2a3045', textStyle: { color: '#c8ccd8' } },
-    legend: { data: ['Zeek Notices', 'Suricata Alerts'], textStyle: { color: '#c8ccd8', fontSize: 11 }, top: 0 },
+    tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
+    legend: { data: ['Zeek Notices', 'Suricata Alerts'], textStyle: { color: C_TEXT, fontSize: 11 }, top: 0 },
     grid: { left: 10, right: 20, top: 30, bottom: 10, containLabel: true },
     xAxis: {
       type: 'category', data: TS,
-      axisLabel: { color: '#5a6278', fontSize: 11, rotate: 35,
+      axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35,
         formatter: function(v) { var d = new Date(v); return d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
       },
-      axisLine: { lineStyle: { color: '#2a3045' } }
+      axisLine: { lineStyle: { color: C_OUTLINE } }
     },
-    yAxis: { type: 'value', axisLabel: { color: '#5a6278', fontSize: 11 }, splitLine: { lineStyle: { color: '#2a3045' } } },
+    yAxis: { type: 'value', axisLabel: { color: C_TEXT_DIM, fontSize: 11 }, splitLine: { lineStyle: { color: C_OUTLINE } } },
     series: [
       { name: 'Zeek Notices', type: 'line', data: NOTICE.counts, smooth: true,
         lineStyle: { color: '#f85149', width: 2 }, itemStyle: { color: '#f85149' },

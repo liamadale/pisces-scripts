@@ -70,13 +70,19 @@
     var SENSORS   = {{ data.sensors   | tojson }};
     var TOP_IPS   = {{ data.top_ips   | tojson }};
 
-    var AXIS_LABEL = { color: '#c8ccd8', fontSize: 12 };
-    var AXIS_DIM   = { color: '#5a6278', fontSize: 11 };
-    var GRID_LINE  = { lineStyle: { color: '#2a3045' } };
+    var S = getComputedStyle(document.documentElement);
+    var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+    var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+    var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+    var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+
+    var AXIS_LABEL = { color: C_TEXT, fontSize: 12 };
+    var AXIS_DIM   = { color: C_TEXT_DIM, fontSize: 11 };
+    var GRID_LINE  = { lineStyle: { color: C_OUTLINE } };
     var TOOLTIP_STYLE = {
       trigger: 'axis', axisPointer: { type: 'shadow' },
-      backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-      textStyle: { color: '#c8ccd8' }
+      backgroundColor: C_SURFACE, borderColor: C_OUTLINE,
+      textStyle: { color: C_TEXT }
     };
 
     function tsLabel(v) {
@@ -90,9 +96,9 @@
       var c = echarts.init(el);
       c.setOption({
         backgroundColor: 'transparent',
-        tooltip: { trigger: 'axis', backgroundColor: '#1a1f2e', borderColor: '#2a3045', textStyle: { color: '#c8ccd8' } },
+        tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
         grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
-        xAxis: { type: 'category', data: ts, axisLabel: { color: '#5a6278', fontSize: 11, rotate: 35, formatter: tsLabel }, axisLine: { lineStyle: { color: '#2a3045' } } },
+        xAxis: { type: 'category', data: ts, axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35, formatter: tsLabel }, axisLine: { lineStyle: { color: C_OUTLINE } } },
         yAxis: { type: 'value', axisLabel: AXIS_DIM, splitLine: GRID_LINE },
         series: [{ type: 'line', data: counts, smooth: true, lineStyle: { color: color, width: 2 }, itemStyle: { color: color },
           areaStyle: { color: { type: 'linear', x:0, y:0, x2:0, y2:1, colorStops: [{ offset:0, color: color.replace(')', ',0.3)').replace('rgb','rgba') }, { offset:1, color: color.replace(')', ',0.02)').replace('rgb','rgba') }] } }

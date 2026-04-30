@@ -59,11 +59,17 @@
   var ESC = {{ data.escalation | tojson }};
   var TL  = {{ data.timeline   | tojson }};
 
-  var ADM = { color: '#5a6278', fontSize: 11 };
-  var GL  = { lineStyle: { color: '#2a3045' } };
+  var S = getComputedStyle(document.documentElement);
+  var C_TEXT     = S.getPropertyValue('--on-surface').trim();
+  var C_TEXT_DIM = S.getPropertyValue('--on-surface-dim').trim();
+  var C_OUTLINE  = S.getPropertyValue('--outline').trim();
+  var C_SURFACE  = S.getPropertyValue('--surface-container').trim();
+
+  var ADM = { color: C_TEXT_DIM, fontSize: 11 };
+  var GL  = { lineStyle: { color: C_OUTLINE } };
   var TT  = { trigger: 'axis', axisPointer: { type: 'shadow' },
-              backgroundColor: '#1a1f2e', borderColor: '#2a3045',
-              textStyle: { color: '#c8ccd8' } };
+              backgroundColor: C_SURFACE, borderColor: C_OUTLINE,
+              textStyle: { color: C_TEXT } };
 
   /* Escalation grouped bar */
   if (ESC.orgs.length) {
@@ -71,11 +77,11 @@
     c1.setOption({
       backgroundColor: 'transparent',
       tooltip: TT,
-      legend: { data: ['Total', 'Escalated'], textStyle: { color: '#c8ccd8', fontSize: 11 }, top: 0 },
+      legend: { data: ['Total', 'Escalated'], textStyle: { color: C_TEXT, fontSize: 11 }, top: 0 },
       grid: { left: 10, right: 20, top: 30, bottom: 10, containLabel: true },
       xAxis: { type: 'value', axisLabel: ADM, splitLine: GL },
       yAxis: { type: 'category', data: ESC.orgs.slice().reverse(),
-               axisLabel: { color: '#c8ccd8', fontSize: 11, overflow: 'truncate', width: 200 } },
+               axisLabel: { color: C_TEXT, fontSize: 11, overflow: 'truncate', width: 200 } },
       series: [
         { name: 'Total', type: 'bar', data: ESC.totals.slice().reverse(),
           itemStyle: { color: '#4f8ef7' }, barMaxWidth: 20 },
@@ -91,11 +97,11 @@
     var c2 = echarts.init(document.getElementById('chart-tk-timeline'));
     c2.setOption({
       backgroundColor: 'transparent',
-      tooltip: { trigger: 'axis', backgroundColor: '#1a1f2e', borderColor: '#2a3045', textStyle: { color: '#c8ccd8' } },
+      tooltip: { trigger: 'axis', backgroundColor: C_SURFACE, borderColor: C_OUTLINE, textStyle: { color: C_TEXT } },
       grid: { left: 10, right: 20, top: 10, bottom: 10, containLabel: true },
       xAxis: { type: 'category', data: TL.labels,
-               axisLabel: { color: '#5a6278', fontSize: 11, rotate: 35 },
-               axisLine: { lineStyle: { color: '#2a3045' } } },
+               axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35 },
+               axisLine: { lineStyle: { color: C_OUTLINE } } },
       yAxis: { type: 'value', axisLabel: ADM, splitLine: GL },
       series: [{ type: 'line', data: TL.counts, smooth: true,
         lineStyle: { color: '#4f8ef7', width: 2 }, itemStyle: { color: '#4f8ef7' },
