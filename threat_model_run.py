@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin shim → apps/mantis_web/run.py"""
+"""Thin shim → apps/threat_model/run.py"""
 
 import os
 import runpy
@@ -10,6 +10,6 @@ if _here not in sys.path:
     sys.path.insert(0, _here)
 
 runpy.run_path(
-    os.path.join(_here, "apps", "mantis_web", "run.py"),
+    os.path.join(_here, "apps", "threat_model", "run.py"),
     run_name="__main__",
 )

@@ -2,7 +2,7 @@
 
 import collections
 
-from apps.mantis_web.data import INFRA_ROWS, MALICIOUS_ROWS, _raw_tickets
+from apps.threat_model.data import INFRA_ROWS, MALICIOUS_ROWS, _raw_tickets
 
 
 def _filter_tickets(since: str, until: str) -> list:

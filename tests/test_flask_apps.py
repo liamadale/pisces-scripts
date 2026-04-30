@@ -3,7 +3,7 @@
 These tests verify that each app can be created and that basic routes respond
 correctly, without requiring a running OpenSearch or Mantis backend.
 
-Data-dependent apps (mantis_web, opensearch_web, dashboard_web) have their
+Data-dependent apps (threat_model, opensearch_web, dashboard_web) have their
 data loading mocked so the tests remain fast and offline.
 """
 
@@ -50,7 +50,7 @@ def test_hub_index_contains_app_links() -> None:
     html = resp.data.decode()
     # Hub should link to the other apps
     assert "OpenSearch" in html or "opensearch" in html.lower()
-    assert "Mantis" in html or "mantis" in html.lower()
+    assert "Mantis" in html or "threat" in html.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ def test_opensearch_overview_route_exists() -> None:
 
 
 def _make_mock_data() -> MagicMock:
-    """Build a MagicMock that satisfies all apps.mantis_web.data imports."""
+    """Build a MagicMock that satisfies all apps.threat_model.data imports."""
     m = MagicMock()
     m.MALICIOUS_ROWS = []
     m.FP_ROWS = []
@@ -113,26 +113,26 @@ def _make_mock_data() -> MagicMock:
     return m
 
 
-def test_mantis_web_create_app_returns_flask() -> None:
+def test_threat_model_create_app_returns_flask() -> None:
     from flask import Flask
 
     mock_data = _make_mock_data()
-    with patch.dict(sys.modules, {"apps.mantis_web.data": mock_data}):
+    with patch.dict(sys.modules, {"apps.threat_model.data": mock_data}):
         # Re-import to pick up the mock
-        if "apps.mantis_web.app" in sys.modules:
-            del sys.modules["apps.mantis_web.app"]
-        from apps.mantis_web.app import create_app
+        if "apps.threat_model.app" in sys.modules:
+            del sys.modules["apps.threat_model.app"]
+        from apps.threat_model.app import create_app
 
         app = create_app()
     assert isinstance(app, Flask)
 
 
-def test_mantis_web_routes_registered() -> None:
+def test_threat_model_routes_registered() -> None:
     mock_data = _make_mock_data()
-    with patch.dict(sys.modules, {"apps.mantis_web.data": mock_data}):
-        if "apps.mantis_web.app" in sys.modules:
-            del sys.modules["apps.mantis_web.app"]
-        from apps.mantis_web.app import create_app
+    with patch.dict(sys.modules, {"apps.threat_model.data": mock_data}):
+        if "apps.threat_model.app" in sys.modules:
+            del sys.modules["apps.threat_model.app"]
+        from apps.threat_model.app import create_app
 
         app = create_app()
     rules = {rule.rule for rule in app.url_map.iter_rules()}

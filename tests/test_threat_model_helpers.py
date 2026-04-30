@@ -1,4 +1,4 @@
-"""Tests for pure helper functions in apps/mantis_web/.
+"""Tests for pure helper functions in apps/threat_model/.
 
 Covers:
   - data.py pure functions: fmt_attack, country_flag, days_between, _malicious_row
@@ -22,16 +22,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _import_data_with_empty_files():
-    """Import apps.mantis_web.data with all file loading stubbed out."""
+    """Import apps.threat_model.data with all file loading stubbed out."""
 
     # Remove cached module so the patched version is freshly imported
     for key in list(sys.modules):
-        if "apps.mantis_web" in key:
+        if "apps.threat_model" in key:
             del sys.modules[key]
 
     with patch("builtins.open", MagicMock()):
         with patch("json.load", return_value=[]):
-            import apps.mantis_web.data as data_mod
+            import apps.threat_model.data as data_mod
 
     return data_mod
 
@@ -43,17 +43,17 @@ def _import_data_with_empty_files():
 
 class TestFmtAttack:
     def test_underscore_to_space(self) -> None:
-        from apps.mantis_web.data import fmt_attack
+        from apps.threat_model.data import fmt_attack
 
         assert fmt_attack("port_scan") == "Port Scan"
 
     def test_title_case(self) -> None:
-        from apps.mantis_web.data import fmt_attack
+        from apps.threat_model.data import fmt_attack
 
         assert fmt_attack("brute_force_login") == "Brute Force Login"
 
     def test_no_underscore(self) -> None:
-        from apps.mantis_web.data import fmt_attack
+        from apps.threat_model.data import fmt_attack
 
         assert fmt_attack("malware") == "Malware"
 
@@ -65,29 +65,29 @@ class TestFmtAttack:
 
 class TestCountryFlag:
     def test_us_flag(self) -> None:
-        from apps.mantis_web.data import country_flag
+        from apps.threat_model.data import country_flag
 
         result = country_flag("US")
         assert len(result) == 2  # two regional indicator symbols
 
     def test_gb_flag(self) -> None:
-        from apps.mantis_web.data import country_flag
+        from apps.threat_model.data import country_flag
 
         result = country_flag("GB")
         assert result != ""
 
     def test_empty_string_returns_empty(self) -> None:
-        from apps.mantis_web.data import country_flag
+        from apps.threat_model.data import country_flag
 
         assert country_flag("") == ""
 
     def test_non_two_char_returns_empty(self) -> None:
-        from apps.mantis_web.data import country_flag
+        from apps.threat_model.data import country_flag
 
         assert country_flag("USA") == ""
 
     def test_lowercase_works(self) -> None:
-        from apps.mantis_web.data import country_flag
+        from apps.threat_model.data import country_flag
 
         assert country_flag("de") == country_flag("DE")
 
@@ -99,22 +99,22 @@ class TestCountryFlag:
 
 class TestDaysBetween:
     def test_same_date(self) -> None:
-        from apps.mantis_web.data import days_between
+        from apps.threat_model.data import days_between
 
         assert days_between("2024-01-01", "2024-01-01") == 0
 
     def test_one_week(self) -> None:
-        from apps.mantis_web.data import days_between
+        from apps.threat_model.data import days_between
 
         assert days_between("2024-01-01", "2024-01-08") == 7
 
     def test_invalid_date_returns_zero(self) -> None:
-        from apps.mantis_web.data import days_between
+        from apps.threat_model.data import days_between
 
         assert days_between("", "") == 0
 
     def test_malformed_date_returns_zero(self) -> None:
-        from apps.mantis_web.data import days_between
+        from apps.threat_model.data import days_between
 
         assert days_between("not-a-date", "2024-01-01") == 0
 
@@ -126,7 +126,7 @@ class TestDaysBetween:
 
 class TestMaliciousRow:
     def test_basic_fields(self) -> None:
-        from apps.mantis_web.data import _malicious_row
+        from apps.threat_model.data import _malicious_row
 
         raw = {
             "ip": "198.51.100.1",
@@ -144,7 +144,7 @@ class TestMaliciousRow:
         assert "spamhaus_drop" in row["blocklist_str"]
 
     def test_missing_optional_fields_use_defaults(self) -> None:
-        from apps.mantis_web.data import _malicious_row
+        from apps.threat_model.data import _malicious_row
 
         raw = {"ip": "203.0.113.1"}
         row = _malicious_row(raw)
@@ -154,7 +154,7 @@ class TestMaliciousRow:
         assert row["attack_types"] == []
 
     def test_empty_blocklists_shows_dash(self) -> None:
-        from apps.mantis_web.data import _malicious_row
+        from apps.threat_model.data import _malicious_row
 
         raw = {"ip": "1.2.3.4", "blocklists": []}
         row = _malicious_row(raw)
@@ -170,7 +170,7 @@ class TestMaliciousRow:
 def _get_app_helpers():
     """Import _page_args and _sort_rows with data module mocked."""
     for key in list(sys.modules):
-        if "apps.mantis_web" in key:
+        if "apps.threat_model" in key:
             del sys.modules[key]
 
     mock_data = MagicMock()
@@ -192,8 +192,8 @@ def _get_app_helpers():
     mock_data._fp_row = MagicMock(return_value={})
     mock_data._malicious_row = MagicMock(return_value={})
 
-    with patch.dict(sys.modules, {"apps.mantis_web.data": mock_data}):
-        import apps.mantis_web.app as app_mod
+    with patch.dict(sys.modules, {"apps.threat_model.data": mock_data}):
+        import apps.threat_model.app as app_mod
 
     return app_mod._page_args, app_mod._sort_rows
 
@@ -235,7 +235,7 @@ class TestPageArgs:
 
 class TestGetTicketsForIp:
     def test_returns_ticket_for_known_ip(self) -> None:
-        import apps.mantis_web.data as data_mod
+        import apps.threat_model.data as data_mod
 
         ticket = {"id": "1", "created_at": "2024-01-01", "ips": ["1.2.3.4"]}
         with (
@@ -246,7 +246,7 @@ class TestGetTicketsForIp:
         assert result == [ticket]
 
     def test_returns_empty_for_unknown_ip(self) -> None:
-        import apps.mantis_web.data as data_mod
+        import apps.threat_model.data as data_mod
 
         with (
             patch.object(data_mod, "TICKETS_BY_IP", {}),
@@ -256,7 +256,7 @@ class TestGetTicketsForIp:
         assert result == []
 
     def test_sorted_newest_first(self) -> None:
-        import apps.mantis_web.data as data_mod
+        import apps.threat_model.data as data_mod
 
         t1 = {"id": "1", "created_at": "2024-01-01"}
         t2 = {"id": "2", "created_at": "2024-06-01"}
@@ -270,7 +270,7 @@ class TestGetTicketsForIp:
         assert result[-1]["id"] == "1"
 
     def test_skips_missing_ticket_ids(self) -> None:
-        import apps.mantis_web.data as data_mod
+        import apps.threat_model.data as data_mod
 
         ticket = {"id": "1", "created_at": "2024-01-01"}
         with (

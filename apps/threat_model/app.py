@@ -4,7 +4,7 @@ import math
 
 from flask import Flask, render_template, request
 
-from apps.mantis_web.data import (
+from apps.threat_model.data import (
     ALL_ATTACK_TYPES,
     ALL_BLOCKLISTS,
     ALL_FP_CATEGORIES,

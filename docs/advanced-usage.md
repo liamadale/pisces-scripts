@@ -30,7 +30,7 @@ Or run each app standalone:
 
 ```bash
 uv run opensearch_web_run.py    # http://0.0.0.0:5001
-uv run mantis_web_run.py        # http://0.0.0.0:5003
+uv run threat_model_run.py      # http://0.0.0.0:5003
 uv run dashboard_web_run.py     # http://0.0.0.0:5004
 ```
 

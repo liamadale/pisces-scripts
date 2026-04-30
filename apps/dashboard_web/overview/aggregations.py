@@ -8,7 +8,7 @@ from apps.dashboard_web.opensearch.aggregations import (
     agg_opensearch_sensors,
     agg_suricata_over_time,
 )
-from apps.mantis_web.data import (
+from apps.threat_model.data import (
     FP_BY_IP,
     FP_ROWS,
     MALICIOUS_BY_IP,

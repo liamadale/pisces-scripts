@@ -10,12 +10,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(os.path.dirname(_HERE))
 
 # ---------------------------------------------------------------------------
-# Raw tickets — reuse mantis_web's already-parsed list in hub mode so we
+# Raw tickets — reuse threat_model's already-parsed list in hub mode so we
 # don't parse the JSON twice.  Falls back to loading independently when
-# running standalone (mantis_web.data will load itself in that process).
+# running standalone (threat_model.data will load itself in that process).
 # ---------------------------------------------------------------------------
-from apps.mantis_web.data import TICKETS_BY_ID  # noqa: E402, F401
-from apps.mantis_web.data import _raw_tickets as RAW_TICKETS  # noqa: E402
+from apps.threat_model.data import TICKETS_BY_ID  # noqa: E402, F401
+from apps.threat_model.data import _raw_tickets as RAW_TICKETS  # noqa: E402
 from src.mantis.activity_report import (  # noqa: E402
     StudentStats,
     _filter_by_date_range,
