@@ -31,7 +31,7 @@
   <div class="investigate-section-header">
     <h2><i class="fa-solid fa-fingerprint"></i> Device Profiles</h2>
   </div>
-  <div hx-get="{{ script_name }}/api/investigate/profiles?{{ qs }}"
+  <div hx-get="/api/investigate/profiles?{{ qs }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton investigate-profiles-skeleton">
@@ -47,7 +47,7 @@
     <h2><i class="fa-solid fa-key"></i> Authentication History</h2>
     <span class="investigate-section-sub">Kerberos + NTLM between {{ src_ip }} ↔ {{ dest_ip }}</span>
   </div>
-  <div hx-get="{{ script_name }}/api/investigate/auth?{{ qs }}"
+  <div hx-get="/api/investigate/auth?{{ qs }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton">
@@ -62,7 +62,7 @@
     <h2><i class="fa-solid fa-link"></i> Attack Chain</h2>
     <span class="investigate-section-sub">ATTACK::* notices from {{ src_ip }}</span>
   </div>
-  <div hx-get="{{ script_name }}/api/investigate/chain?src_ip={{ src_ip }}&sensor={{ search_params.get('sensor', 'all') }}&time_range={{ search_params.get('time_range', 'now-24h') }}"
+  <div hx-get="/api/investigate/chain?src_ip={{ src_ip }}&sensor={{ search_params.get('sensor', 'all') }}&time_range={{ search_params.get('time_range', 'now-24h') }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton">
@@ -77,7 +77,7 @@
     <h2><i class="fa-solid fa-ticket"></i> Related Tickets</h2>
     <span class="investigate-section-sub">Mantis tickets mentioning either IP</span>
   </div>
-  <div hx-get="{{ script_name }}/api/investigate/tickets?src_ip={{ src_ip }}&dest_ip={{ dest_ip }}"
+  <div hx-get="/api/investigate/tickets?src_ip={{ src_ip }}&dest_ip={{ dest_ip }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton">
@@ -92,7 +92,7 @@
     <h2><i class="fa-solid fa-clock-rotate-left"></i> Timeline</h2>
     <span class="investigate-section-sub">Merged chronological events</span>
   </div>
-  <div hx-get="{{ script_name }}/api/investigate/timeline?{{ qs }}"
+  <div hx-get="/api/investigate/timeline?{{ qs }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton">
