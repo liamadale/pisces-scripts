@@ -66,7 +66,7 @@ from src.querier.zeek_modules.base import (  # noqa: E402
 )
 
 
-def _query_auth_history(
+def query_auth_history(
     src_ip: str,
     dest_ip: str,
     sensor: str,
@@ -86,6 +86,30 @@ def _query_auth_history(
     krb = run_query(MODULES["kerberos"], dict(sp))
     ntlm = run_query(MODULES["ntlm"], dict(sp))
     return krb, ntlm
+
+
+def query_attack_chain(src_ip: str, sensor: str, time_range: str) -> list[dict]:
+    """Fetch ATTACK::* notices originating from src_ip in the time window."""
+    notice_mod = MODULES["notice"]
+    must: list = [
+        {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
+        {"terms": {"event.dataset": notice_mod.DATASETS}},
+        {"term": {"source.ip": src_ip}},
+        {"prefix": {"zeek.notice.note": "ATTACK::"}},
+    ]
+    if sensor != "all":
+        must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
+    body = {
+        "size": 500,
+        "query": {"bool": {"must": must}},
+        "sort": [{"@timestamp": {"order": "asc"}}],
+        "_source": notice_mod.SOURCE_FIELDS,
+    }
+    raw = query_opensearch(body, {"path": f"{INDEX}/_search", "method": "POST"})
+    if not raw:
+        return []
+    hits = raw.get("hits", {}).get("hits", [])
+    return [notice_mod.parse_hit(h["_source"]) for h in hits]
 
 
 def build_timeline(ctx: IncidentContext) -> list[dict]:
@@ -137,30 +161,12 @@ def investigate(
             ctx.dest_profile = profile_device(dest_ip, time_range=time_range, sensor=sensor)
 
     def _auth_history() -> None:
-        ctx.kerberos_history, ctx.ntlm_history = _query_auth_history(
+        ctx.kerberos_history, ctx.ntlm_history = query_auth_history(
             src_ip, dest_ip, sensor, time_range
         )
 
     def _attack_chain() -> None:
-        notice_mod = MODULES["notice"]
-        must: list = [
-            {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-            {"terms": {"event.dataset": notice_mod.DATASETS}},
-            {"term": {"source.ip": src_ip}},
-            {"prefix": {"zeek.notice.note": "ATTACK::"}},
-        ]
-        if sensor != "all":
-            must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
-        body = {
-            "size": 500,
-            "query": {"bool": {"must": must}},
-            "sort": [{"@timestamp": {"order": "asc"}}],
-            "_source": notice_mod.SOURCE_FIELDS,
-        }
-        raw = query_opensearch(body, {"path": f"{INDEX}/_search", "method": "POST"})
-        if raw:
-            hits = raw.get("hits", {}).get("hits", [])
-            ctx.attack_chain = [notice_mod.parse_hit(h["_source"]) for h in hits]
+        ctx.attack_chain = query_attack_chain(src_ip, sensor, time_range)
 
     def _context_gather() -> None:
         ctx.src_tickets = search_tickets(src_ip)
