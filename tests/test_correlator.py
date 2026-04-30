@@ -167,6 +167,26 @@ def test_timeline_does_not_mutate_source_records() -> None:
     assert "type" not in original
 
 
+def test_timeline_explicit_keys_override_rec() -> None:
+    """Explicit type/timestamp must win even when the source record has those keys."""
+    rec_with_type = {
+        "timestamp": "2024-06-01T10:00:00.000Z",
+        "type": "SHOULD_BE_OVERRIDDEN",
+        "src_ip": PRIVATE_SRC,
+    }
+    ctx = IncidentContext(
+        trigger_type="ip_pair",
+        trigger={},
+        src_ip=PRIVATE_SRC,
+        dest_ip=PRIVATE_DEST,
+        sensor=SENSOR,
+        time_range=TIME_RANGE,
+        kerberos_history=[rec_with_type],
+    )
+    timeline = build_timeline(ctx)
+    assert timeline[0]["type"] == "kerberos"
+
+
 # ---------------------------------------------------------------------------
 # investigate() — IP routing logic
 # ---------------------------------------------------------------------------

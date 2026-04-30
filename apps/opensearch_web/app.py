@@ -623,6 +623,8 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/profiles")
     def api_investigate_profiles():
+        from concurrent.futures import ThreadPoolExecutor
+
         from src.profiler.device_profiler import profile_device
         from src.querier.zeek_modules.base import is_private
 
@@ -636,17 +638,22 @@ def create_app() -> Flask:
         src_error = None
         dest_error = None
 
-        if is_private(src_ip):
-            try:
-                src_profile = profile_device(src_ip, time_range=time_range, sensor=sensor)
-            except Exception as exc:
-                src_error = str(exc)
+        def _profile(ip: str):  # type: ignore[no-untyped-def]
+            return profile_device(ip, time_range=time_range, sensor=sensor)
 
-        if is_private(dest_ip):
-            try:
-                dest_profile = profile_device(dest_ip, time_range=time_range, sensor=sensor)
-            except Exception as exc:
-                dest_error = str(exc)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_src = pool.submit(_profile, src_ip) if is_private(src_ip) else None
+            f_dest = pool.submit(_profile, dest_ip) if is_private(dest_ip) else None
+            if f_src is not None:
+                try:
+                    src_profile = f_src.result()
+                except Exception as exc:
+                    src_error = str(exc)
+            if f_dest is not None:
+                try:
+                    dest_profile = f_dest.result()
+                except Exception as exc:
+                    dest_error = str(exc)
 
         return render_template(
             "partials/investigate_profiles.html",
@@ -722,6 +729,9 @@ def create_app() -> Flask:
         try:
             src_tickets = search_tickets(src_ip) if src_ip else []
             dest_tickets = search_tickets(dest_ip) if dest_ip else []
+            # Deduplicate: drop dest tickets already shown under src
+            src_ids = {t.get("id") for t in src_tickets}
+            dest_tickets = [t for t in dest_tickets if t.get("id") not in src_ids]
             error = None
         except Exception as exc:
             src_tickets, dest_tickets, error = [], [], str(exc)

@@ -117,11 +117,11 @@ def build_timeline(ctx: IncidentContext) -> list[dict]:
     events: list[dict] = []
 
     for rec in ctx.kerberos_history:
-        events.append({"type": "kerberos", "timestamp": rec.get("timestamp", ""), **rec})
+        events.append({**rec, "type": "kerberos", "timestamp": rec.get("timestamp", "")})
     for rec in ctx.ntlm_history:
-        events.append({"type": "ntlm", "timestamp": rec.get("timestamp", ""), **rec})
+        events.append({**rec, "type": "ntlm", "timestamp": rec.get("timestamp", "")})
     for rec in ctx.attack_chain:
-        events.append({"type": "notice", "timestamp": rec.get("timestamp", ""), **rec})
+        events.append({**rec, "type": "notice", "timestamp": rec.get("timestamp", "")})
 
     events.sort(key=lambda e: e.get("timestamp", ""))
     return events
