@@ -155,36 +155,6 @@ h2 {
 .btn-icon .fa-chevron-down { transition: transform 0.2s ease; display: block; }
 .btn-icon.active .fa-chevron-down { transform: rotate(180deg); }
 
-/* Theme toggle button */
-.btn-theme {
-  position: relative;
-  background: transparent;
-  border: none;
-  color: var(--on-surface-dim);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  overflow: hidden;
-  transition: color 0.15s;
-  font-size: 1rem;
-}
-.btn-theme::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: transparent;
-  transition: background 0.15s;
-  pointer-events: none;
-}
-.btn-theme:hover::before { background: var(--state-hover); }
-.btn-theme:hover { color: var(--primary); }
-
 
 /* ── Org identity icons ───────────────────────────────── */
 
