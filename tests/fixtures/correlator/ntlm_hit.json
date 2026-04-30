@@ -1,0 +1,17 @@
+{
+  "_source": {
+    "@timestamp": "2024-06-01T09:00:00.000Z",
+    "source": {"ip": "10.200.50.15", "port": 49199},
+    "destination": {"ip": "10.100.50.15", "port": 445},
+    "zeek": {
+      "ntlm": {
+        "username": "ALICE",
+        "domainname": "CYBERRANGE",
+        "hostname": "WORKSTATION01",
+        "status": "SUCCESS"
+      }
+    },
+    "host": {"name": "hedgehog-east-wenatchee"},
+    "event": {"dataset": "zeek.ntlm"}
+  }
+}
