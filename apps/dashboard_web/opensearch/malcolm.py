@@ -76,9 +76,7 @@ def _sum_terms(
 
 def panels_dns(time_range: str) -> dict:
     return {
-        "query_types": _terms("zeek.dns.qtype_name", time_range, ["dns"], size=12),
         "top_domains": _terms("zeek.dns.query", time_range, ["dns"], size=25),
-        "rcodes": _terms("zeek.dns.rcode_name", time_range, ["dns"], size=10),
     }
 
 
@@ -89,7 +87,6 @@ def panels_dns(time_range: str) -> dict:
 
 def panels_http(time_range: str) -> dict:
     return {
-        "methods": _terms("zeek.http.method", time_range, ["http"], size=10),
         "status_codes": _terms("zeek.http.status_code", time_range, ["http"], size=15),
         "top_hosts": _terms("zeek.http.host", time_range, ["http"], size=25),
         "top_useragents": _terms("zeek.http.user_agent", time_range, ["http"], size=15),
@@ -103,8 +100,6 @@ def panels_http(time_range: str) -> dict:
 
 def panels_ssl(time_range: str) -> dict:
     return {
-        "versions": _terms("zeek.ssl.version", time_range, ["ssl"], size=10),
-        "ciphers": _terms("zeek.ssl.cipher", time_range, ["ssl"], size=15),
         "top_sni": _terms("zeek.ssl.server_name", time_range, ["ssl"], size=25),
         "validation": _terms("zeek.ssl.validation_status", time_range, ["ssl"], size=10),
     }
@@ -117,7 +112,6 @@ def panels_ssl(time_range: str) -> dict:
 
 def panels_conn(time_range: str) -> dict:
     return {
-        "conn_states": _terms("zeek.conn.conn_state", time_range, ["conn"], size=15),
         "top_ports": _terms("destination.port", time_range, ["conn"], size=20),
         "bytes_orig": _sum_terms("destination.port", "source.bytes", time_range, ["conn"], size=15),
         "bytes_resp": _sum_terms(

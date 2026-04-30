@@ -21,22 +21,6 @@
 <!-- DNS -->
 <div id="mc-proto-dns">
   <div class="chart-grid">
-    <div class="chart-card">
-      <div class="chart-title">Query Types</div>
-      {% if panels.dns.query_types.labels %}
-        <div id="mc-dns-qtypes" style="height:{{ [panels.dns.query_types.labels|length * 36 + 40, 180]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No DNS data</div>
-      {% endif %}
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Response Codes</div>
-      {% if panels.dns.rcodes.labels %}
-        <div id="mc-dns-rcodes" style="height:{{ [panels.dns.rcodes.labels|length * 36 + 40, 180]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No data</div>
-      {% endif %}
-    </div>
     <div class="chart-card" style="grid-column:1/-1;">
       <div class="chart-title">Top Queried Domains (top 25)</div>
       {% if panels.dns.top_domains.labels %}
@@ -52,14 +36,6 @@
 <div id="mc-proto-http" style="display:none;">
   <div class="chart-grid">
     <div class="chart-card">
-      <div class="chart-title">HTTP Methods</div>
-      {% if panels.http.methods.labels %}
-        <div id="mc-http-methods" style="height:{{ [panels.http.methods.labels|length * 36 + 40, 180]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No HTTP data</div>
-      {% endif %}
-    </div>
-    <div class="chart-card">
       <div class="chart-title">Status Codes</div>
       {% if panels.http.status_codes.labels %}
         <div id="mc-http-status" style="height:{{ [panels.http.status_codes.labels|length * 36 + 40, 180]|max }}px;"></div>
@@ -67,7 +43,7 @@
         <div class="chart-empty">No data</div>
       {% endif %}
     </div>
-    <div class="chart-card" style="grid-column:1/-1;">
+    <div class="chart-card">
       <div class="chart-title">Top HTTP Hosts (top 25)</div>
       {% if panels.http.top_hosts.labels %}
         <div id="mc-http-hosts" style="height:{{ [panels.http.top_hosts.labels|length * 26 + 40, 200]|max }}px;"></div>
@@ -90,14 +66,6 @@
 <div id="mc-proto-ssl" style="display:none;">
   <div class="chart-grid">
     <div class="chart-card">
-      <div class="chart-title">TLS Versions</div>
-      {% if panels.ssl.versions.labels %}
-        <div id="mc-ssl-versions" style="height:{{ [panels.ssl.versions.labels|length * 36 + 40, 180]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No TLS data</div>
-      {% endif %}
-    </div>
-    <div class="chart-card">
       <div class="chart-title">Validation Status</div>
       {% if panels.ssl.validation.labels %}
         <div id="mc-ssl-validation" style="height:{{ [panels.ssl.validation.labels|length * 36 + 40, 180]|max }}px;"></div>
@@ -105,20 +73,12 @@
         <div class="chart-empty">No data</div>
       {% endif %}
     </div>
-    <div class="chart-card" style="grid-column:1/-1;">
+    <div class="chart-card">
       <div class="chart-title">Top SNI / Server Names (top 25)</div>
       {% if panels.ssl.top_sni.labels %}
         <div id="mc-ssl-sni" style="height:{{ [panels.ssl.top_sni.labels|length * 26 + 40, 200]|max }}px;"></div>
       {% else %}
         <div class="chart-empty">No SNI data</div>
-      {% endif %}
-    </div>
-    <div class="chart-card" style="grid-column:1/-1;">
-      <div class="chart-title">Cipher Suites (top 15)</div>
-      {% if panels.ssl.ciphers.labels %}
-        <div id="mc-ssl-ciphers" style="height:{{ [panels.ssl.ciphers.labels|length * 26 + 40, 200]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No cipher data</div>
       {% endif %}
     </div>
   </div>
@@ -128,14 +88,6 @@
 <div id="mc-proto-conn" style="display:none;">
   <div class="chart-grid">
     <div class="chart-card">
-      <div class="chart-title">Connection States</div>
-      {% if panels.conn.conn_states.labels %}
-        <div id="mc-conn-states" style="height:{{ [panels.conn.conn_states.labels|length * 36 + 40, 180]|max }}px;"></div>
-      {% else %}
-        <div class="chart-empty">No connection data</div>
-      {% endif %}
-    </div>
-    <div class="chart-card">
       <div class="chart-title">Top Destination Ports (by count)</div>
       {% if panels.conn.top_ports.labels %}
         <div id="mc-conn-ports" style="height:{{ [panels.conn.top_ports.labels|length * 36 + 40, 180]|max }}px;"></div>
@@ -143,7 +95,7 @@
         <div class="chart-empty">No data</div>
       {% endif %}
     </div>
-    <div class="chart-card" style="grid-column:1/-1;">
+    <div class="chart-card">
       <div class="chart-title">Top Ports by Outbound Bytes</div>
       {% if panels.conn.bytes_orig.labels %}
         <div id="mc-conn-bytes" style="height:{{ [panels.conn.bytes_orig.labels|length * 26 + 40, 200]|max }}px;"></div>
@@ -164,7 +116,6 @@
     trigger: 'axis', axisPointer: { type: 'shadow' },
     backgroundColor: '#1a1f2e', borderColor: '#2a3045', textStyle: { color: '#c8ccd8' }
   };
-  var PALETTE = ['#4f8ef7','#f85149','#3fb950','#d29922','#bc8cff','#7ec8e3','#e3763c','#58a6ff','#ff6e6e','#7cfc9c'];
 
   function hbar(id, labels, counts, color) {
     var el = document.getElementById(id);
@@ -182,46 +133,19 @@
     window.addEventListener('resize', function() { c.resize(); });
   }
 
-  function donut(id, labels, counts) {
-    var el = document.getElementById(id);
-    if (!el || !labels.length) return;
-    var c = echarts.init(el);
-    c.setOption({
-      backgroundColor: 'transparent',
-      tooltip: { trigger:'item', backgroundColor:'#1a1f2e', borderColor:'#2a3045',
-                 textStyle:{color:'#c8ccd8'}, formatter:'{b}: {c} ({d}%)' },
-      legend: { orient:'vertical', right:'2%', top:'middle',
-                textStyle:{color:'#c8ccd8', fontSize:11} },
-      series: [{
-        type: 'pie', radius: ['38%','65%'], center: ['38%','50%'],
-        data: labels.map(function(l,i){
-          return { name: l, value: counts[i], itemStyle: { color: PALETTE[i % PALETTE.length] } };
-        }),
-        itemStyle: { borderColor:'#0d1117', borderWidth:2 }, label:{show:false}
-      }]
-    });
-    window.addEventListener('resize', function() { c.resize(); });
-  }
-
   function renderProto(proto) {
     var p = PANELS[proto];
     if (!p || p.error) return;
     if (proto === 'dns') {
-      donut('mc-dns-qtypes',  p.query_types.labels, p.query_types.counts);
-      donut('mc-dns-rcodes',  p.rcodes.labels,      p.rcodes.counts);
       hbar('mc-dns-domains',  p.top_domains.labels, p.top_domains.counts, '#4f8ef7');
     } else if (proto === 'http') {
-      donut('mc-http-methods', p.methods.labels,        p.methods.counts);
-      donut('mc-http-status',  p.status_codes.labels,   p.status_codes.counts);
+      hbar('mc-http-status',   p.status_codes.labels,   p.status_codes.counts,   '#f85149');
       hbar('mc-http-hosts',    p.top_hosts.labels,      p.top_hosts.counts,      '#7ec8e3');
       hbar('mc-http-ua',       p.top_useragents.labels, p.top_useragents.counts, '#bc8cff');
     } else if (proto === 'ssl') {
-      donut('mc-ssl-versions',   p.versions.labels,   p.versions.counts);
-      donut('mc-ssl-validation', p.validation.labels, p.validation.counts);
-      hbar('mc-ssl-sni',         p.top_sni.labels,    p.top_sni.counts,    '#4f8ef7');
-      hbar('mc-ssl-ciphers',     p.ciphers.labels,    p.ciphers.counts,    '#d29922');
+      hbar('mc-ssl-validation', p.validation.labels, p.validation.counts, '#d29922');
+      hbar('mc-ssl-sni',        p.top_sni.labels,    p.top_sni.counts,    '#4f8ef7');
     } else if (proto === 'conn') {
-      donut('mc-conn-states', p.conn_states.labels, p.conn_states.counts);
       hbar('mc-conn-ports',   p.top_ports.labels,   p.top_ports.counts,   '#3fb950');
       hbar('mc-conn-bytes',   p.bytes_orig.labels,  p.bytes_orig.counts,  '#e3763c');
     }
