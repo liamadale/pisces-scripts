@@ -94,10 +94,13 @@
   /* ── Notice Modal ─────────────────────────────── */
   window.dismissNotice = function() {
     document.getElementById('notice-modal').classList.remove('show');
+    sessionStorage.setItem('tmNoticeDismissed', '1');
   };
 
   document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('notice-modal').classList.add('show');
+    if (!sessionStorage.getItem('tmNoticeDismissed')) {
+      document.getElementById('notice-modal').classList.add('show');
+    }
   });
 
   /* ── HTMX SCRIPT_NAME prefix (hub mode) ────────── */
