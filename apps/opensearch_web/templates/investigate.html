@@ -71,6 +71,36 @@
   </div>
 </section>
 
+{# ── Suricata Alerts ──────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-fire"></i> Suricata Alerts</h2>
+    <span class="investigate-section-sub">IDS alerts between {{ src_ip }} ↔ {{ dest_ip }}</span>
+  </div>
+  <div hx-get="/api/investigate/suricata?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Zeek Notices ─────────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-bell"></i> Zeek Notices</h2>
+    <span class="investigate-section-sub">All notice types between {{ src_ip }} ↔ {{ dest_ip }}</span>
+  </div>
+  <div hx-get="/api/investigate/notices?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+
 {# ── Related Tickets ──────────────────────────────────────────────── #}
 <section class="investigate-section">
   <div class="investigate-section-header">
