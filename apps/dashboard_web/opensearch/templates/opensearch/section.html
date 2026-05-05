@@ -60,15 +60,25 @@
       {% endif %}
     </div>
 
+    <div class="chart-card" style="grid-column:1/-1;">
+      <div class="chart-title">Log Count by Sensor ({{ data.sensor_trend.interval }} intervals)</div>
+      {% if not data.sensor_trend.timestamps %}
+      <div class="chart-empty">No sensor data in this window</div>
+      {% else %}
+      <div id="chart-sensor-trend" style="height:340px;"></div>
+      {% endif %}
+    </div>
+
   </div>
 
   <script>
   (function() {
-    var NOTICE_TS = {{ data.notice_over_time | tojson }};
-    var SURICATA_TS = {{ data.suricata_over_time | tojson }};
-    var CONN_TS   = {{ data.conn_over_time   | tojson }};
-    var SENSORS   = {{ data.sensors   | tojson }};
-    var TOP_IPS   = {{ data.top_ips   | tojson }};
+    var NOTICE_TS    = {{ data.notice_over_time | tojson }};
+    var SURICATA_TS  = {{ data.suricata_over_time | tojson }};
+    var CONN_TS      = {{ data.conn_over_time   | tojson }};
+    var SENSORS      = {{ data.sensors   | tojson }};
+    var TOP_IPS      = {{ data.top_ips   | tojson }};
+    var SENSOR_TREND = {{ data.sensor_trend | tojson }};
 
     var S = getComputedStyle(document.documentElement);
     var C_TEXT     = S.getPropertyValue('--on-surface').trim();
@@ -132,6 +142,79 @@
       var c3 = echarts.init(document.getElementById('chart-top-ips'));
       c3.setOption(hBarOption(TOP_IPS.ips, TOP_IPS.counts, '#bc8cff'));
       window.addEventListener('resize', function() { c3.resize(); });
+    }
+
+    if (SENSOR_TREND.timestamps && SENSOR_TREND.timestamps.length && SENSOR_TREND.series.length) {
+      var PALETTE = [
+        '#4f8ef7','#f85149','#3fb950','#d29922','#bc8cff',
+        '#7ec8e3','#ff7c7c','#56d364','#ffa657','#79c0ff',
+        '#f778ba','#ffd700','#00ced1','#ff69b4','#98fb98',
+        '#dda0dd','#87ceeb','#f4a460','#20b2aa'
+      ];
+      var stEl = document.getElementById('chart-sensor-trend');
+      var stChart = echarts.init(stEl);
+      var stSeries = SENSOR_TREND.series.map(function(s, i) {
+        var col = PALETTE[i % PALETTE.length];
+        // Sensors beyond palette length (shouldn't happen with 19) get muted
+        var isMuted = i >= PALETTE.length;
+        return {
+          name: s.sensor,
+          type: 'line',
+          data: s.counts,
+          smooth: false,
+          symbol: 'none',
+          lineStyle: { color: isMuted ? C_TEXT_DIM : col, width: 1.5, opacity: isMuted ? 0.4 : 0.85 },
+          itemStyle: { color: isMuted ? C_TEXT_DIM : col },
+          emphasis: { focus: 'series', lineStyle: { width: 2.5, opacity: 1 } },
+          blur: { lineStyle: { opacity: 0.15 } },
+        };
+      });
+
+      // Sort legend entries by total desc so the busiest sensors appear first
+      var legendOrder = SENSOR_TREND.series.map(function(s) { return s.sensor; });
+
+      stChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: C_SURFACE,
+          borderColor: C_OUTLINE,
+          textStyle: { color: C_TEXT, fontSize: 12 },
+          formatter: function(p) {
+            return '<div style="font-size:11px;">' + tsLabel(p.name) + '<br>' +
+              '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
+              p.color + ';margin-right:4px;"></span>' +
+              p.seriesName + ': <b>' + p.value.toLocaleString() + '</b></div>';
+          }
+        },
+        legend: {
+          type: 'scroll',
+          orient: 'horizontal',
+          bottom: 0,
+          data: legendOrder,
+          textStyle: { color: C_TEXT, fontSize: 11 },
+          pageTextStyle: { color: C_TEXT_DIM },
+          pageIconColor: C_TEXT,
+          pageIconInactiveColor: C_TEXT_DIM,
+          itemWidth: 14,
+          itemHeight: 8,
+        },
+        grid: { left: 10, right: 20, top: 10, bottom: 60, containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: SENSOR_TREND.timestamps,
+          axisLabel: { color: C_TEXT_DIM, fontSize: 11, rotate: 35, formatter: tsLabel },
+          axisLine: { lineStyle: { color: C_OUTLINE } },
+          boundaryGap: false,
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: AXIS_DIM,
+          splitLine: GRID_LINE,
+        },
+        series: stSeries,
+      });
+      window.addEventListener('resize', function() { stChart.resize(); });
     }
   })();
   </script>

@@ -244,6 +244,68 @@ def agg_conn_volume_over_time(time_range: str, sensors: list | None = None) -> d
     }
 
 
+def agg_logs_by_sensor_over_time(time_range: str, sensors: list | None = None) -> dict:
+    """Total log count per sensor as aligned time series (terms → date_histogram)."""
+    interval = _interval_for_range(time_range)
+    body, params = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=0,
+        time_range=time_range,
+        sensors=sensors,
+        datasets=["all"],
+        public_only=False,
+        src_ip_filter=None,
+        direction=None,
+    )
+    body["size"] = 0
+    body.pop("sort", None)
+    body.pop("_source", None)
+    body["aggs"] = {
+        "by_sensor": {
+            "terms": {"field": "host.name", "size": 50, "order": {"_count": "desc"}},
+            "aggs": {
+                "over_time": {
+                    "date_histogram": {
+                        "field": "@timestamp",
+                        "fixed_interval": interval,
+                        "min_doc_count": 0,
+                    }
+                }
+            },
+        }
+    }
+    raw = query_opensearch(body, params)
+    sensor_buckets = (
+        raw.get("aggregations", {}).get("by_sensor", {}).get("buckets", []) if raw else []
+    )
+
+    # Collect all unique timestamps in order across all sensors
+    all_ts: dict[str, None] = {}
+    for sb in sensor_buckets:
+        for tb in sb.get("over_time", {}).get("buckets", []):
+            all_ts[tb["key_as_string"]] = None
+    timestamps = list(all_ts.keys())
+
+    # Build per-sensor series aligned to the shared timestamp list
+    series = []
+    for sb in sensor_buckets:
+        ts_map = {
+            tb["key_as_string"]: tb["doc_count"]
+            for tb in sb.get("over_time", {}).get("buckets", [])
+        }
+        series.append(
+            {
+                "sensor": sb["key"],
+                "counts": [ts_map.get(t, 0) for t in timestamps],
+                "total": sb["doc_count"],
+            }
+        )
+
+    return {"timestamps": timestamps, "series": series, "interval": interval}
+
+
 def agg_new_ips_delta(time_range: str, sensors: list | None = None) -> dict:
     """Compare unique source IPs in the current window vs the previous window.
 
