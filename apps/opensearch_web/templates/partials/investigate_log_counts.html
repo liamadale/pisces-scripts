@@ -1,0 +1,22 @@
+{% for cat in category_order %}
+  {% set lts = modules_by_category.get(cat, []) %}
+  {% if lts %}
+  <div class="log-count-group">
+    <div class="log-count-group-label">
+      <i class="fa-solid {{ category_icons[cat] }}"></i>
+      {{ category_labels[cat] }}
+    </div>
+    <div class="log-count-btns">
+      {% for lt in lts %}
+        {% set cnt = counts.get(lt, 0) %}
+        <a href="{{ script_name }}/log/{{ lt }}?src_ip={{ src_ip }}&sensor={{ sensor }}&time_range={{ time_range }}"
+           class="log-count-btn{% if cnt == 0 %} log-count-btn--empty{% endif %}">
+          <i class="fa-solid {{ proto_icons[lt] }}"></i>
+          {{ lt.replace('_', ' ').title() }}
+          <span class="log-count-badge">{{ cnt }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}

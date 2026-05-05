@@ -933,4 +933,48 @@ def create_app() -> Flask:
             errors=errors,
         )
 
+    # ------------------------------------------------------------------
+    # GET /api/investigate/log_counts  — HTMX: per-module record counts for src_ip
+    # ------------------------------------------------------------------
+    @app.route("/api/investigate/log_counts")
+    def api_investigate_log_counts():
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import as_completed as _as_completed
+
+        src_ip = request.args.get("src_ip", "")
+        sensor = request.args.get("sensor", "all")
+        time_range = request.args.get("time_range", "now-24h")
+
+        search_params: dict = {
+            "time_range": time_range,
+            "time_from": None,
+            "time_to": None,
+            "sensor": sensor,
+            "limit": 500,
+            "public_only": False,
+            "src_ip": src_ip or None,
+            "dest_ip": None,
+            "direction": None,
+            "no_filters": False,
+            "use_cache": False,
+        }
+
+        counts: dict[str, int] = {}
+        with ThreadPoolExecutor(max_workers=len(MODULES)) as pool:
+            futures = {pool.submit(cached_run_query, lt, dict(search_params)): lt for lt in MODULES}
+            for fut in _as_completed(futures):
+                lt = futures[fut]
+                try:
+                    counts[lt] = len(fut.result())
+                except Exception:
+                    counts[lt] = 0
+
+        return render_template(
+            "partials/investigate_log_counts.html",
+            counts=counts,
+            src_ip=src_ip,
+            sensor=sensor,
+            time_range=time_range,
+        )
+
     return app

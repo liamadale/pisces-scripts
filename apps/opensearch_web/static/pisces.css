@@ -1621,3 +1621,49 @@ tr.detail-row td {
   .investigate-tickets-grid { grid-template-columns: 1fr; }
   .investigate-profiles-skeleton { grid-template-columns: 1fr; }
 }
+
+/* ── Investigate: log search buttons ─────────────────────────────── */
+.log-count-group { margin-bottom: 1.2rem; }
+.log-count-group:last-child { margin-bottom: 0; }
+.log-count-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--on-surface-dim);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.log-count-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.log-count-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  text-decoration: none;
+  font-size: 0.8rem;
+  border: 1px solid var(--outline);
+  transition: background 0.15s, border-color 0.15s;
+}
+.log-count-btn:hover {
+  background: var(--surface-container-highest);
+  border-color: var(--primary);
+  color: var(--on-surface);
+}
+.log-count-btn--empty { opacity: 0.38; }
+.log-count-badge {
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 1.35rem;
+  text-align: center;
+  line-height: 1.5;
+}
+.log-count-btn--empty .log-count-badge { background: var(--on-surface-dim); }

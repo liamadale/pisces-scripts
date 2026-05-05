@@ -41,21 +41,6 @@
   </div>
 </section>
 
-{# ── Authentication History ───────────────────────────────────────── #}
-<section class="investigate-section">
-  <div class="investigate-section-header">
-    <h2><i class="fa-solid fa-key"></i> Authentication History</h2>
-    <span class="investigate-section-sub">Kerberos + NTLM between {{ src_ip }} ↔ {{ dest_ip }}</span>
-  </div>
-  <div hx-get="/api/investigate/auth?{{ qs }}"
-       hx-trigger="load"
-       hx-swap="innerHTML">
-    <div class="investigate-skeleton">
-      <div class="skeleton-table"></div>
-    </div>
-  </div>
-</section>
-
 {# ── Attack Chain ─────────────────────────────────────────────────── #}
 <section class="investigate-section">
   <div class="investigate-section-header">
@@ -123,6 +108,21 @@
     <span class="investigate-section-sub">Merged chronological events</span>
   </div>
   <div hx-get="/api/investigate/timeline?{{ qs }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="investigate-skeleton">
+      <div class="skeleton-table"></div>
+    </div>
+  </div>
+</section>
+
+{# ── Search All Logs ──────────────────────────────────────────────── #}
+<section class="investigate-section">
+  <div class="investigate-section-header">
+    <h2><i class="fa-solid fa-magnifying-glass"></i> Search All Logs</h2>
+    <span class="investigate-section-sub">Browse log types filtered by {{ src_ip }}</span>
+  </div>
+  <div hx-get="/api/investigate/log_counts?src_ip={{ src_ip }}&sensor={{ search_params.get('sensor', 'all') }}&time_range={{ search_params.get('time_range', 'now-24h') }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="investigate-skeleton">
