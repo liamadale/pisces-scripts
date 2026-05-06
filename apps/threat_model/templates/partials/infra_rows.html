@@ -1,6 +1,10 @@
 {% for r in rows %}
 <tr data-ip="{{ r.ip }}" onclick="handleInfraRowClick(this)" style="cursor:pointer">
-  <td><span style="font-weight:600">{{ r.ip }}</span></td>
+  <td>
+    <span style="font-weight:600">{{ r.ip }}</span>
+    {% if r.profile_hostname %}<span style="font-size:0.75rem;color:var(--on-surface-dim)"> · {{ r.profile_hostname }}</span>{% endif %}
+    {% if r.profile_role and r.profile_role != 'unknown' %}<span class="badge-cat" style="margin-left:4px">{{ r.profile_role | replace('_',' ') | title }}</span>{% endif %}
+  </td>
   <td style="font-size:0.82rem">{% if r.org_icon %}<i class="{{ r.org_icon }} org-icon org-{{ r.org_category }}" title="{{ r.org_name }}"></i>{% endif %}{{ r.org_name }}</td>
   <td><span class="badge-cat">{{ r.org_category|replace('_',' ')|title }}</span></td>
   <td>{{ r.actor|replace('_',' ')|title if r.actor else '—' }}</td>

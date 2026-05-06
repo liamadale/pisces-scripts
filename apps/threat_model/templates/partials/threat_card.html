@@ -8,6 +8,8 @@
         <i class="fa-solid fa-circle-check"></i> FALSE POSITIVE
       {% elif verdict == 'observed' %}
         <i class="fa-solid fa-eye"></i> OBSERVED
+      {% elif verdict == 'infra' %}
+        <i class="fa-solid fa-server"></i> INTERNAL
       {% else %}
         <i class="fa-solid fa-circle-question"></i> UNKNOWN
       {% endif %}
@@ -26,6 +28,8 @@
       <span style="color:var(--on-surface-dim);font-size:0.78rem">score: {{ fp.score }}</span>
     {% elif verdict == 'observed' %}
       <span class="badge badge-yellow">{{ ticket_total }} ticket{{ 's' if ticket_total != 1 else '' }}</span>
+    {% elif verdict == 'infra' %}
+      {% if ticket_total > 0 %}<span class="badge badge-blue">{{ ticket_total }} ticket{{ 's' if ticket_total != 1 else '' }}</span>{% endif %}
     {% else %}
       <span class="badge badge-gray">not in database</span>
     {% endif %}
@@ -96,6 +100,20 @@
         <span class="v">{{ fp.score }}</span>
       </div>
     </div>
+  </div>
+  {% elif verdict == 'infra' %}
+  <div class="threat-card-body">
+    {% if device_profile %}
+      {% include "partials/device_profile_card.html" %}
+    {% else %}
+      <div hx-get="{{ script_name }}/api/ip/{{ ip }}/profile"
+           hx-trigger="load"
+           hx-swap="outerHTML">
+        <p style="color:var(--on-surface-dim);font-size:0.82rem">
+          <i class="fa-solid fa-spinner fa-spin"></i> Loading device profile&hellip;
+        </p>
+      </div>
+    {% endif %}
   </div>
   {% endif %}
 

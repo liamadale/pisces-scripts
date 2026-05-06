@@ -1,0 +1,120 @@
+{% set dp = device_profile %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 2rem">
+
+  {# ── Left column ── #}
+  <div>
+
+    {# Identity #}
+    {% if dp.hostname or dp.dhcp_hostname or dp.mac or dp.users %}
+    <div class="threat-kv">
+      <span class="k">Hostname</span>
+      <span class="v">{{ dp.hostname or dp.dhcp_hostname or '—' }}{% if dp.ad_domain %}<span style="color:var(--on-surface-dim)">.{{ dp.ad_domain }}</span>{% endif %}</span>
+    </div>
+    {% if dp.mac %}
+    <div class="threat-kv">
+      <span class="k">MAC</span>
+      <span class="v" style="font-family:monospace">{{ dp.mac }}</span>
+    </div>
+    {% endif %}
+    {% if dp.users %}
+    <div class="threat-kv">
+      <span class="k">Users</span>
+      <span class="v">{{ dp.users | join(', ') }}</span>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# Classification #}
+    <div class="threat-kv">
+      <span class="k">Role</span>
+      <span class="v">
+        {% if dp.role and dp.role != 'unknown' %}
+          <span class="badge-cat">{{ dp.role | replace('_', ' ') | title }}</span>
+          <span style="color:var(--on-surface-dim);font-size:0.78rem"> {{ (dp.confidence * 100) | int }}%</span>
+        {% else %}
+          —
+        {% endif %}
+      </span>
+    </div>
+    <div class="threat-kv">
+      <span class="k">OS</span>
+      <span class="v">{{ dp.os_family or '—' }}</span>
+    </div>
+    {% if dp.software %}
+    <div class="threat-kv">
+      <span class="k">Software</span>
+      <span class="v" style="font-size:0.8rem">{{ dp.software | join(', ') }}</span>
+    </div>
+    {% endif %}
+
+    {# Network summary #}
+    <div class="threat-kv" style="margin-top:0.4rem">
+      <span class="k">Bytes Out</span>
+      <span class="v">{{ dp.bytes_sent | filesizeformat if dp.bytes_sent else '—' }}</span>
+    </div>
+    <div class="threat-kv">
+      <span class="k">Bytes In</span>
+      <span class="v">{{ dp.bytes_received | filesizeformat if dp.bytes_received else '—' }}</span>
+    </div>
+    <div class="threat-kv">
+      <span class="k">Unique Dests</span>
+      <span class="v">{{ dp.unique_dest_count or '—' }}</span>
+    </div>
+
+  </div>
+
+  {# ── Right column ── #}
+  <div>
+
+    {# Inbound services #}
+    {% if dp.inbound_services %}
+    <div style="margin-bottom:0.5rem">
+      <span class="k" style="display:block;margin-bottom:2px">Inbound Services</span>
+      <table style="width:100%;font-size:0.78rem;border-collapse:collapse">
+        {% for svc in dp.inbound_services[:6] %}
+        <tr>
+          <td style="color:var(--on-surface-dim);padding:1px 6px 1px 0">{{ svc.port }}/{{ svc.app_proto or 'tcp' }}</td>
+          <td style="color:var(--on-surface-dim);padding:1px 0">{{ svc.count }} conns</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
+    {# Risk signals #}
+    {% set risk = [] %}
+    {% if dp.rdp_inbound %}{% set _ = risk.append('RDP inbound' + (' (' + dp.rdp_usernames[:3]|join(', ') + ')' if dp.rdp_usernames else '')) %}{% endif %}
+    {% if dp.ssh_inbound %}{% set _ = risk.append('SSH inbound') %}{% endif %}
+    {% if dp.admin_targets %}{% set _ = risk.append('RDP admin → ' + dp.admin_targets[:3]|join(', ')) %}{% endif %}
+    {% if dp.ssh_admin_targets %}{% set _ = risk.append('SSH admin → ' + dp.ssh_admin_targets[:3]|join(', ')) %}{% endif %}
+    {% if risk %}
+    <div class="threat-kv" style="margin-bottom:0.4rem">
+      <span class="k">Risk Signals</span>
+      <span class="v" style="font-size:0.8rem;color:var(--warning,#e8a44b)">
+        {% for r in risk %}<span style="display:block">{{ r }}</span>{% endfor %}
+      </span>
+    </div>
+    {% endif %}
+
+    {# Top DNS domains #}
+    {% if dp.dns_top_domains %}
+    <div>
+      <span class="k" style="display:block;margin-bottom:2px">Top DNS Domains</span>
+      <ul style="list-style:none;padding:0;margin:0;font-size:0.78rem;color:var(--on-surface-dim)">
+        {% for d in dp.dns_top_domains[:5] %}
+        <li>{{ d.domain }} <span style="color:var(--on-surface-dimmer,#666)">×{{ d.count }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+
+</div>
+
+{# Footer: profiled-at metadata #}
+<div style="margin-top:0.6rem;font-size:0.72rem;color:var(--on-surface-dim)">
+  Profiled {{ dp.profiled_at[:10] if dp.profiled_at else '?' }}
+  &nbsp;·&nbsp; sensor={{ dp.sensor }}
+  &nbsp;·&nbsp; range={{ dp.time_range }}
+</div>

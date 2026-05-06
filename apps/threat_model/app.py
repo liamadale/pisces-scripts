@@ -15,6 +15,7 @@ from apps.threat_model.data import (
     INFRA_ROWS,
     MALICIOUS_BY_IP,
     MALICIOUS_ROWS,
+    PROFILES_BY_IP,
     TICKETS_BY_ID,
     UNDETERMINED_ROWS,
     _fp_row,
@@ -203,12 +204,14 @@ def create_app() -> Flask:
         ticket_slice = tickets[:TICKETS_PER_CARD_PAGE]
         raw_mal = MALICIOUS_BY_IP.get(ip)
         raw_fp = FP_BY_IP.get(ip)
+        verdict = classify_ip(ip)
         return render_template(
             "partials/threat_card.html",
             ip=ip,
-            verdict=classify_ip(ip),
+            verdict=verdict,
             malicious=_malicious_row(raw_mal) if raw_mal else None,
             fp=_fp_row(raw_fp) if raw_fp else None,
+            device_profile=PROFILES_BY_IP.get(ip) if verdict == "infra" else None,
             tickets=ticket_slice,
             ticket_page=1,
             ticket_pages=ticket_pages,
@@ -237,11 +240,44 @@ def create_app() -> Flask:
             verdict=verdict,
             malicious=_malicious_row(raw_mal) if raw_mal and verdict != "fp" else None,
             fp=_fp_row(raw_fp) if raw_fp else None,
+            device_profile=PROFILES_BY_IP.get(ip) if verdict == "infra" else None,
             tickets=ticket_slice,
             ticket_page=1,
             ticket_pages=ticket_pages,
             ticket_total=len(tickets),
         )
+
+    # ------------------------------------------------------------------
+    # GET /api/ip/<ip>/profile  — HTMX: live device profile for private IPs
+    # ------------------------------------------------------------------
+    @app.route("/api/ip/<ip>/profile")
+    def api_ip_profile(ip: str):
+        from dataclasses import asdict
+
+        from src.profiler.device_profiler import profile_device
+        from src.querier.zeek_modules.base import is_private
+
+        if not is_private(ip):
+            return (
+                "<p style='color:var(--on-surface-dim);font-size:0.82rem'>Not a private IP.</p>"
+            ), 400
+
+        time_range = request.args.get("time_range", "now-7d")
+        sensor = request.args.get("sensor", "all")
+
+        try:
+            profile = profile_device(ip, time_range=time_range, sensor=sensor)
+            dp = asdict(profile)
+            dp["dest_port_distribution"] = {
+                str(k): v for k, v in dp["dest_port_distribution"].items()
+            }
+        except Exception as exc:
+            return (
+                f"<p style='color:var(--on-surface-dim);font-size:0.82rem'>"
+                f"Profile unavailable: {exc}</p>"
+            ), 200
+
+        return render_template("partials/device_profile_card.html", device_profile=dp)
 
     # ------------------------------------------------------------------
     # GET /api/ip/<ip>/tickets?page=N  — HTMX: paginate ticket list
