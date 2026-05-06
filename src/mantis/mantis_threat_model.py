@@ -26,6 +26,7 @@ from src.mantis.threat_model import (
     generate_infra_registry,
     generate_threat_db,
     generate_undetermined_registry,
+    profile_private_ips,
 )
 from src.mantis.threat_model._shared import _PROGRESS_INTERVAL, console
 from src.mantis.ticket_enrichment import (
@@ -298,6 +299,49 @@ def main() -> None:
             "all registries are regenerated with the updated signals."
         ),
     )
+    parser.add_argument(
+        "--profile-private-ips",
+        action="store_true",
+        default=False,
+        dest="profile_private_ips",
+        help=(
+            "Batch-profile private IPs from the infra registry using device_profiler. "
+            "Results are written to --profile-output (default: private_ip_profiles.json). "
+            "Already-profiled IPs are skipped unless --profile-force is set."
+        ),
+    )
+    parser.add_argument(
+        "--profile-output",
+        default=os.path.join(_BASE, "data", "tickets", "enriched", "private_ip_profiles.json"),
+        dest="profile_output",
+        help="Output path for the device profile sidecar (JSON)",
+    )
+    parser.add_argument(
+        "--profile-time-range",
+        default="now-7d",
+        dest="profile_time_range",
+        help="Elasticsearch date-math range for profiling queries (default: now-7d)",
+    )
+    parser.add_argument(
+        "--profile-sensor",
+        default="all",
+        dest="profile_sensor",
+        help="Sensor hostname to profile against, or 'all' for cross-sensor aggregate (default: all)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--profile-workers",
+        type=int,
+        default=5,
+        dest="profile_workers",
+        help="Number of concurrent IP profilers (each runs 11 parallel ES queries, default: 5)",
+    )
+    parser.add_argument(
+        "--profile-force",
+        action="store_true",
+        default=False,
+        dest="profile_force",
+        help="Re-profile IPs that already exist in the sidecar",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -332,6 +376,17 @@ def main() -> None:
     )
     generate_dns_resolver_registry(tickets, args.dns_output)
     generate_undetermined_registry(tickets, args.undetermined_output, provider)
+
+    if args.profile_private_ips:
+        console.print("\n[bold cyan]Private IP profiling pass (--profile-private-ips)[/bold cyan]")
+        profile_private_ips(
+            infra_path=args.infra_output,
+            output_path=args.profile_output,
+            time_range=args.profile_time_range,
+            sensor=args.profile_sensor,
+            workers=args.profile_workers,
+            force=args.profile_force,
+        )
 
     if args.enrich:
         console.print("\n[bold cyan]API enrichment pass (--enrich)[/bold cyan]")
