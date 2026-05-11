@@ -24,7 +24,11 @@ from src.querier.zeek_modules import (
     MODULES,
     MODULES_BY_CATEGORY,
 )
-from src.querier.zeek_modules.base import TIME_RANGES
+from src.querier.zeek_modules.base import (
+    TIME_RANGES,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+)
 from src.utils.format import fmt_dur
 
 # ------------------------------------------------------------------
@@ -125,7 +129,12 @@ def create_app() -> Flask:
     @app.route("/")
     def overview():
         search_params = build_search_params_from_request(request)
-        rows = run_cross_protocol_query(search_params)
+        error = None
+        rows = []
+        try:
+            rows = run_cross_protocol_query(search_params)
+        except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+            error = str(exc)
         # Build per-category module lists, excluding non-IP modules (pe, capture_loss)
         ip_modules_by_category = {
             cat: [lt for lt in lts if MODULES[lt].SUPPORTS_IP_FILTER]
@@ -134,6 +143,7 @@ def create_app() -> Flask:
         return render_template(
             "overview.html",
             rows=rows,
+            error=error,
             search_params=search_params,
             ip_modules_by_category=ip_modules_by_category,
         )
@@ -147,16 +157,22 @@ def create_app() -> Flask:
         search_params["src_ip"] = ip
 
         results: dict = {}
+        error = None
         for lt, mod in MODULES.items():
             if not mod.SUPPORTS_IP_FILTER:
                 continue  # pe, capture_loss have no src_ip to pivot on
             sp = dict(search_params)
-            results[lt] = cached_run_query(lt, sp)
+            try:
+                results[lt] = cached_run_query(lt, sp)
+            except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+                error = str(exc)
+                break
 
         return render_template(
             "ip_pivot.html",
             ip=ip,
             results=results,
+            error=error,
             search_params=search_params,
         )
 
@@ -175,12 +191,19 @@ def create_app() -> Flask:
         # unless the user has drilled into a specific value.
         has_drill_filter = bool(mod.SUMMARY_PARAM and search_params.get(mod.SUMMARY_PARAM))
         summary_mode = bool(mod.SUMMARY_FIELD) and not has_drill_filter
-        records = [] if summary_mode else cached_run_query(log_type, search_params)
+        error = None
+        records = []
+        if not summary_mode:
+            try:
+                records = cached_run_query(log_type, search_params)
+            except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+                error = str(exc)
 
         return render_template(
             "log_view.html",
             log_type=log_type,
             records=records,
+            error=error,
             search_params=search_params,
             extra_keys=extra_keys,
             detail_fields=mod.DETAIL_FIELDS,
@@ -200,11 +223,22 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
-        records = cached_run_query(log_type, search_params)
+        try:
+            records = cached_run_query(log_type, search_params)
+        except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+            return render_template(
+                "partials/log_rows.html",
+                log_type=log_type,
+                records=[],
+                error=str(exc),
+                detail_fields=mod.DETAIL_FIELDS,
+                web_columns=mod.WEB_COLUMNS,
+            )
         return render_template(
             "partials/log_rows.html",
             log_type=log_type,
             records=records,
+            error=None,
             detail_fields=mod.DETAIL_FIELDS,
             web_columns=mod.WEB_COLUMNS,
         )
@@ -597,17 +631,25 @@ def create_app() -> Flask:
         time_range = request.args.get("time_range", "now-7d")
         compact = request.args.get("compact") == "1"
 
-        if is_private(ip):
-            from src.profiler.device_profiler import profile_device
+        try:
+            if is_private(ip):
+                from src.profiler.device_profiler import profile_device
 
-            profile = profile_device(ip, time_range=time_range, sensor=sensor)
-            return render_template("partials/device_card.html", profile=profile, compact=compact)
-        else:
-            from src.profiler.public_ip_profiler import profile_public_ip
+                profile = profile_device(ip, time_range=time_range, sensor=sensor)
+                return render_template(
+                    "partials/device_card.html", profile=profile, compact=compact
+                )
+            else:
+                from src.profiler.public_ip_profiler import profile_public_ip
 
-            profile = profile_public_ip(ip, time_range=time_range)
-            return render_template(
-                "partials/public_device_card.html", profile=profile, compact=compact
+                profile = profile_public_ip(ip, time_range=time_range)
+                return render_template(
+                    "partials/public_device_card.html", profile=profile, compact=compact
+                )
+        except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+            return (
+                f'<p class="investigate-error">'
+                f'<i class="fa-solid fa-triangle-exclamation"></i> {exc}</p>'
             )
 
     # ------------------------------------------------------------------

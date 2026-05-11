@@ -2,10 +2,20 @@
 
 from src.querier.zeek_modules.base import (
     FILTERS_DIR,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
     build_base_query,
     load_with_remap,
     query_opensearch,
 )
+
+
+def _safe_query(body: dict, params: dict) -> dict | None:
+    """query_opensearch wrapper that returns None on connectivity/auth errors."""
+    try:
+        return query_opensearch(body, params)
+    except (OpenSearchConnectionError, OpenSearchAuthError):
+        return None
 
 
 def parse_sensors(raw: str) -> list | None:
@@ -53,7 +63,7 @@ def agg_opensearch_sensors(time_range: str) -> dict:
             }
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", []) if raw else []
     return {
         "labels": [b["key"] for b in buckets],
@@ -81,7 +91,7 @@ def agg_opensearch_notice_count(time_range: str, sensors: list | None = None) ->
     body["size"] = 0
     body.pop("sort", None)
     body.pop("_source", None)
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     if not raw:
         return 0
     return raw.get("hits", {}).get("total", {}).get("value", 0)
@@ -127,7 +137,7 @@ def agg_suricata_alert_count(time_range: str, sensors: list | None = None) -> in
     body["size"] = 0
     body.pop("sort", None)
     body.pop("_source", None)
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     if not raw:
         return 0
     return raw.get("hits", {}).get("total", {}).get("value", 0)
@@ -160,7 +170,7 @@ def agg_suricata_over_time(time_range: str, sensors: list | None = None) -> dict
             }
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("over_time", {}).get("buckets", []) if raw else []
     return {
         "timestamps": [b["key_as_string"] for b in buckets],
@@ -199,7 +209,7 @@ def agg_notice_over_time(time_range: str, sensors: list | None = None) -> dict:
             }
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("over_time", {}).get("buckets", []) if raw else []
     return {
         "timestamps": [b["key_as_string"] for b in buckets],
@@ -235,7 +245,7 @@ def agg_conn_volume_over_time(time_range: str, sensors: list | None = None) -> d
             }
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("over_time", {}).get("buckets", []) if raw else []
     return {
         "timestamps": [b["key_as_string"] for b in buckets],
@@ -276,7 +286,7 @@ def agg_logs_by_sensor_over_time(time_range: str, sensors: list | None = None) -
             },
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     sensor_buckets = (
         raw.get("aggregations", {}).get("by_sensor", {}).get("buckets", []) if raw else []
     )
@@ -332,7 +342,7 @@ def agg_new_ips_delta(time_range: str, sensors: list | None = None) -> dict:
         body["aggs"] = {
             "uniq": {"cardinality": {"field": "source.ip", "precision_threshold": 3000}}
         }
-        raw = query_opensearch(body, params)
+        raw = _safe_query(body, params)
         if not raw:
             return 0
         return raw.get("aggregations", {}).get("uniq", {}).get("value", 0)

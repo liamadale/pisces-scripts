@@ -71,9 +71,15 @@ def make_mantis_blueprint(
         query = request.args.get("query", "").strip()
         idx = request.args.get("idx", "0")
         city = resolve_city(request)
-        tickets = search(query, city=city) if query else []
+        error = None
+        tickets: list = []
+        if query:
+            try:
+                tickets = search(query, city=city)
+            except Exception as exc:
+                error = str(exc)
         return render_template(
-            "partials/mantis_results.html", tickets=tickets, query=query, idx=idx
+            "partials/mantis_results.html", tickets=tickets, query=query, idx=idx, error=error
         )
 
     return bp

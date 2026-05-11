@@ -5,7 +5,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from apps.opensearch_web import cache as wcache
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import console, run_query
+from src.querier.zeek_modules.base import (
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+    console,
+    run_query,
+)
 
 
 def build_search_params_from_request(request, extra_keys=None) -> dict:
@@ -46,15 +51,23 @@ def run_cross_protocol_query(search_params: dict) -> list:
     """
     ip_modules = {lt: mod for lt, mod in MODULES.items() if mod.SUPPORTS_IP_FILTER}
     results_by_type: dict = {}
+    first_conn_error: Exception | None = None
     with ThreadPoolExecutor(max_workers=len(ip_modules)) as ex:
         futures = {ex.submit(cached_run_query, lt, search_params): lt for lt in ip_modules}
         for f in as_completed(futures):
             lt = futures[f]
             try:
                 results_by_type[lt] = f.result()
+            except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+                if first_conn_error is None:
+                    first_conn_error = exc
+                results_by_type[lt] = []
             except Exception as exc:
                 results_by_type[lt] = []
                 console.print(f"[yellow]Cross-protocol query failed for {lt}: {exc}[/yellow]")
+
+    if first_conn_error is not None:
+        raise first_conn_error
 
     ip_data: dict = defaultdict(lambda: {"per_protocol": {lt: 0 for lt in ip_modules}, "total": 0})
     for lt, records in results_by_type.items():
