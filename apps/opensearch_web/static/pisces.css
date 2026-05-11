@@ -1667,3 +1667,30 @@ tr.detail-row td {
   line-height: 1.5;
 }
 .log-count-btn--empty .log-count-badge { background: var(--on-surface-dim); }
+
+/* ── Query error banner ───────────────────────────────── */
+.query-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .85rem 1.1rem;
+  margin: 1rem 0;
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  border-radius: var(--radius-card);
+  color: var(--on-surface);
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.query-error-banner i {
+  color: var(--red);
+  margin-top: .15rem;
+  flex-shrink: 0;
+}
+.query-error-cell {
+  text-align: left;
+  color: var(--red);
+  padding: .75rem 1rem;
+  font-size: .85rem;
+}
+.query-error-cell i { margin-right: .4rem; }

@@ -1189,3 +1189,29 @@ tr.ticket-row-active {
 .org-icon.org-scanner  { color: var(--yellow); }
 .org-icon.org-research { color: var(--purple); }
 .org-icon.org-private  { color: var(--on-surface-dim); }
+
+/* ── No-data banner ────────────────────────────────────── */
+.tm-no-data-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  padding: .9rem 1.2rem;
+  margin: 0 0 1rem;
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+  border-radius: var(--radius-card);
+  font-size: .875rem;
+  line-height: 1.55;
+}
+.tm-no-data-banner i {
+  color: var(--yellow);
+  margin-top: .2rem;
+  flex-shrink: 0;
+}
+.tm-no-data-banner code {
+  font-family: var(--font-mono, monospace);
+  font-size: .8rem;
+  background: color-mix(in srgb, var(--on-surface) 10%, transparent);
+  padding: .1rem .35rem;
+  border-radius: 3px;
+}

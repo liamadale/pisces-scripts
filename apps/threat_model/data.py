@@ -59,6 +59,9 @@ _raw_dns_resolvers = _load_optional("enriched/dns_resolver_ips.json")
 _raw_undetermined = _load_optional("enriched/undetermined_ips.json")
 _raw_profiles = _load_optional("enriched/private_ip_profiles.json")
 
+# True when the pipeline has been run and data files exist.
+DATA_AVAILABLE: bool = bool(_raw_tickets or _raw_malicious or _raw_fp)
+
 # ---------------------------------------------------------------------------
 # Indices
 # ---------------------------------------------------------------------------

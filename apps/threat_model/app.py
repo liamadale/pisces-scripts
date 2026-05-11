@@ -9,6 +9,7 @@ from apps.threat_model.data import (
     ALL_BLOCKLISTS,
     ALL_FP_CATEGORIES,
     ALL_INFRA_CATEGORIES,
+    DATA_AVAILABLE,
     DNS_RESOLVER_ROWS,
     FP_BY_IP,
     FP_ROWS,
@@ -188,6 +189,7 @@ def create_app() -> Flask:
             infra_total=len(INFRA_ROWS),
             dns_resolver_total=len(DNS_RESOLVER_ROWS),
             undetermined_total=len(UNDETERMINED_ROWS),
+            data_available=DATA_AVAILABLE,
         )
 
     # ------------------------------------------------------------------

@@ -31,6 +31,13 @@
   <div id="enrich-slot"></div>
 </div>
 
+{% if error %}
+<div class="query-error-banner">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <strong>OpenSearch unavailable</strong> — {{ error }}
+</div>
+{% endif %}
+
 {% for lt, records in results.items() %}
 {% set mod = MODULES[lt] %}
 {% set web_columns = mod.WEB_COLUMNS %}

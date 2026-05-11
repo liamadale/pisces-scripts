@@ -1,4 +1,9 @@
-{% if not tickets %}
+{% if error %}
+<p class="investigate-error">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  Mantis unavailable: {{ error }}
+</p>
+{% elif not tickets %}
 <p class="empty-note">
   <i class="fa-solid fa-ticket"></i>
   {% if query %}No tickets found for <strong>{{ query }}</strong>.{% else %}Enter a query above.{% endif %}
