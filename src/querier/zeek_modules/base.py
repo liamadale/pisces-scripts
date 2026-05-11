@@ -29,6 +29,15 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 console = Console(file=sys.stderr)
 
+
+class OpenSearchConnectionError(RuntimeError):
+    """Raised when OpenSearch is unreachable or the URL / credentials are not configured."""
+
+
+class OpenSearchAuthError(RuntimeError):
+    """Raised when OpenSearch rejects the supplied credentials (HTTP 401)."""
+
+
 # Backwards-compatible aliases — zeek modules import these names from .base
 _fmt_bytes = fmt_bytes
 _fmt_dur = fmt_dur
@@ -186,14 +195,18 @@ _load_cache = load_cache
 
 
 def _opensearch_session() -> tuple:
-    """Return (base_url, authenticated Session) or (None, None) on missing creds."""
+    """Return (base_url, authenticated Session).
+
+    Raises OpenSearchConnectionError when credentials are not configured.
+    """
     opensearch_url = os.environ.get("OPENSEARCH_URL", OPENSEARCH_URL)
     username = os.environ.get("PISCES_USERNAME", "")
     password = os.environ.get("PISCES_PASSWORD", "")
 
     if not username or not password:
-        console.print("[red]PISCES_USERNAME and PISCES_PASSWORD must be set in .env[/red]")
-        return None, None
+        raise OpenSearchConnectionError(
+            "PISCES_USERNAME and PISCES_PASSWORD must be set — check your .env file"
+        )
 
     session = requests.Session()
     session.auth = (username, password)
@@ -207,10 +220,12 @@ def _opensearch_session() -> tuple:
     return opensearch_url, session
 
 
-def query_opensearch(body: dict, params: dict) -> dict | None:
+def query_opensearch(body: dict, params: dict) -> dict:
+    """Submit a query to OpenSearch.
+
+    Raises OpenSearchConnectionError or OpenSearchAuthError on failure.
+    """
     base_url, session = _opensearch_session()
-    if session is None:
-        return None
 
     try:
         resp = session.post(
@@ -220,18 +235,19 @@ def query_opensearch(body: dict, params: dict) -> dict | None:
             timeout=30,
         )
     except requests.RequestException as exc:
-        console.print(f"[red]OpenSearch request failed: {exc}[/red]")
-        return None
+        raise OpenSearchConnectionError(
+            f"Cannot reach OpenSearch at {base_url} — are you on the VPN? ({exc})"
+        ) from exc
 
     if resp.status_code == 401:
-        console.print(
-            "[red]OpenSearch authentication failed — check PISCES_USERNAME/PASSWORD[/red]"
+        raise OpenSearchAuthError(
+            "OpenSearch rejected the credentials — check PISCES_USERNAME/PASSWORD"
         )
-        return None
 
     if not resp.ok:
-        console.print(f"[red]OpenSearch error {resp.status_code}: {resp.text[:300]}[/red]")
-        return None
+        raise OpenSearchConnectionError(
+            f"OpenSearch returned HTTP {resp.status_code}: {resp.text[:300]}"
+        )
 
     return resp.json()
 
@@ -511,10 +527,6 @@ def run_query(module, search_params: dict) -> list:
             f" ({search_params.get('time_range', 'now-24h')})...[/dim]"
         )
         raw = query_opensearch(body, params)
-        if raw is None:
-            if search_params.get("raise_on_error"):
-                raise RuntimeError("OpenSearch query failed — check credentials and OPENSEARCH_URL")
-            return []
         if not search_params.get("profile"):
             _save_cache(raw, cpath)
 
@@ -766,8 +778,10 @@ def list_sensors(time_range: str = "now-7d") -> None:
     params = {"path": f"{INDEX}/_search", "method": "POST"}
 
     console.print(f"[dim]Querying host.name values ({time_range})...[/dim]")
-    raw = query_opensearch(body, params)
-    if raw is None:
+    try:
+        raw = query_opensearch(body, params)
+    except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+        console.print(f"[red]{exc}[/red]")
         return
 
     buckets = raw.get("aggregations", {}).get("sensors", {}).get("buckets", [])
@@ -817,8 +831,10 @@ def list_log_types(time_range: str = "now-7d") -> None:
     params = {"path": f"{INDEX}/_search", "method": "POST"}
 
     console.print(f"[dim]Querying event.dataset values ({time_range})...[/dim]")
-    raw = query_opensearch(body, params)
-    if raw is None:
+    try:
+        raw = query_opensearch(body, params)
+    except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+        console.print(f"[red]{exc}[/red]")
         return
 
     buckets = raw.get("aggregations", {}).get("log_types", {}).get("buckets", [])
@@ -844,8 +860,10 @@ def list_log_types(time_range: str = "now-7d") -> None:
 
 def list_indices() -> None:
     """List all indices in the cluster sorted by doc count."""
-    base_url, session = _opensearch_session()
-    if session is None:
+    try:
+        base_url, session = _opensearch_session()
+    except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+        console.print(f"[red]{exc}[/red]")
         return
 
     try:
@@ -861,7 +879,7 @@ def list_indices() -> None:
             timeout=30,
         )
     except requests.RequestException as exc:
-        console.print(f"[red]OpenSearch request failed: {exc}[/red]")
+        console.print(f"[red]Cannot reach OpenSearch at {base_url}: {exc}[/red]")
         return
 
     if not resp.ok:
@@ -905,8 +923,10 @@ def match_all_sample(time_range: str = "now-24h", limit: int = 3) -> None:
     params = {"path": f"{INDEX}/_search", "method": "POST"}
 
     console.print(f"[dim]match_all against '{INDEX}' ({time_range}, limit {limit})...[/dim]")
-    raw = query_opensearch(body, params)
-    if raw is None:
+    try:
+        raw = query_opensearch(body, params)
+    except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+        console.print(f"[red]{exc}[/red]")
         return
 
     total = raw.get("hits", {}).get("total", {})

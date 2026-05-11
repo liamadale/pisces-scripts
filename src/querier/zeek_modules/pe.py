@@ -6,7 +6,15 @@ import threading
 from rich import box
 from rich.table import Table
 
-from .base import INDEX, ZeekModule, _sensor_str, console, query_opensearch
+from .base import (
+    INDEX,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+    ZeekModule,
+    _sensor_str,
+    console,
+    query_opensearch,
+)
 
 _tl = threading.local()
 
@@ -146,8 +154,9 @@ class PEModule(ZeekModule):
                 "_source": ["zeek.files.fuid", "zeek.files.sha256", "zeek.files.md5"],
             }
             params = {"path": f"{INDEX}/_search", "method": "POST"}
-            raw = query_opensearch(body, params)
-            if raw is None:
+            try:
+                raw = query_opensearch(body, params)
+            except (OpenSearchConnectionError, OpenSearchAuthError):
                 continue
             for h in raw.get("hits", {}).get("hits", []):
                 s = h.get("_source", {}).get("zeek", {}).get("files", {})

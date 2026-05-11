@@ -7,7 +7,16 @@ from datetime import datetime, timezone
 from rich import box
 from rich.table import Table
 
-from .base import INDEX, ZeekModule, _sensor_str, console, is_private, query_opensearch
+from .base import (
+    INDEX,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+    ZeekModule,
+    _sensor_str,
+    console,
+    is_private,
+    query_opensearch,
+)
 
 _tl = threading.local()
 
@@ -108,8 +117,9 @@ class X509Module(ZeekModule):
                 "_source": ["network.community_id", "source.ip", "destination.ip"],
             }
             params = {"path": f"{INDEX}/_search", "method": "POST"}
-            raw = query_opensearch(body, params)
-            if raw is None:
+            try:
+                raw = query_opensearch(body, params)
+            except (OpenSearchConnectionError, OpenSearchAuthError):
                 continue
             for h in raw.get("hits", {}).get("hits", []):
                 s = h.get("_source", {})

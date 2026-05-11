@@ -26,6 +26,8 @@ from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import (
     FILTERS_DIR,
     TIME_RANGES,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
     build_base_query,
     console,
     interactive_loop,
@@ -207,7 +209,11 @@ def main() -> None:
         return
 
     # 7. Execute query
-    records = run_query(module, search_params)
+    try:
+        records = run_query(module, search_params)
+    except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        return
     if not records:
         console.print(
             "[yellow]No records returned. Filters may be too aggressive"
