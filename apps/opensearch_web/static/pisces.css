@@ -1458,6 +1458,12 @@ tr.detail-row td {
 .device-card-footer { padding: .5rem 1rem; font-size: .75rem; color: var(--on-surface-dim); border-top: 1px solid var(--border); }
 .device-card-footer .btn-link { background: none; border: none; color: var(--primary); cursor: pointer; font-size: .75rem; padding: 0; margin-right: .5rem; text-decoration: underline; }
 .device-card-users { padding: 0 1rem .5rem; font-size: .8rem; color: var(--on-surface-dim); border-bottom: 1px solid var(--border); }
+.device-card-traffic { padding: .4rem 1rem; font-size: .8rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: center; }
+.dct-up   { color: var(--green); font-weight: 600; font-family: var(--mono); }
+.dct-down { color: var(--on-surface); font-weight: 600; font-family: var(--mono); }
+.dct-sep  { color: var(--on-surface-dim); }
+.dct-dests { color: var(--on-surface-dim); }
+.dct-status { color: var(--on-surface-dim); font-style: italic; }
 .role-badge { padding: 2px 8px; border-radius: 4px; font-size: .8rem; font-weight: 600; }
 .role-domain_controller { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
 .role-file_server { background: color-mix(in srgb, var(--yellow) 15%, transparent); color: var(--yellow); }

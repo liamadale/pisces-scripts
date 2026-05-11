@@ -28,6 +28,26 @@ from src.querier.zeek_modules.base import (
 
 _PARAMS = {"path": f"{INDEX}/_search", "method": "POST"}
 
+_CONN_BLOCKED = {"S0", "RSTOS0", "SH"}
+_CONN_REJECTED = {"REJ", "RSTR", "RSTRH"}
+_CONN_NORMAL = {"SF", "S2", "S3"}
+
+
+def _derive_conn_status(state_dist: dict[str, int]) -> str:
+    """Translate a conn_state frequency map into a plain-English firewall signal."""
+    if not state_dist:
+        return ""
+    dominant = max(state_dist, key=lambda k: state_dist[k])
+    if dominant in _CONN_BLOCKED:
+        return "No response — likely blocked"
+    if dominant in _CONN_REJECTED:
+        return "Actively rejected"
+    if dominant in _CONN_NORMAL:
+        return "Connections completed"
+    if dominant == "S1":
+        return "Active connections"
+    return f"Mostly {dominant}"
+
 
 # ---------------------------------------------------------------------------
 # DeviceProfile dataclass
@@ -57,6 +77,8 @@ class DeviceProfile:
     protocol_mix: dict[str, int] = field(default_factory=dict)
     unique_dest_count: int = 0
     bytes_sent: int = 0
+    conn_state_distribution: dict[str, int] = field(default_factory=dict)
+    conn_status: str = ""
     ja4t_fingerprints: list[dict] = field(default_factory=list)
 
     # Inbound conn (device as server)
@@ -125,6 +147,7 @@ def _conn_outbound_query(ip: str, time_range: str, sensor: str) -> dict:
             "app_protos": {"terms": {"field": "network.application", "size": 10}},
             "unique_dests": {"cardinality": {"field": "destination.ip"}},
             "total_bytes": {"sum": {"field": "source.bytes"}},
+            "conn_states": {"terms": {"field": "zeek.conn.conn_state", "size": 10}},
             "ja4t_fingerprints": {"terms": {"field": "zeek.conn.ja4t", "size": 5}},
             "time_range": {"stats": {"field": "@timestamp"}},
         },
@@ -393,12 +416,16 @@ def _parse_outbound(aggs: dict) -> dict:
         {"hash": b["key"], "count": b["doc_count"]}
         for b in aggs.get("ja4t_fingerprints", {}).get("buckets", [])
     ]
+    conn_state_dist = {
+        b["key"]: b["doc_count"] for b in aggs.get("conn_states", {}).get("buckets", [])
+    }
     ts = aggs.get("time_range", {})
     return {
         "dest_port_distribution": dest_ports,
         "protocol_mix": app_protos,
         "unique_dest_count": int(aggs.get("unique_dests", {}).get("value", 0)),
         "bytes_sent": int(aggs.get("total_bytes", {}).get("value", 0)),
+        "conn_state_distribution": conn_state_dist,
         "ja4t_fingerprints": ja4t,
         "first_seen": ts.get("min_as_string", ""),
         "last_seen": ts.get("max_as_string", ""),
@@ -611,6 +638,8 @@ def profile_device(
         protocol_mix=out["protocol_mix"],
         unique_dest_count=out["unique_dest_count"],
         bytes_sent=out["bytes_sent"],
+        conn_state_distribution=out["conn_state_distribution"],
+        conn_status=_derive_conn_status(out["conn_state_distribution"]),
         ja4t_fingerprints=out["ja4t_fingerprints"],
         inbound_services=inb["inbound_services"],
         inbound_client_count=inb["inbound_client_count"],

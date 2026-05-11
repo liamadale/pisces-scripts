@@ -15,6 +15,26 @@ from src.utils.ip_org import lookup_org
 
 _PARAMS = {"path": f"{INDEX}/_search", "method": "POST"}
 
+_CONN_BLOCKED = {"S0", "RSTOS0", "SH"}
+_CONN_REJECTED = {"REJ", "RSTR", "RSTRH"}
+_CONN_NORMAL = {"SF", "S2", "S3"}
+
+
+def _derive_conn_status(state_dist: dict[str, int]) -> str:
+    """Translate a conn_state frequency map into a plain-English firewall signal."""
+    if not state_dist:
+        return ""
+    dominant = max(state_dist, key=lambda k: state_dist[k])
+    if dominant in _CONN_BLOCKED:
+        return "No response — likely blocked"
+    if dominant in _CONN_REJECTED:
+        return "Actively rejected"
+    if dominant in _CONN_NORMAL:
+        return "Connections completed"
+    if dominant == "S1":
+        return "Active connections"
+    return f"Mostly {dominant}"
+
 
 # ---------------------------------------------------------------------------
 # PublicIPProfile dataclass
@@ -41,6 +61,8 @@ class PublicIPProfile:
     internal_client_count: int = 0
     bytes_to: int = 0
     bytes_from: int = 0
+    conn_state_distribution: dict[str, int] = field(default_factory=dict)
+    conn_status: str = ""
 
     # TLS (server-side)
     ja4s_fingerprints: list[dict] = field(default_factory=list)
@@ -146,6 +168,7 @@ def _conn_to_query(ip: str, time_range: str) -> dict:
             "unique_clients": {"cardinality": {"field": "source.ip"}},
             "bytes_to": {"sum": {"field": "destination.bytes"}},
             "bytes_from": {"sum": {"field": "source.bytes"}},
+            "conn_states": {"terms": {"field": "zeek.conn.conn_state", "size": 10}},
             "time_range": {"stats": {"field": "@timestamp"}},
         },
     }
@@ -290,12 +313,14 @@ def _parse_conn_to(aggs: dict) -> dict:
                 "count": b["doc_count"],
             }
         )
+    conn_state_dist = {b["key"]: b["doc_count"] for b in _buckets(aggs, "conn_states")}
     ts = aggs.get("time_range", {})
     return {
         "services": services,
         "internal_client_count": int(aggs.get("unique_clients", {}).get("value", 0)),
         "bytes_to": int(aggs.get("bytes_to", {}).get("value", 0)),
         "bytes_from": int(aggs.get("bytes_from", {}).get("value", 0)),
+        "conn_state_distribution": conn_state_dist,
         "first_seen": ts.get("min_as_string", ""),
         "last_seen": ts.get("max_as_string", ""),
     }
@@ -423,6 +448,8 @@ def profile_public_ip(
         internal_client_count=conn_to["internal_client_count"],
         bytes_to=conn_to["bytes_to"],
         bytes_from=conn_to["bytes_from"],
+        conn_state_distribution=conn_to["conn_state_distribution"],
+        conn_status=_derive_conn_status(conn_to["conn_state_distribution"]),
         ja4s_fingerprints=ssl_to["ja4s_fingerprints"],
         tls_versions=ssl_to["tls_versions"],
         ssl_subjects=ssl_to["ssl_subjects"],

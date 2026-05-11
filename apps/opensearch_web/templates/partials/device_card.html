@@ -30,6 +30,19 @@
     {% endif %}
   </div>
 
+  {# Traffic summary #}
+  <div class="device-card-traffic">
+    <span class="dct-up">↑ {{ profile.bytes_sent | fmt_bytes }}</span>
+    <span class="dct-sep">·</span>
+    <span class="dct-down">↓ {{ profile.bytes_received | fmt_bytes }}</span>
+    <span class="dct-sep">·</span>
+    <span class="dct-dests">{{ profile.unique_dest_count }} dest{{ 's' if profile.unique_dest_count != 1 else '' }}</span>
+    {% if profile.conn_status %}
+    <span class="dct-sep">·</span>
+    <span class="dct-status">{{ profile.conn_status }}</span>
+    {% endif %}
+  </div>
+
   {# Signal grid #}
   <div class="device-card-grid">
 
