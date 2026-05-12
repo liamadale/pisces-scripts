@@ -1,12 +1,14 @@
 """Flask application factory and route definitions for PISCES Web UI."""
 
 import os
+from concurrent.futures import as_completed
 from datetime import datetime, timedelta, timezone
 
-from flask import Flask, abort, render_template, request
+from flask import Flask, abort, make_response, render_template, request
 
 from apps.opensearch_web import cache as wcache
 from apps.opensearch_web.queries import (
+    POOL,
     build_search_params_from_request,
     cached_run_query,
     run_cross_protocol_query,
@@ -153,24 +155,56 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/ip/<ip>")
     def ip_pivot(ip: str):
-        search_params = build_search_params_from_request(request)
-        search_params["src_ip"] = ip
+        from urllib.parse import urlencode
 
+        ip_role = request.args.get("ip_role", "both")
+        if ip_role not in ("src", "dest", "both"):
+            ip_role = "both"
+
+        search_params = build_search_params_from_request(request)
+        if ip_role == "dest":
+            search_params["dest_ip"] = ip
+            search_params["src_ip"] = None
+        elif ip_role == "src":
+            search_params["src_ip"] = ip
+            search_params["dest_ip"] = None
+        else:  # both
+            search_params["any_ip"] = ip
+            search_params["src_ip"] = None
+            search_params["dest_ip"] = None
+
+        # Build toggle URLs preserving all other query params
+        base_args = {k: v for k, v in request.args.items() if k != "ip_role"}
+        script_name = request.environ.get("SCRIPT_NAME", "")
+        src_url = f"{script_name}/ip/{ip}?ip_role=src&{urlencode(base_args)}"
+        dest_url = f"{script_name}/ip/{ip}?ip_role=dest&{urlencode(base_args)}"
+        both_url = f"{script_name}/ip/{ip}?ip_role=both&{urlencode(base_args)}"
+
+        ip_modules = [lt for lt, mod in MODULES.items() if mod.SUPPORTS_IP_FILTER]
         results: dict = {}
         error = None
-        for lt, mod in MODULES.items():
-            if not mod.SUPPORTS_IP_FILTER:
-                continue  # pe, capture_loss have no src_ip to pivot on
-            sp = dict(search_params)
+        first_error: Exception | None = None
+        futures = {POOL.submit(cached_run_query, lt, dict(search_params)): lt for lt in ip_modules}
+        for f in as_completed(futures):
+            lt = futures[f]
             try:
-                results[lt] = cached_run_query(lt, sp)
+                results[lt] = f.result()
             except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
-                error = str(exc)
-                break
+                if first_error is None:
+                    first_error = exc
+                results[lt] = []
+            except Exception:
+                results[lt] = []
+        if first_error is not None:
+            error = str(first_error)
 
         return render_template(
             "ip_pivot.html",
             ip=ip,
+            ip_role=ip_role,
+            src_url=src_url,
+            dest_url=dest_url,
+            both_url=both_url,
             results=results,
             error=error,
             search_params=search_params,
@@ -223,6 +257,14 @@ def create_app() -> Flask:
         mod = MODULES[log_type]
         extra_keys = mod.EXTRA_PARAMS
         search_params = build_search_params_from_request(request, extra_keys)
+
+        etag = f'"{wcache.raw_key(log_type, search_params)}"'
+        if (
+            request.headers.get("If-None-Match") == etag
+            and wcache.get(log_type, search_params) is not None
+        ):
+            return "", 304
+
         try:
             records = cached_run_query(log_type, search_params)
         except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
@@ -234,14 +276,18 @@ def create_app() -> Flask:
                 detail_fields=mod.DETAIL_FIELDS,
                 web_columns=mod.WEB_COLUMNS,
             )
-        return render_template(
-            "partials/log_rows.html",
-            log_type=log_type,
-            records=records,
-            error=None,
-            detail_fields=mod.DETAIL_FIELDS,
-            web_columns=mod.WEB_COLUMNS,
+        resp = make_response(
+            render_template(
+                "partials/log_rows.html",
+                log_type=log_type,
+                records=records,
+                error=None,
+                detail_fields=mod.DETAIL_FIELDS,
+                web_columns=mod.WEB_COLUMNS,
+            )
         )
+        resp.headers["ETag"] = etag
+        return resp
 
     # ------------------------------------------------------------------
     # GET /api/detail/<log_type>/<int:i>  — HTMX: expanded record detail
@@ -462,29 +508,19 @@ def create_app() -> Flask:
             direction=search_params.get("direction"),
             time_from=search_params.get("time_from"),
             time_to=search_params.get("time_to"),
+            sort=False,
         )
         body["size"] = 0
-        body.pop("sort", None)
         body.pop("_source", None)
 
         if mod.SUMMARY_TYPE == "grouped":
-            # Prefix-grouped aggregation: extract prefix from rule.name,
-            # with nested severity breakdown and top rules per group.
+            # Aggregate on the full rule.name field; Python groups into prefixes.
+            # Replaces a painless script that ran on every document server-side.
             body["aggs"] = {
-                "prefixes": {
+                "rules": {
                     "terms": {
-                        "script": {
-                            "source": (
-                                "def n = doc['rule.name'].value;"
-                                "int i = n.indexOf(' ');"
-                                "if (i < 0) return n;"
-                                "int j = n.indexOf(' ', i + 1);"
-                                "if (j < 0) return n.substring(0, i);"
-                                "return n.substring(0, j);"
-                            ),
-                            "lang": "painless",
-                        },
-                        "size": 50,
+                        "field": mod.SUMMARY_FIELD,
+                        "size": 500,
                         "order": {"_count": "desc"},
                     },
                     "aggs": {
@@ -492,13 +528,6 @@ def create_app() -> Flask:
                             "terms": {
                                 "field": "suricata.alert.severity",
                                 "size": 5,
-                            }
-                        },
-                        "top_rules": {
-                            "terms": {
-                                "field": "rule.name",
-                                "size": 10,
-                                "order": {"_count": "desc"},
                             }
                         },
                     },
@@ -517,34 +546,45 @@ def create_app() -> Flask:
 
         raw = query_opensearch(body, params)
 
-        is_inline = request.args.get("inline") == "1"
-
         if mod.SUMMARY_TYPE == "grouped":
-            groups = []
+            # Group the flat rule.name buckets into two-word prefixes in Python.
+            groups_by_prefix: dict[str, dict] = {}
             if raw:
-                for b in raw.get("aggregations", {}).get("prefixes", {}).get("buckets", []):
+                for b in raw.get("aggregations", {}).get("rules", {}).get("buckets", []):
+                    rule_name: str = b["key"]
+                    count: int = b["doc_count"]
                     sev_map = {
                         s["key"]: s["doc_count"]
                         for s in b.get("by_severity", {}).get("buckets", [])
                     }
-                    min_sev = min(sev_map.keys()) if sev_map else 3
-                    groups.append(
-                        {
-                            "prefix": b["key"],
-                            "count": b["doc_count"],
-                            "min_severity": min_sev,
-                            "sev": sev_map,
-                            "top_rules": [
-                                {"name": r["key"], "count": r["doc_count"]}
-                                for r in b.get("top_rules", {}).get("buckets", [])
-                            ],
+                    # Mirror the painless prefix logic: up to the second space
+                    i = rule_name.find(" ")
+                    if i < 0:
+                        prefix = rule_name
+                    else:
+                        j = rule_name.find(" ", i + 1)
+                        prefix = rule_name[:i] if j < 0 else rule_name[:j]
+
+                    if prefix not in groups_by_prefix:
+                        groups_by_prefix[prefix] = {
+                            "prefix": prefix,
+                            "count": 0,
+                            "sev": {},
+                            "top_rules": [],
                         }
-                    )
-            template = (
-                "partials/summary_grouped.html" if is_inline else "partials/summary_grouped.html"
-            )
+                    g = groups_by_prefix[prefix]
+                    g["count"] += count
+                    for sev, cnt in sev_map.items():
+                        g["sev"][sev] = g["sev"].get(sev, 0) + cnt
+                    g["top_rules"].append({"name": rule_name, "count": count})
+
+            groups = sorted(groups_by_prefix.values(), key=lambda g: -g["count"])[:50]
+            for g in groups:
+                g["top_rules"] = sorted(g["top_rules"], key=lambda r: -r["count"])[:10]
+                g["min_severity"] = min(g["sev"].keys()) if g["sev"] else 3
+
             return render_template(
-                template,
+                "partials/summary_grouped.html",
                 groups=groups,
                 summary_param=mod.SUMMARY_PARAM,
             )
@@ -589,9 +629,9 @@ def create_app() -> Flask:
             direction=None,
             time_from=search_params.get("time_from"),
             time_to=search_params.get("time_to"),
+            sort=False,
         )
         body["size"] = 0
-        body.pop("sort", None)
         body.pop("_source", None)
         body["aggs"] = {
             "sensors": {
@@ -670,8 +710,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/profiles")
     def api_investigate_profiles():
-        from concurrent.futures import ThreadPoolExecutor
-
         from src.enricher.threat_intel import enrich_ip
         from src.profiler.device_profiler import profile_device
         from src.profiler.public_ip_profiler import profile_public_ip
@@ -711,10 +749,10 @@ def create_app() -> Flask:
             except Exception as exc:
                 dest_error = str(exc)
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            pool.submit(_do_src)
-            f_dest = pool.submit(_do_dest)
-            f_dest.result()  # wait for both
+        f_src = POOL.submit(_do_src)
+        f_dest = POOL.submit(_do_dest)
+        f_src.result()
+        f_dest.result()
 
         def _enrich_urls(ip: str) -> dict:
             from src.enricher import abuseipdb, greynoise, shodan, virustotal
@@ -756,6 +794,7 @@ def create_app() -> Flask:
             kerberos, ntlm = query_auth_history(src_ip, dest_ip, sensor, time_range)
             error = None
         except Exception as exc:
+            app.logger.exception("api_investigate_auth failed")
             kerberos, ntlm, error = [], [], str(exc)
 
         return render_template(
@@ -782,6 +821,7 @@ def create_app() -> Flask:
             chain = query_attack_chain(src_ip, sensor, time_range)
             error = None
         except Exception as exc:
+            app.logger.exception("api_investigate_chain failed")
             chain, error = [], str(exc)
 
         return render_template(
@@ -820,6 +860,7 @@ def create_app() -> Flask:
             records.sort(key=lambda r: r.get("timestamp", ""))
             error = None
         except Exception as exc:
+            app.logger.exception("api_investigate_notices failed")
             records, error = [], str(exc)
 
         return render_template(
@@ -862,6 +903,7 @@ def create_app() -> Flask:
             records.sort(key=lambda r: r.get("timestamp", ""))
             error = None
         except Exception as exc:
+            app.logger.exception("api_investigate_suricata failed")
             records, error = [], str(exc)
 
         return render_template(
@@ -898,6 +940,7 @@ def create_app() -> Flask:
             dest_tickets = [t for t in dest_tickets if t.get("id") not in src_ids]
             error = None
         except Exception as exc:
+            app.logger.exception("api_investigate_tickets failed")
             src_tickets, dest_tickets, error = [], [], str(exc)
 
         return render_template(
@@ -914,9 +957,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/timeline")
     def api_investigate_timeline():
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import as_completed as _as_completed
-
         from src.correlator.incident_context import (
             IncidentContext,
             build_timeline,
@@ -940,20 +980,21 @@ def create_app() -> Flask:
         def _chain() -> list[dict]:
             return query_attack_chain(src_ip, sensor, time_range)
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            f_auth = pool.submit(_auth)
-            f_chain = pool.submit(_chain)
-            for fut in _as_completed([f_auth, f_chain]):
-                if fut is f_auth:
-                    try:
-                        kerberos, ntlm = fut.result()
-                    except Exception as exc:
-                        errors["auth"] = str(exc)
-                else:
-                    try:
-                        chain = fut.result()
-                    except Exception as exc:
-                        errors["chain"] = str(exc)
+        f_auth = POOL.submit(_auth)
+        f_chain = POOL.submit(_chain)
+        for fut in as_completed([f_auth, f_chain]):
+            if fut is f_auth:
+                try:
+                    kerberos, ntlm = fut.result()
+                except Exception as exc:
+                    app.logger.exception("api_investigate_timeline auth failed")
+                    errors["auth"] = str(exc)
+            else:
+                try:
+                    chain = fut.result()
+                except Exception as exc:
+                    app.logger.exception("api_investigate_timeline chain failed")
+                    errors["chain"] = str(exc)
 
         ctx = IncidentContext(
             trigger_type="ip_pair",
@@ -980,9 +1021,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/log_counts")
     def api_investigate_log_counts():
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import as_completed as _as_completed
-
         src_ip = request.args.get("src_ip", "")
         sensor = request.args.get("sensor", "all")
         time_range = request.args.get("time_range", "now-24h")
@@ -1002,14 +1040,13 @@ def create_app() -> Flask:
         }
 
         counts: dict[str, int] = {}
-        with ThreadPoolExecutor(max_workers=len(MODULES)) as pool:
-            futures = {pool.submit(cached_run_query, lt, dict(search_params)): lt for lt in MODULES}
-            for fut in _as_completed(futures):
-                lt = futures[fut]
-                try:
-                    counts[lt] = len(fut.result())
-                except Exception:
-                    counts[lt] = 0
+        futures = {POOL.submit(cached_run_query, lt, dict(search_params)): lt for lt in MODULES}
+        for fut in as_completed(futures):
+            lt = futures[fut]
+            try:
+                counts[lt] = len(fut.result())
+            except Exception:
+                counts[lt] = 0
 
         return render_template(
             "partials/investigate_log_counts.html",

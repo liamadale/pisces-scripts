@@ -1346,6 +1346,29 @@ tr.detail-row td {
 
 .empty-note { color: var(--on-surface-dim); font-size: 0.82rem; font-style: italic; }
 
+.role-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.role-toggle-label {
+  font-size: 0.8rem;
+  color: var(--on-surface-dim);
+}
+
+.btn-active {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+.btn-active:hover {
+  background: var(--primary);
+  opacity: 0.9;
+}
+
 
 /* ── 13. Utilities ────────────────────────────────────── */
 
