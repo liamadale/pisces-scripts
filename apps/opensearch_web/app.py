@@ -20,6 +20,12 @@ from apps.shared.blueprints import (
     make_shared_static_blueprint,
 )
 from apps.shared.jinja_globals import register_shared_helpers
+from src.correlator.incident_context import (
+    IncidentContext,
+    build_timeline,
+    query_attack_chain,
+    query_auth_history,
+)
 from src.querier.zeek_modules import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
@@ -78,6 +84,7 @@ def _resolve_city(request):  # type: ignore[no-untyped-def]
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
+    app.send_file_max_age_default = 31_536_000  # 1 year for versioned static assets
 
     register_shared_helpers(app)
 
@@ -786,8 +793,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/auth")
     def api_investigate_auth():
-        from src.correlator.incident_context import query_auth_history
-
         src_ip = request.args.get("src_ip", "")
         dest_ip = request.args.get("dest_ip", "")
         sensor = request.args.get("sensor", "all")
@@ -814,8 +819,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/chain")
     def api_investigate_chain():
-        from src.correlator.incident_context import query_attack_chain
-
         src_ip = request.args.get("src_ip", "")
         sensor = request.args.get("sensor", "all")
         time_range = request.args.get("time_range", "now-24h")
@@ -917,14 +920,6 @@ def create_app() -> Flask:
             error=error,
         )
 
-        return render_template(
-            "partials/investigate_suricata.html",
-            alerts=records,
-            src_ip=src_ip,
-            dest_ip=dest_ip,
-            error=error,
-        )
-
     # ------------------------------------------------------------------
     # GET /api/investigate/tickets  — HTMX: Mantis tickets for src + dest
     # ------------------------------------------------------------------
@@ -960,13 +955,6 @@ def create_app() -> Flask:
     # ------------------------------------------------------------------
     @app.route("/api/investigate/timeline")
     def api_investigate_timeline():
-        from src.correlator.incident_context import (
-            IncidentContext,
-            build_timeline,
-            query_attack_chain,
-            query_auth_history,
-        )
-
         src_ip = request.args.get("src_ip", "")
         dest_ip = request.args.get("dest_ip", "")
         sensor = request.args.get("sensor", "all")
