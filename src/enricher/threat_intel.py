@@ -51,6 +51,30 @@ def _cache_put(ip: str, result: dict) -> None:
         _enrich_cache[ip] = (time.time(), result)
 
 
+def prewarm_enrichment_cache(ips: list[str], max_ips: int = 50) -> None:
+    """Submit background enrichment for IPs not already in the cache.
+
+    Runs as fire-and-forget in daemon threads so it never blocks the caller.
+    Limited to the first *max_ips* uncached IPs to avoid hammering rate-limited APIs.
+    """
+    from src.querier.builder import is_private
+
+    uncached = [ip for ip in ips if ip and not is_private(ip) and _cache_get(ip) is None][:max_ips]
+
+    if not uncached:
+        return
+
+    def _warm(ip: str) -> None:
+        try:
+            enrich_ip(ip, offer_fp=False)
+        except Exception:
+            pass  # best-effort; errors are silently skipped for pre-warming
+
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="enrich-prewarm") as pool:
+        for ip in uncached:
+            pool.submit(_warm, ip)
+
+
 def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
     """Run the full enrichment pipeline for a single IP.
 
