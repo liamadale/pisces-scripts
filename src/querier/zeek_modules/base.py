@@ -6,6 +6,7 @@ deduplication, and interactive loop logic live here.  Protocol modules
 (conn, dns, http, …) import from this file and the ZeekModule base class.
 """
 
+import atexit
 import hashlib
 import ipaddress
 import json
@@ -254,6 +255,7 @@ def _opensearch_session() -> tuple[str, requests.Session]:
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     _opensearch_session_cache = (opensearch_url, username, password, session)
+    atexit.register(session.close)
     return opensearch_url, session
 
 
@@ -378,16 +380,20 @@ def display_profile(raw: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
+# Cache: (raw_must_not, remapped) — invalidates when load_filters returns a new list object.
+_remap_cache: tuple[list, list] | None = None
+
+
 def load_with_remap(filters_dir: str) -> tuple:
     """Load filters and remap field names. Returns (must_not, fcount, errors)."""
+    global _remap_cache
     from src.querier.filter_loader import load_filters
 
     filter_result = load_filters(filters_dir)
-    raw_must_not = filter_result["must_not"]
-    fcount = filter_result["filter_count"]
-    errors = filter_result["errors"]
-    must_not = [_remap_clause(c) for c in raw_must_not]
-    return must_not, fcount, errors
+    raw = filter_result["must_not"]
+    if _remap_cache is None or _remap_cache[0] is not raw:
+        _remap_cache = (raw, [_remap_clause(c) for c in raw])
+    return _remap_cache[1], filter_result["filter_count"], filter_result["errors"]
 
 
 # ---------------------------------------------------------------------------
@@ -499,7 +505,10 @@ def deduplicate_zeek(records: list, key_fn) -> list:
     for _key, group in sorted(grouped.items(), key=lambda kv: -len(kv[1])):
         rep = max(group, key=lambda r: r["timestamp"]).copy()
         rep["freq"] = len(group)
-        rep["sensors"] = sorted({r["sensor"] for r in group if r.get("sensor")})
+        if len(group) == 1:
+            rep["sensors"] = [rep["sensor"]] if rep.get("sensor") else []
+        else:
+            rep["sensors"] = sorted({r["sensor"] for r in group if r.get("sensor")})
         deduped.append(rep)
 
     return deduped
@@ -582,7 +591,7 @@ def run_query(module, search_params: dict) -> list:
             f" ({search_params.get('time_range', 'now-24h')})...[/dim]"
         )
         raw = query_opensearch(body, params)
-        if not search_params.get("profile"):
+        if use_cache:
             _save_cache(raw, cpath)
 
     if search_params.get("profile"):
@@ -601,8 +610,8 @@ def run_query(module, search_params: dict) -> list:
 
     # Apply post-filters (over-fetch strategy: fetch 3× then truncate).
     if post_filters:
-        for pf in post_filters:
-            records = [r for r in records if pf(r)]
+        keep = lambda r: all(pf(r) for pf in post_filters)  # noqa: E731
+        records = [r for r in records if keep(r)]
         if len(records) < requested_limit:
             console.print(
                 f"[dim]Showing {len(records)}/{requested_limit} after post-filtering — "

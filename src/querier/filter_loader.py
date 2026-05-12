@@ -8,11 +8,14 @@ Usage (standalone):
 
 import os
 import sys
+import time
 
 import yaml
 
-# Module-level cache: (filters_dir, municipality) → {"mtime": float, "result": dict}
+# Module-level cache: (filters_dir, municipality) → {mtime, result, checked}
 _filter_cache: dict[tuple, dict] = {}
+
+_MTIME_TTL = 5.0  # seconds — skip the directory walk when cache is this fresh
 
 
 def _max_mtime(filters_dir: str) -> float:
@@ -49,9 +52,13 @@ def load_filters(
         }
     """
     cache_key = (filters_dir, municipality)
-    current_mtime = _max_mtime(filters_dir)
+    now = time.monotonic()
     cached = _filter_cache.get(cache_key)
+    if cached is not None and (now - cached["checked"]) < _MTIME_TTL:
+        return cached["result"]
+    current_mtime = _max_mtime(filters_dir)
     if cached is not None and cached["mtime"] == current_mtime:
+        cached["checked"] = now
         return cached["result"]
 
     must_not_clauses: list[dict] = []
@@ -117,7 +124,7 @@ def load_filters(
         "filter_count": filter_count,
         "errors": errors,
     }
-    _filter_cache[cache_key] = {"mtime": current_mtime, "result": result}
+    _filter_cache[cache_key] = {"mtime": current_mtime, "result": result, "checked": now}
     return result
 
 
