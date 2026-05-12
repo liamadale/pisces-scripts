@@ -11,7 +11,7 @@ from apps.opensearch_web.queries import (
     POOL,
     build_search_params_from_request,
     cached_run_query,
-    run_cross_protocol_query,
+    run_cross_protocol_query_async,
 )
 from apps.shared.blueprints import (
     make_cache_blueprint,
@@ -136,14 +136,21 @@ def create_app() -> Flask:
     # GET /  — cross-protocol IP matrix
     # ------------------------------------------------------------------
     @app.route("/")
-    def overview():
+    async def overview():
+        from src.enricher.threat_intel import prewarm_enrichment_cache
+
         search_params = build_search_params_from_request(request)
         error = None
         rows = []
         try:
-            rows = run_cross_protocol_query(search_params)
+            rows = await run_cross_protocol_query_async(search_params)
         except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
             error = str(exc)
+
+        # Pre-warm the enrichment cache for all source IPs while the page renders.
+        if rows:
+            prewarm_enrichment_cache([r["src_ip"] for r in rows])
+
         # Build per-category module lists, excluding non-IP modules (pe, capture_loss)
         ip_modules_by_category = {
             cat: [lt for lt in lts if MODULES[lt].SUPPORTS_IP_FILTER]
