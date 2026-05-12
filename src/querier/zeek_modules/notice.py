@@ -42,8 +42,11 @@ class NoticeModule(ZeekModule):
 
     def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
-        if search_params.get("notice_note"):
-            clauses.append({"term": {"zeek.notice.note": search_params["notice_note"]}})
+        if val := search_params.get("notice_note"):
+            if "*" in val or "?" in val:
+                clauses.append({"wildcard": {"zeek.notice.note": val}})
+            else:
+                clauses.append({"term": {"zeek.notice.note": val}})
         return clauses, []
 
     def parse_hit(self, src: dict) -> dict:

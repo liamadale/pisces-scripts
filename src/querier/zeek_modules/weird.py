@@ -41,8 +41,11 @@ class WeirdModule(ZeekModule):
 
     def build_extra_must(self, search_params: dict) -> tuple:
         clauses = []
-        if search_params.get("weird_name"):
-            clauses.append({"term": {"rule.name": search_params["weird_name"]}})
+        if val := search_params.get("weird_name"):
+            if "*" in val or "?" in val:
+                clauses.append({"wildcard": {"rule.name": val}})
+            else:
+                clauses.append({"term": {"rule.name": val}})
         return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
