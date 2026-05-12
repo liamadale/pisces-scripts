@@ -13,6 +13,8 @@ from src.querier.zeek_modules.base import (
     deduplicate_zeek,
     is_private,
 )
+from src.querier.zeek_modules.notice import NoticeModule
+from src.querier.zeek_modules.weird import WeirdModule
 
 # ---------------------------------------------------------------------------
 # is_private
@@ -498,3 +500,54 @@ def test_build_base_query_absolute_timestamps() -> None:
     assert ts_clause is not None
     assert ts_clause["range"]["@timestamp"]["gte"] == time_from
     assert ts_clause["range"]["@timestamp"]["lte"] == time_to
+
+
+# ---------------------------------------------------------------------------
+# NoticeModule.build_extra_must — wildcard / exact match
+# ---------------------------------------------------------------------------
+
+_notice = NoticeModule()
+_weird = WeirdModule()
+
+
+def test_notice_exact_match_uses_term() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "Scan::Port_Scan"})
+    assert len(clauses) == 1
+    assert "term" in clauses[0]
+    assert clauses[0]["term"]["zeek.notice.note"] == "Scan::Port_Scan"
+
+
+def test_notice_trailing_wildcard_uses_wildcard_query() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "Scan::*"})
+    assert len(clauses) == 1
+    assert "wildcard" in clauses[0]
+    assert clauses[0]["wildcard"]["zeek.notice.note"] == "Scan::*"
+
+
+def test_notice_question_mark_uses_wildcard_query() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "SSH::Brute_Force_?"})
+    assert "wildcard" in clauses[0]
+
+
+def test_notice_no_filter_returns_empty() -> None:
+    clauses, _ = _notice.build_extra_must({})
+    assert clauses == []
+
+
+def test_weird_exact_match_uses_term() -> None:
+    clauses, _ = _weird.build_extra_must({"weird_name": "bad_HTTP_reply"})
+    assert len(clauses) == 1
+    assert "term" in clauses[0]
+    assert clauses[0]["term"]["rule.name"] == "bad_HTTP_reply"
+
+
+def test_weird_trailing_wildcard_uses_wildcard_query() -> None:
+    clauses, _ = _weird.build_extra_must({"weird_name": "bad_*"})
+    assert len(clauses) == 1
+    assert "wildcard" in clauses[0]
+    assert clauses[0]["wildcard"]["rule.name"] == "bad_*"
+
+
+def test_weird_no_filter_returns_empty() -> None:
+    clauses, _ = _weird.build_extra_must({})
+    assert clauses == []
