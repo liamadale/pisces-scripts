@@ -87,6 +87,58 @@ def write_filter_file(path: str, data: dict) -> None:
         yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
+def delete_ip_from_filter(path: str, ip: str) -> int:
+    """Remove must_not clauses that match *ip* as src_ip or dest_ip.
+
+    Handles single-value ``term`` and multi-value ``terms`` clauses.
+    For ``terms`` clauses with multiple IPs only the matching IP is removed;
+    the clause is kept with the remaining IPs.  If the clause had only that
+    one IP it is dropped entirely.
+
+    Returns the number of clause entries affected (removed or shrunken).
+    Raises ``FileNotFoundError`` if *path* does not exist.
+    Raises ``ValueError`` if no clauses matched the IP.
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    data = load_filter_file(path)
+    original_clauses: list = data.get("must_not", [])
+    kept: list = []
+    removed_count = 0
+
+    for clause in original_clauses:
+        term = clause.get("term", {})
+        if term.get("src_ip") == ip or term.get("dest_ip") == ip:
+            removed_count += 1
+            continue
+
+        terms = clause.get("terms", {})
+        matched_field: str | None = None
+        for field in ("src_ip", "dest_ip"):
+            if ip in terms.get(field, []):
+                matched_field = field
+                break
+
+        if matched_field:
+            remaining = [v for v in terms[matched_field] if v != ip]
+            if remaining:
+                new_clause = dict(clause)
+                new_clause["terms"] = {**terms, matched_field: remaining}
+                kept.append(new_clause)
+            removed_count += 1
+            continue
+
+        kept.append(clause)
+
+    if removed_count == 0:
+        raise ValueError(f"No clauses found matching IP {ip}")
+
+    data["must_not"] = kept
+    write_filter_file(path, data)
+    return removed_count
+
+
 def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "analyst") -> None:
     """Append must_not clauses to an existing filter file, or create it."""
     if os.path.exists(path):
