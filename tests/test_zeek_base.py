@@ -183,6 +183,44 @@ def test_build_base_query_src_ip_filter() -> None:
     assert ip_clause["term"]["source.ip"] == "198.51.100.1"
 
 
+def test_build_base_query_dest_ip_filter() -> None:
+    """dest_ip_filter must appear in the ES filter clauses, not as a post-filter."""
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip", "destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_ip_filter="8.8.8.8",
+    )
+    must = body["query"]["bool"]["filter"]
+    ip_clause = next((c for c in must if "term" in c and "destination.ip" in c["term"]), None)
+    assert ip_clause is not None, "dest_ip_filter must be pushed into the ES filter clause"
+    assert ip_clause["term"]["destination.ip"] == "8.8.8.8"
+
+
+def test_build_base_query_src_and_dest_ip_filter() -> None:
+    """src and dest IP filters must both appear in the ES filter clauses simultaneously."""
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip", "destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_ip_filter="1.2.3.4",
+        dest_ip_filter="8.8.8.8",
+    )
+    must = body["query"]["bool"]["filter"]
+    src_clause = next((c for c in must if "term" in c and "source.ip" in c["term"]), None)
+    dest_clause = next((c for c in must if "term" in c and "destination.ip" in c["term"]), None)
+    assert src_clause is not None and src_clause["term"]["source.ip"] == "1.2.3.4"
+    assert dest_clause is not None and dest_clause["term"]["destination.ip"] == "8.8.8.8"
+
+
 def test_build_base_query_public_only_adds_must_not() -> None:
     body, _ = build_base_query(
         must_not=[],

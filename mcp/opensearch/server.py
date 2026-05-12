@@ -79,6 +79,7 @@ def _base_params(
     src_ip: Optional[str],
     direction: Optional[str],
     no_filters: bool,
+    dest_ip: Optional[str] = None,
 ) -> dict:
     params: dict = {
         "time_range": time_range,
@@ -90,16 +91,11 @@ def _base_params(
     }
     if src_ip:
         params["src_ip"] = src_ip
+    if dest_ip:
+        params["dest_ip"] = dest_ip
     if direction:
         params["direction"] = direction
     return params
-
-
-def _apply_dest_ip_filter(records: list, dest_ip: Optional[str]) -> list:
-    """Post-filter records by destination IP (base.py only natively filters src_ip)."""
-    if not dest_ip:
-        return records
-    return [r for r in records if r.get("dest_ip") == dest_ip]
 
 
 # ---------------------------------------------------------------------------
@@ -124,9 +120,10 @@ def search_conn(
     Common fields: src_ip, dest_ip, dest_port, proto, bytes, duration, sensor.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         records = run_query(MODULES["conn"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -154,7 +151,9 @@ def search_dns(
         dns_qtype: Query type to filter by, e.g. "A", "MX", "TXT".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if dns_query:
             params["dns_query"] = dns_query
         if dns_rcode:
@@ -162,7 +161,6 @@ def search_dns(
         if dns_qtype:
             params["qtype"] = dns_qtype
         records = run_query(MODULES["dns"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -192,7 +190,9 @@ def search_http(
         status_code: HTTP response status code to filter by.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if http_method:
             params["http_method"] = http_method
         if http_host:
@@ -202,7 +202,6 @@ def search_http(
         if status_code is not None:
             params["status_code"] = status_code
         records = run_query(MODULES["http"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -228,13 +227,14 @@ def search_ssl(
         ssl_invalid_only: If True, return only connections with invalid/self-signed certs.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if ssl_sni:
             params["ssl_sni"] = ssl_sni
         if ssl_invalid_only:
             params["ssl_invalid_only"] = True
         records = run_query(MODULES["ssl"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -262,7 +262,9 @@ def search_smtp(
         smtp_subject: Subject line substring to filter by.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if smtp_mail_from:
             params["smtp_mail_from"] = smtp_mail_from
         if smtp_rcpt_to:
@@ -270,7 +272,6 @@ def search_smtp(
         if smtp_subject:
             params["smtp_subject"] = smtp_subject
         records = run_query(MODULES["smtp"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -296,13 +297,14 @@ def search_rdp(
         rdp_cookie: RDP cookie/username string to filter by.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if rdp_result:
             params["rdp_result"] = rdp_result
         if rdp_cookie:
             params["rdp_cookie"] = rdp_cookie
         records = run_query(MODULES["rdp"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -328,13 +330,14 @@ def search_smb(
         smb_action: SMB action verb to filter by, e.g. "SMB::FILE_OPEN".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if smb_share:
             params["smb_share"] = smb_share
         if smb_action:
             params["smb_action"] = smb_action
         records = run_query(MODULES["smb"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -360,13 +363,14 @@ def search_ssh(
         ssh_auth_result: Auth result string to filter by, e.g. "failure", "success".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if ssh_failed_only:
             params["ssh_failed_only"] = True
         if ssh_auth_result is not None:
             params["ssh_auth_result"] = ssh_auth_result
         records = run_query(MODULES["ssh"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -393,11 +397,12 @@ def search_notice(
         notice_note: Notice type to filter by, e.g. "Scan::Port_Scan".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if notice_note:
             params["notice_note"] = notice_note
         records = run_query(MODULES["notice"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -424,11 +429,12 @@ def search_weird(
         weird_name: Weird event name to filter by, e.g. "bad_HTTP_reply".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if weird_name:
             params["weird_name"] = weird_name
         records = run_query(MODULES["weird"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -466,7 +472,9 @@ def search_suricata_alert(
         tag: Filter by tag, e.g. "CISA_KEV", "Exploit", "RAT".
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, direction, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+        )
         if rule_name:
             params["rule_name"] = rule_name
         if rule_category:
@@ -480,7 +488,6 @@ def search_suricata_alert(
         if tag:
             params["tag"] = tag
         records = run_query(MODULES["suricata_alert"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -512,7 +519,9 @@ def search_radius(
         failed_only: Show only failed authentication attempts.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if username:
             params["username"] = username
         if mac:
@@ -520,7 +529,6 @@ def search_radius(
         if failed_only:
             params["failed_only"] = failed_only
         records = run_query(MODULES["radius"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -547,7 +555,9 @@ def search_sip(
         user_agent: Filter by User-Agent (substring match).
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if method:
             params["method"] = method
         if status_code:
@@ -555,7 +565,6 @@ def search_sip(
         if user_agent:
             params["user_agent"] = user_agent
         records = run_query(MODULES["sip"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -578,11 +587,12 @@ def search_tunnel(
         tunnel_type: Filter by tunnel type (Tunnel::IP, Tunnel::GRE, etc.).
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if tunnel_type:
             params["tunnel_type"] = tunnel_type
         records = run_query(MODULES["tunnel"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -607,13 +617,14 @@ def search_ntp(
         version: Filter by NTP version (exact match, integer).
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if mode is not None:
             params["mode"] = mode
         if version is not None:
             params["version"] = version
         records = run_query(MODULES["ntp"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -638,13 +649,14 @@ def search_modbus(
         exceptions_only: Show only records with exception codes.
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if function:
             params["function"] = function
         if exceptions_only:
             params["exceptions_only"] = True
         records = run_query(MODULES["modbus"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
@@ -667,11 +679,12 @@ def search_dnp3(
         function: Filter by DNP3 function request (substring match).
     """
     try:
-        params = _base_params(time_range, sensor, limit, public_only, src_ip, None, no_filters)
+        params = _base_params(
+            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+        )
         if function:
             params["function"] = function
         records = run_query(MODULES["dnp3"], params)
-        records = _apply_dest_ip_filter(records, dest_ip)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
         return _err(str(exc))
