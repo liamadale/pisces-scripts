@@ -953,75 +953,132 @@ def search_dnp3(
 
 
 # ---------------------------------------------------------------------------
-# Pivot tools
+# Pivot tool (§2.1)
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool()
-def pivot_ip(
+def pivot(
     ip: str,
-    time_range: str = "now-24h",
+    mode: str = "records",
+    dest_ip: Optional[str] = None,
     sensor: str = "all",
+    time_range: str = "now-24h",
     limit: int = 500,
     public_only: bool = False,
     no_filters: bool = False,
 ) -> str:
-    """Run all 10 Zeek protocol queries in parallel for a single IP address.
+    """IP-centric investigation tool with three operating modes.
 
-    Returns per-protocol record counts plus full records for every protocol where
-    the IP appeared (as either source or destination).  Also runs lookup_org to
-    identify cloud/CDN/scanner ownership.
+    Choose ``mode`` based on the question you are trying to answer:
 
-    This is the primary pivot tool for IP-centric investigations.
+    * **records** — Cross-protocol raw records for *ip* (as src or dest).
+      Returns per-protocol counts plus full deduplicated records.  Also runs
+      ``lookup_org`` to surface cloud/CDN/scanner ownership.  Use when you
+      want to see what an IP was actually doing.
+
+    * **profile** — Aggregated device card for *ip*.  For private IPs: role,
+      OS, software, inbound services, hostnames, fingerprints.  For public
+      IPs: sensor presence, reverse DNS, exposed services, TLS/cert info,
+      inbound attack signals.  Use when you want to understand what a device
+      is, not just what it did.
+
+    * **incident** — Full incident bundle for a src/dest pair.  Requires
+      ``dest_ip``.  Runs device profiling, auth history, attack chain, Mantis
+      ticket search, and threat-intel enrichment in parallel.  Use for
+      alert triage or incident response.
+
+    Args:
+        ip: IP address to pivot on (actor / attacker for ``mode="incident"``).
+        mode: One of "records", "profile", or "incident".
+        dest_ip: Destination IP — required when ``mode="incident"``.
+        sensor: Sensor hostname.  Required for private-IP profiling; "all" for
+                ``mode="records"``.
+        time_range: ES date-math range, e.g. "now-24h" or "now-7d".
+        limit: Max records per protocol (``mode="records"`` only).
+        public_only: Exclude RFC-1918 addresses (``mode="records"`` only).
+        no_filters: Bypass FP filter files (``mode="records"`` only).
     """
     try:
-        base = _base_params(time_range, sensor, limit, public_only, ip, None, no_filters)
+        if mode == "records":
+            base = _base_params(time_range, sensor, limit, public_only, ip, None, no_filters)
 
-        org = lookup_org(ip)
+            org = lookup_org(ip)
 
-        def _run(log_type: str) -> tuple[str, list]:
-            try:
-                params = dict(base)
-                records = run_query(MODULES[log_type], params)
-                # Also include records where IP is destination
-                dest_hits = []
-                if ip:
-                    dest_params = _base_params(
-                        time_range, sensor, limit, public_only, None, None, no_filters
-                    )
-                    dest_records = run_query(MODULES[log_type], dest_params)
-                    dest_hits = [r for r in dest_records if r.get("dest_ip") == ip]
-                # Merge, deduplicate by identity
-                seen_keys: set = set()
-                merged = []
-                for r in records + dest_hits:
-                    k = MODULES[log_type].dedup_key(r)
-                    if k not in seen_keys:
-                        seen_keys.add(k)
-                        merged.append(r)
-                return log_type, merged
-            except Exception:
-                return log_type, []
+            def _run(log_type: str) -> tuple[str, list]:
+                try:
+                    params = dict(base)
+                    records = run_query(MODULES[log_type], params)
+                    dest_hits: list = []
+                    if ip:
+                        dest_params = _base_params(
+                            time_range, sensor, limit, public_only, None, None, no_filters
+                        )
+                        dest_records = run_query(MODULES[log_type], dest_params)
+                        dest_hits = [r for r in dest_records if r.get("dest_ip") == ip]
+                    seen_keys: set = set()
+                    merged = []
+                    for r in records + dest_hits:
+                        k = MODULES[log_type].dedup_key(r)
+                        if k not in seen_keys:
+                            seen_keys.add(k)
+                            merged.append(r)
+                    return log_type, merged
+                except Exception:
+                    return log_type, []
 
-        results: dict = {}
-        with ThreadPoolExecutor(max_workers=10) as pool:
-            futures = {pool.submit(_run, lt): lt for lt in MODULES}
-            for future in as_completed(futures):
-                log_type, records = future.result()
-                results[log_type] = {
-                    "count": len(records),
-                    "records": _serialise_records(records),
-                }
+            results: dict = {}
+            with ThreadPoolExecutor(max_workers=10) as pool:
+                futures = {pool.submit(_run, lt): lt for lt in MODULES}
+                for future in as_completed(futures):
+                    lt, recs = future.result()
+                    results[lt] = {
+                        "count": len(recs),
+                        "records": _serialise_records(recs),
+                    }
 
-        summary = {lt: r["count"] for lt, r in results.items()}
-        return _ok(
-            {
-                "ip": ip,
-                "org": org,
-                "summary": summary,
-                "protocols": results,
-            }
-        )
+            summary = {lt: r["count"] for lt, r in results.items()}
+            return _ok({"ip": ip, "org": org, "summary": summary, "protocols": results})
+
+        elif mode == "profile":
+            from dataclasses import asdict
+
+            if is_private(ip):
+                from src.profiler.device_profiler import profile_device as _profile_device
+
+                profile = _profile_device(ip, time_range=time_range, sensor=sensor)
+            else:
+                from src.profiler.public_ip_profiler import profile_public_ip
+
+                profile = profile_public_ip(ip, time_range=time_range)
+            return _ok(asdict(profile))
+
+        elif mode == "incident":
+            if not dest_ip:
+                return _err("dest_ip is required when mode='incident'")
+            from dataclasses import asdict
+
+            from src.correlator.incident_context import investigate as _investigate
+
+            ctx = _investigate(ip, dest_ip, sensor, time_range)
+            data = asdict(ctx)
+            for key in ("src_profile", "dest_profile"):
+                p = data.get(key)
+                if p is not None:
+                    data[key] = {
+                        "ip": p["ip"],
+                        "hostname": p.get("hostname"),
+                        "role": p["role"],
+                        "confidence": p["confidence"],
+                        "os_family": p.get("os_family"),
+                        "software": p.get("software", []),
+                        "users": p.get("users", []),
+                        "inbound_services": p.get("inbound_services", []),
+                    }
+            return _ok(data)
+
+        else:
+            return _err(f"Unknown mode '{mode}'. Must be 'records', 'profile', or 'incident'.")
     except Exception as exc:
         return _err(str(exc))
 
@@ -1153,36 +1210,49 @@ def raw_opensearch_search(
 
 
 @mcp.tool()
-def aggregate_by_source_ip(
-    notice_type: str,
+def aggregate(
+    field: str,
+    log_type: Optional[str] = None,
+    notice_type: Optional[str] = None,
     time_range: str = "now-24h",
     sensor: str = "all",
     limit: int = 25,
 ) -> str:
-    """Rank source IPs by how many times they triggered a specific Zeek notice type.
+    """Rank any ES field by frequency across Zeek logs.
 
-    Complements get_notice_summary (which ranks by notice type) — this ranks by
-    source IP *within* a single notice type.
+    Generic aggregation primitive.  Common uses:
+
+    * Top source IPs for a notice:
+      ``field="source.ip", log_type="notice", notice_type="Scan::Port_Scan"``
+    * Top destination IPs overall: ``field="destination.ip"``
+    * Top destination ports: ``field="destination.port", log_type="conn"``
+    * Top user agents: ``field="zeek.http.user_agent", log_type="http"``
 
     Args:
-        notice_type: Exact notice type to filter by, e.g. "Scan::Port_Scan".
-        limit: Maximum number of source IPs to return.
+        field: ES field name to aggregate on, e.g. "source.ip", "destination.port".
+        log_type: Scope to a single Zeek module's datasets, e.g. "conn", "notice",
+                  "http".  Omit to aggregate across all datasets.
+        notice_type: Filter by exact Zeek notice type (only meaningful with
+                     ``log_type="notice"``), e.g. "Scan::Port_Scan".
+        time_range: ES date-math range, e.g. "now-24h".
+        sensor: Sensor hostname or "all".
+        limit: Maximum number of buckets to return.
     """
     try:
-        must: list = [
-            {"range": {"@timestamp": {"gte": time_range, "lte": "now"}}},
-            {"terms": {"event.dataset": MODULES["notice"].DATASETS}},
-            {"term": {"zeek.notice.note": notice_type}},
-        ]
+        must: list = [{"range": {"@timestamp": {"gte": time_range, "lte": "now"}}}]
+        if log_type and log_type in MODULES:
+            must.append({"terms": {"event.dataset": MODULES[log_type].DATASETS}})
+        if notice_type:
+            must.append({"term": {"zeek.notice.note": notice_type}})
         if sensor != "all":
             must.append({"terms": {"host.name": [s.strip() for s in sensor.split(",")]}})
         body = {
             "size": 0,
             "query": {"bool": {"must": must}},
             "aggs": {
-                "top_sources": {
+                "buckets": {
                     "terms": {
-                        "field": "source.ip",
+                        "field": field,
                         "size": limit,
                         "order": {"_count": "desc"},
                     }
@@ -1193,9 +1263,17 @@ def aggregate_by_source_ip(
         raw = query_opensearch(body, params)
         if raw is None:
             return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
-        buckets = raw.get("aggregations", {}).get("top_sources", {}).get("buckets", [])
-        sources = [{"ip": b["key"], "count": b["doc_count"]} for b in buckets]
-        return _ok({"notice_type": notice_type, "time_range": time_range, "sources": sources})
+        buckets = raw.get("aggregations", {}).get("buckets", {}).get("buckets", [])
+        results = [{"value": b["key"], "count": b["doc_count"]} for b in buckets]
+        return _ok(
+            {
+                "field": field,
+                "log_type": log_type,
+                "notice_type": notice_type,
+                "time_range": time_range,
+                "results": results,
+            }
+        )
     except Exception as exc:
         return _err(str(exc))
 
@@ -1482,48 +1560,6 @@ def create_fp_filter(
 
 
 # ---------------------------------------------------------------------------
-# Device profiler
-# ---------------------------------------------------------------------------
-
-
-@mcp.tool()
-def profile_device(
-    ip: str,
-    sensor: str = "all",
-    time_range: str = "now-7d",
-) -> str:
-    """Profile an IP by aggregating cross-protocol Zeek signals into a device card.
-
-    For private IPs: runs 9 parallel aggregation queries (conn, DNS, SSL, HTTP,
-    SMB, RDP, SSH) to identify the device's role, OS, installed software, inbound
-    services, hostnames, fingerprints, and behavioral patterns.
-
-    For public IPs: runs 8 parallel queries to build a network-perspective profile
-    showing sensor presence, reverse DNS, services exposed, TLS/cert info, and
-    inbound attack signals. Sensor is optional for public IPs.
-
-    Args:
-        ip: IP address to profile (private or public).
-        sensor: Sensor hostname — required for private IPs, optional for public.
-        time_range: ES date-math range (default: now-7d).
-    """
-    try:
-        from dataclasses import asdict
-
-        if is_private(ip):
-            from src.profiler.device_profiler import profile_device as _profile_device
-
-            profile = _profile_device(ip, time_range=time_range, sensor=sensor)
-        else:
-            from src.profiler.public_ip_profiler import profile_public_ip
-
-            profile = profile_public_ip(ip, time_range=time_range)
-        return _ok(asdict(profile))
-    except Exception as exc:
-        return _err(str(exc))
-
-
-# ---------------------------------------------------------------------------
 # Share URLs
 # ---------------------------------------------------------------------------
 
@@ -1617,56 +1653,6 @@ def build_share_urls(
                 "time_to": resolved_to,
             }
         )
-    except Exception as exc:
-        return _err(str(exc))
-
-
-# ---------------------------------------------------------------------------
-# Incident correlator
-# ---------------------------------------------------------------------------
-
-
-@mcp.tool()
-def investigate(
-    src_ip: str,
-    dest_ip: str,
-    sensor: str = "all",
-    time_range: str = "now-24h",
-) -> str:
-    """Build full incident context for a source/destination IP pair.
-
-    Runs device profiling, auth history, attack chain, Mantis ticket search,
-    and threat intel enrichment in parallel. Returns a unified context bundle
-    for incident investigation.
-
-    Args:
-        src_ip: Source IP address (the actor / attacker).
-        dest_ip: Destination IP address (the target / victim).
-        sensor: Sensor hostname — required for private IP profiling.
-        time_range: ES date-math range (default: now-24h).
-    """
-    try:
-        from dataclasses import asdict
-
-        from src.correlator.incident_context import investigate as _investigate
-
-        ctx = _investigate(src_ip, dest_ip, sensor, time_range)
-        data = asdict(ctx)
-        # Trim raw profile dicts to a compact summary for LLM context
-        for key in ("src_profile", "dest_profile"):
-            p = data.get(key)
-            if p is not None:
-                data[key] = {
-                    "ip": p["ip"],
-                    "hostname": p.get("hostname"),
-                    "role": p["role"],
-                    "confidence": p["confidence"],
-                    "os_family": p.get("os_family"),
-                    "software": p.get("software", []),
-                    "users": p.get("users", []),
-                    "inbound_services": p.get("inbound_services", []),
-                }
-        return _ok(data)
     except Exception as exc:
         return _err(str(exc))
 

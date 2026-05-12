@@ -502,11 +502,13 @@ def _make_incident_context(**overrides) -> IncidentContext:
 
 
 @_skip_no_mcp
-def test_mcp_investigate_returns_ok_json() -> None:
-    """MCP investigate tool returns JSON with status='ok' and all top-level keys."""
+def test_mcp_pivot_incident_returns_ok_json() -> None:
+    """pivot(mode='incident') returns JSON with status='ok' and all top-level keys."""
     ctx = _make_incident_context()
     with patch("src.correlator.incident_context.investigate", return_value=ctx):
-        result_str = mcp_server.investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
+        result_str = mcp_server.pivot(
+            PRIVATE_SRC, mode="incident", dest_ip=PRIVATE_DEST, sensor=SENSOR, time_range=TIME_RANGE
+        )
 
     result = json.loads(result_str)
     assert result["status"] == "ok"
@@ -526,8 +528,8 @@ def test_mcp_investigate_returns_ok_json() -> None:
 
 
 @_skip_no_mcp
-def test_mcp_investigate_profile_trimmed() -> None:
-    """Profile dicts are trimmed to compact summaries — full DeviceProfile keys stripped."""
+def test_mcp_pivot_incident_profile_trimmed() -> None:
+    """pivot(mode='incident') trims profile dicts to compact summaries."""
     from src.profiler.device_profiler import DeviceProfile
 
     profile = DeviceProfile(
@@ -541,12 +543,13 @@ def test_mcp_investigate_profile_trimmed() -> None:
     )
     ctx = _make_incident_context(src_profile=profile)
     with patch("src.correlator.incident_context.investigate", return_value=ctx):
-        result_str = mcp_server.investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
+        result_str = mcp_server.pivot(
+            PRIVATE_SRC, mode="incident", dest_ip=PRIVATE_DEST, sensor=SENSOR, time_range=TIME_RANGE
+        )
 
     result = json.loads(result_str)
     assert result["status"] == "ok"
     trimmed = result["data"]["src_profile"]
-    # Only summary keys present — full DeviceProfile fields like dest_port_distribution stripped
     expected_keys = {
         "ip",
         "hostname",
@@ -565,13 +568,15 @@ def test_mcp_investigate_profile_trimmed() -> None:
 
 
 @_skip_no_mcp
-def test_mcp_investigate_error_json() -> None:
-    """MCP investigate tool returns JSON with status='error' when backend raises."""
+def test_mcp_pivot_incident_error_json() -> None:
+    """pivot(mode='incident') returns JSON with status='error' when backend raises."""
     with patch(
         "src.correlator.incident_context.investigate",
         side_effect=RuntimeError("OpenSearch unreachable"),
     ):
-        result_str = mcp_server.investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
+        result_str = mcp_server.pivot(
+            PRIVATE_SRC, mode="incident", dest_ip=PRIVATE_DEST, sensor=SENSOR, time_range=TIME_RANGE
+        )
 
     result = json.loads(result_str)
     assert result["status"] == "error"
@@ -579,13 +584,91 @@ def test_mcp_investigate_error_json() -> None:
 
 
 @_skip_no_mcp
-def test_mcp_investigate_null_profiles_preserved() -> None:
-    """None profiles (public IPs) are preserved as null in JSON — not trimmed."""
+def test_mcp_pivot_incident_null_profiles_preserved() -> None:
+    """pivot(mode='incident') preserves None profiles as null in JSON."""
     ctx = _make_incident_context(src_profile=None, dest_profile=None)
     with patch("src.correlator.incident_context.investigate", return_value=ctx):
-        result_str = mcp_server.investigate(PUBLIC_SRC, PUBLIC_DEST, SENSOR, TIME_RANGE)
+        result_str = mcp_server.pivot(
+            PUBLIC_SRC, mode="incident", dest_ip=PUBLIC_DEST, sensor=SENSOR, time_range=TIME_RANGE
+        )
 
     result = json.loads(result_str)
     assert result["status"] == "ok"
     assert result["data"]["src_profile"] is None
     assert result["data"]["dest_profile"] is None
+
+
+@_skip_no_mcp
+def test_mcp_pivot_incident_requires_dest_ip() -> None:
+    """pivot(mode='incident') returns error when dest_ip is omitted."""
+    result_str = mcp_server.pivot(PRIVATE_SRC, mode="incident")
+    result = json.loads(result_str)
+    assert result["status"] == "error"
+    assert "dest_ip" in result["message"]
+
+
+@_skip_no_mcp
+def test_mcp_pivot_unknown_mode_returns_error() -> None:
+    """pivot() returns error for unrecognised mode values."""
+    result_str = mcp_server.pivot(PRIVATE_SRC, mode="bogus")
+    result = json.loads(result_str)
+    assert result["status"] == "error"
+    assert "bogus" in result["message"]
+
+
+# ---------------------------------------------------------------------------
+# MCP tool — aggregate (§2.2)
+# ---------------------------------------------------------------------------
+
+_AGGREGATE_RESPONSE = {
+    "aggregations": {
+        "buckets": {
+            "buckets": [
+                {"key": "1.2.3.4", "doc_count": 42},
+                {"key": "5.6.7.8", "doc_count": 17},
+            ]
+        }
+    }
+}
+
+
+@_skip_no_mcp
+def test_mcp_aggregate_returns_ok_json() -> None:
+    """aggregate() returns status='ok' with field/results keys."""
+    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=_AGGREGATE_RESPONSE):
+        result_str = mcp_server.aggregate(
+            "source.ip", log_type="notice", notice_type="Scan::Port_Scan"
+        )
+
+    result = json.loads(result_str)
+    assert result["status"] == "ok"
+    data = result["data"]
+    assert data["field"] == "source.ip"
+    assert data["log_type"] == "notice"
+    assert data["notice_type"] == "Scan::Port_Scan"
+    assert len(data["results"]) == 2
+    assert data["results"][0] == {"value": "1.2.3.4", "count": 42}
+    assert data["results"][1] == {"value": "5.6.7.8", "count": 17}
+
+
+@_skip_no_mcp
+def test_mcp_aggregate_no_log_type() -> None:
+    """aggregate() works without log_type (cross-dataset)."""
+    empty_resp = {"aggregations": {"buckets": {"buckets": []}}}
+    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=empty_resp):
+        result_str = mcp_server.aggregate("destination.ip")
+
+    result = json.loads(result_str)
+    assert result["status"] == "ok"
+    assert result["data"]["log_type"] is None
+    assert result["data"]["results"] == []
+
+
+@_skip_no_mcp
+def test_mcp_aggregate_opensearch_failure() -> None:
+    """aggregate() returns error when query_opensearch returns None."""
+    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=None):
+        result_str = mcp_server.aggregate("source.ip")
+
+    result = json.loads(result_str)
+    assert result["status"] == "error"
