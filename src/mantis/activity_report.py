@@ -34,14 +34,11 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import urllib3
 from dotenv import load_dotenv
 from rich import box
 from rich.console import Console
 from rich.rule import Rule
 from rich.table import Table
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_INDEX = os.path.join(_BASE, "data", "tickets", "indexed", "tickets_index.json")
