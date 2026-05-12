@@ -462,7 +462,7 @@ def test_investigate_context_gather_skips_enrichment_for_private() -> None:
 # ---------------------------------------------------------------------------
 
 # Load the MCP server module via its file path (it is not an installed package).
-_MCP_SERVER_PATH = Path(__file__).parent.parent / "mcp" / "opensearch" / "server.py"
+_MCP_SERVER_PATH = Path(__file__).parent.parent / "mcp_servers" / "opensearch" / "server.py"
 
 try:
     import importlib.util as _ilu
@@ -635,7 +635,7 @@ _AGGREGATE_RESPONSE = {
 @_skip_no_mcp
 def test_mcp_aggregate_returns_ok_json() -> None:
     """aggregate() returns status='ok' with field/results keys."""
-    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=_AGGREGATE_RESPONSE):
+    with patch.object(mcp_server, "query_opensearch", return_value=_AGGREGATE_RESPONSE):
         result_str = mcp_server.aggregate(
             "source.ip", log_type="notice", notice_type="Scan::Port_Scan"
         )
@@ -655,7 +655,7 @@ def test_mcp_aggregate_returns_ok_json() -> None:
 def test_mcp_aggregate_no_log_type() -> None:
     """aggregate() works without log_type (cross-dataset)."""
     empty_resp = {"aggregations": {"buckets": {"buckets": []}}}
-    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=empty_resp):
+    with patch.object(mcp_server, "query_opensearch", return_value=empty_resp):
         result_str = mcp_server.aggregate("destination.ip")
 
     result = json.loads(result_str)
@@ -667,7 +667,7 @@ def test_mcp_aggregate_no_log_type() -> None:
 @_skip_no_mcp
 def test_mcp_aggregate_opensearch_failure() -> None:
     """aggregate() returns error when query_opensearch returns None."""
-    with patch("src.querier.zeek_modules.base.query_opensearch", return_value=None):
+    with patch.object(mcp_server, "query_opensearch", return_value=None):
         result_str = mcp_server.aggregate("source.ip")
 
     result = json.loads(result_str)
