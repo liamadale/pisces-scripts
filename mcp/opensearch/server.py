@@ -36,6 +36,7 @@ setup_dns()
 from mcp.server.fastmcp import FastMCP
 
 from src.enricher.threat_intel import enrich_ip
+from src.querier.histogram import query_histogram
 from src.querier.fp_manager import (
     append_clauses_to_file,
     ensure_subcategory,
@@ -1666,6 +1667,65 @@ def investigate(
                     "inbound_services": p.get("inbound_services", []),
                 }
         return _ok(data)
+    except Exception as exc:
+        return _err(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# §4.9 Date-histogram primitive
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def histogram(
+    log_type: str,
+    interval: str = "1h",
+    time_range: str = "now-24h",
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
+    sensor: str | list[str] = "all",
+    no_filters: bool = False,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
+) -> str:
+    """Return a date histogram of event volume over time for a Zeek log type.
+
+    Buckets are sorted chronologically. Use this to spot traffic spikes, quiet
+    periods, or to establish a baseline before diving into per-record searches.
+
+    Args:
+        log_type: Zeek log type (e.g. "conn", "notice", "dns") or "all" for all datasets.
+        interval: Bucket width in ES fixed_interval notation, e.g. "15m", "1h", "6h", "1d".
+        time_range: ES date-math range (default: now-24h). Ignored when time_from/time_to are set.
+        src_ip: Filter to a source IP or list of source IPs.
+        dest_ip: Filter to a destination IP or list of destination IPs.
+        sensor: Sensor hostname or list of hostnames; "all" returns all sensors.
+        no_filters: Skip false-positive YAML filters (useful for debugging).
+        time_from: Absolute start timestamp (ISO 8601), e.g. "2026-04-19T00:00:00Z".
+        time_to: Absolute end timestamp (ISO 8601).
+    """
+    try:
+        buckets = query_histogram(
+            log_type=log_type,
+            interval=interval,
+            time_range=time_range,
+            src_ip=src_ip,
+            dest_ip=dest_ip,
+            sensor=sensor,
+            no_filters=no_filters,
+            time_from=time_from,
+            time_to=time_to,
+        )
+        total = sum(b["doc_count"] for b in buckets)
+        return _ok(
+            {
+                "log_type": log_type,
+                "interval": interval,
+                "bucket_count": len(buckets),
+                "total_events": total,
+                "buckets": buckets,
+            }
+        )
     except Exception as exc:
         return _err(str(exc))
 

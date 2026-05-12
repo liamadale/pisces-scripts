@@ -26,6 +26,7 @@ pisces-mantis-report = "src.mantis.activity_report:main"
 pisces-threat-model  = "src.mantis.mantis_threat_model:main"
 pisces-fleet-scan    = "src.profiler.fleet_scanner:main"
 pisces-profile       = "src.profiler.device_profiler:main"
+pisces-histogram     = "src.querier.histogram_cli:main"
 # Web servers (standalone)
 pisces-all              = "run_all:main"
 pisces-opensearch       = "apps.opensearch_web.run:main"
