@@ -45,8 +45,15 @@ from src.querier.fp_manager import (
     load_categories,
     load_filter_file,
 )
+from src.querier.runner import FILTERS_DIR, load_with_remap
 from src.querier.zeek_modules import MODULES
-from src.querier.zeek_modules.base import INDEX, is_private, query_opensearch, run_query
+from src.querier.zeek_modules.base import (
+    INDEX,
+    build_base_query,
+    is_private,
+    query_opensearch,
+    run_query,
+)
 from src.utils.ip_org import lookup_org
 
 mcp = FastMCP("pisces")
@@ -65,6 +72,15 @@ def _serialise_records(records: list) -> list:
             r["sensors"] = sorted(r["sensors"])
         out.append(r)
     return out
+
+
+def _search_result(records: list, limit: int) -> dict:
+    """Build a standard search response dict with a truncation hint."""
+    return {
+        "count": len(records),
+        "truncated": len(records) >= limit,
+        "records": _serialise_records(records),
+    }
 
 
 def _ok(data) -> str:
@@ -161,7 +177,7 @@ def search_conn(
         if proto:
             params["proto"] = proto
         records = run_query(MODULES["conn"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -211,7 +227,7 @@ def search_dns(
         if dns_qtype:
             params["qtype"] = dns_qtype
         records = run_query(MODULES["dns"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -269,7 +285,7 @@ def search_http(
         if dest_port is not None:
             params["dest_port"] = dest_port
         records = run_query(MODULES["http"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -319,7 +335,7 @@ def search_ssl(
         if dest_port is not None:
             params["dest_port"] = dest_port
         records = run_query(MODULES["ssl"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -369,7 +385,7 @@ def search_smtp(
         if smtp_subject:
             params["smtp_subject"] = smtp_subject
         records = run_query(MODULES["smtp"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -419,7 +435,7 @@ def search_rdp(
         if dest_port is not None:
             params["dest_port"] = dest_port
         records = run_query(MODULES["rdp"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -469,7 +485,7 @@ def search_smb(
         if dest_port is not None:
             params["dest_port"] = dest_port
         records = run_query(MODULES["smb"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -519,7 +535,7 @@ def search_ssh(
         if dest_port is not None:
             params["dest_port"] = dest_port
         records = run_query(MODULES["ssh"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -544,7 +560,8 @@ def search_notice(
     SSH brute-force detected, etc.).
 
     Args:
-        notice_note: Notice type to filter by, e.g. "Scan::Port_Scan".
+        notice_note: Notice type to filter by, e.g. "Scan::Port_Scan". Use a trailing
+            wildcard to match a namespace, e.g. "Scan::*" or "SSH::*".
         time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
         time_to: Absolute end timestamp (ISO 8601).
     """
@@ -564,7 +581,7 @@ def search_notice(
         if notice_note:
             params["notice_note"] = notice_note
         records = run_query(MODULES["notice"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -589,7 +606,8 @@ def search_weird(
     couldn't classify normally.
 
     Args:
-        weird_name: Weird event name to filter by, e.g. "bad_HTTP_reply".
+        weird_name: Weird event name to filter by, e.g. "bad_HTTP_reply". Supports
+            wildcards, e.g. "bad_*".
         time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
         time_to: Absolute end timestamp (ISO 8601).
     """
@@ -609,7 +627,7 @@ def search_weird(
         if weird_name:
             params["weird_name"] = weird_name
         records = run_query(MODULES["weird"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -675,7 +693,7 @@ def search_suricata_alert(
         if tag:
             params["tag"] = tag
         records = run_query(MODULES["suricata_alert"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -729,7 +747,7 @@ def search_radius(
         if failed_only:
             params["failed_only"] = failed_only
         records = run_query(MODULES["radius"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -778,7 +796,7 @@ def search_sip(
         if user_agent:
             params["user_agent"] = user_agent
         records = run_query(MODULES["sip"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -819,7 +837,7 @@ def search_tunnel(
         if tunnel_type:
             params["tunnel_type"] = tunnel_type
         records = run_query(MODULES["tunnel"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -864,7 +882,7 @@ def search_ntp(
         if version is not None:
             params["version"] = version
         records = run_query(MODULES["ntp"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -909,7 +927,7 @@ def search_modbus(
         if exceptions_only:
             params["exceptions_only"] = True
         records = run_query(MODULES["modbus"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -950,7 +968,7 @@ def search_dnp3(
         if function:
             params["function"] = function
         records = run_query(MODULES["dnp3"], params)
-        return _ok({"count": len(records), "records": _serialise_records(records)})
+        return _ok(_search_result(records, limit))
     except Exception as exc:
         return _err(str(exc))
 
@@ -1381,6 +1399,116 @@ def enrich_top_talkers(
             results.sort(key=lambda x: x["count"], reverse=True)
 
         return _ok({"notice_type": notice_type, "time_range": time_range, "results": results})
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def bulk_enrich_ips(ips: list[str]) -> str:
+    """Enrich a list of IP addresses through the full threat-intelligence pipeline.
+
+    Runs GreyNoise → AbuseIPDB → Shodan → VirusTotal concurrently for each public IP.
+    Private/RFC-1918 IPs are skipped — no enrichment data is available for them.
+    Results are returned in the same order as the input list.
+
+    Args:
+        ips: List of IP addresses to enrich.
+    """
+    try:
+        ip_order = {ip: i for i, ip in enumerate(ips)}
+        public = [ip for ip in ips if not is_private(ip)]
+        private_count = len(ips) - len(public)
+
+        def _enrich_one(ip: str) -> dict:
+            return {"ip": ip, "enrichment": enrich_ip(ip, offer_fp=False)}
+
+        results: list = []
+        if public:
+            with ThreadPoolExecutor(max_workers=min(len(public), 5)) as pool:
+                futures = {pool.submit(_enrich_one, ip): ip for ip in public}
+                for future in as_completed(futures):
+                    results.append(future.result())
+            results.sort(key=lambda x: ip_order.get(x["ip"], len(ips)))
+
+        return _ok(
+            {
+                "total_requested": len(ips),
+                "enriched_count": len(results),
+                "skipped_private": private_count,
+                "results": results,
+            }
+        )
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def count(
+    log_type: str,
+    time_range: str = "now-24h",
+    sensor: str | list[str] = "all",
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
+    no_filters: bool = False,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
+) -> str:
+    """Count matching events without fetching records — cheaper than search for pure counts.
+
+    Hits the ``_count`` endpoint so no documents are shipped.  Use this when you
+    only need a number, e.g. to check whether an IP is active before pivoting, or
+    to compare volume across time windows.
+
+    Args:
+        log_type: Zeek log type, e.g. "conn", "notice", "dns". Use "all" for all datasets.
+        time_range: ES date-math range, ignored when time_from/time_to are set.
+        sensor: Sensor hostname or "all".
+        src_ip: Source IP or list of source IPs to filter by.
+        dest_ip: Destination IP or list of destination IPs to filter by.
+        no_filters: Skip FP filters.
+        time_from: Absolute start timestamp (ISO 8601).
+        time_to: Absolute end timestamp (ISO 8601).
+    """
+    try:
+        if no_filters:
+            must_not: list = []
+        else:
+            must_not, _fc, _errs = load_with_remap(FILTERS_DIR)
+
+        sensors: list | None = None
+        if isinstance(sensor, list):
+            sensors = [s.strip() for s in sensor]
+        elif str(sensor).lower() != "all":
+            sensors = [s.strip() for s in str(sensor).split(",")]
+
+        datasets = MODULES[log_type].DATASETS if log_type in MODULES and log_type != "all" else []
+
+        body, _params = build_base_query(
+            must_not=must_not,
+            extra_must=[],
+            source_fields=[],
+            limit=0,
+            time_range=time_range,
+            sensors=sensors,
+            datasets=datasets,
+            src_ip_filter=src_ip,
+            dest_ip_filter=dest_ip,
+            time_from=time_from,
+            time_to=time_to,
+            sort=False,
+        )
+        count_body = {"query": body["query"]}
+        params = {"path": f"{INDEX}/_count", "method": "POST"}
+        raw = query_opensearch(count_body, params)
+        if raw is None:
+            return _err("OpenSearch query failed — check credentials and OPENSEARCH_URL")
+        return _ok(
+            {
+                "log_type": log_type,
+                "time_range": time_range,
+                "count": raw.get("count", 0),
+            }
+        )
     except Exception as exc:
         return _err(str(exc))
 
