@@ -99,6 +99,25 @@ _PRIVATE_CIDRS = [
     "ff00::/8",  # multicast
 ]
 
+# Precomputed once: a single must_not clause that matches any source IP in a
+# private range.  `term` does not evaluate CIDR notation on ip-typed fields —
+# range queries with explicit network/broadcast bounds are the correct DSL.
+_PRIVATE_CIDR_MUST_NOT: dict = {
+    "bool": {
+        "should": [
+            {
+                "range": {
+                    "source.ip": {
+                        "gte": str(ipaddress.ip_network(cidr, strict=False).network_address),
+                        "lte": str(ipaddress.ip_network(cidr, strict=False).broadcast_address),
+                    }
+                }
+            }
+            for cidr in _PRIVATE_CIDRS
+        ]
+    }
+}
+
 
 # ---------------------------------------------------------------------------
 # Utility helpers
@@ -193,12 +212,21 @@ _load_cache = load_cache
 # OpenSearch session + query
 # ---------------------------------------------------------------------------
 
+# Module-level session cache: (url, username, password, session).
+# Reusing the same Session keeps the underlying TCP/TLS connection pool alive
+# across the 30+ parallel cross-protocol calls that happen per page load.
+_opensearch_session_cache: tuple[str, str, str, requests.Session] | None = None
 
-def _opensearch_session() -> tuple:
+
+def _opensearch_session() -> tuple[str, requests.Session]:
     """Return (base_url, authenticated Session).
 
     Raises OpenSearchConnectionError when credentials are not configured.
+    The Session is cached at module level and reused as long as credentials
+    remain unchanged, so the connection pool stays warm across calls.
     """
+    global _opensearch_session_cache
+
     opensearch_url = os.environ.get("OPENSEARCH_URL", OPENSEARCH_URL)
     username = os.environ.get("PISCES_USERNAME", "")
     password = os.environ.get("PISCES_PASSWORD", "")
@@ -207,6 +235,11 @@ def _opensearch_session() -> tuple:
         raise OpenSearchConnectionError(
             "PISCES_USERNAME and PISCES_PASSWORD must be set — check your .env file"
         )
+
+    if _opensearch_session_cache is not None:
+        cached_url, cached_user, cached_pass, cached_session = _opensearch_session_cache
+        if (cached_url, cached_user, cached_pass) == (opensearch_url, username, password):
+            return opensearch_url, cached_session
 
     session = requests.Session()
     session.auth = (username, password)
@@ -217,6 +250,10 @@ def _opensearch_session() -> tuple:
             "osd-xsrf": "true",
         }
     )
+    adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    _opensearch_session_cache = (opensearch_url, username, password, session)
     return opensearch_url, session
 
 
@@ -369,9 +406,11 @@ def build_base_query(
     public_only: bool = False,
     src_ip_filter: str | None = None,
     dest_ip_filter: str | None = None,
+    any_ip_filter: str | None = None,
     direction: str | None = None,
     time_from: str | None = None,
     time_to: str | None = None,
+    sort: bool = True,
 ) -> tuple:
     """Build the OpenSearch query body and request params.
 
@@ -397,6 +436,19 @@ def build_base_query(
     if dest_ip_filter:
         must_clauses.append({"term": {"destination.ip": dest_ip_filter}})
 
+    if any_ip_filter:
+        must_clauses.append(
+            {
+                "bool": {
+                    "should": [
+                        {"term": {"source.ip": any_ip_filter}},
+                        {"term": {"destination.ip": any_ip_filter}},
+                    ],
+                    "minimum_should_match": 1,
+                }
+            }
+        )
+
     if direction:
         must_clauses.append({"term": {"network.direction": direction}})
 
@@ -404,12 +456,11 @@ def build_base_query(
 
     effective_must_not = list(must_not)
     if public_only:
-        for cidr in _PRIVATE_CIDRS:
-            effective_must_not.append({"term": {"source.ip": cidr}})
+        effective_must_not.append(_PRIVATE_CIDR_MUST_NOT)
 
-    body = {
+    body: dict = {
         "size": limit,
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "track_total_hits": False,
         "query": {
             "bool": {
                 "filter": must_clauses,
@@ -418,6 +469,8 @@ def build_base_query(
         },
         "_source": source_fields,
     }
+    if sort:
+        body["sort"] = [{"@timestamp": {"order": "desc"}}]
 
     params = {
         "path": f"{INDEX}/_search?timeout=30s",
@@ -444,7 +497,7 @@ def deduplicate_zeek(records: list, key_fn) -> list:
 
     deduped = []
     for _key, group in sorted(grouped.items(), key=lambda kv: -len(kv[1])):
-        rep = sorted(group, key=lambda r: r["timestamp"], reverse=True)[0].copy()
+        rep = max(group, key=lambda r: r["timestamp"]).copy()
         rep["freq"] = len(group)
         rep["sensors"] = sorted({r["sensor"] for r in group if r.get("sensor")})
         deduped.append(rep)
@@ -478,12 +531,13 @@ def run_query(module, search_params: dict) -> list:
 
     extra_must, post_filters = module.build_extra_must(search_params)
 
-    # Guard src/dest ip filters for modules that don't have the field in SOURCE_FIELDS —
+    # Guard src/dest/any ip filters for modules that don't have the field in SOURCE_FIELDS —
     # a term query on a missing field returns zero results.
-    src_ip_for_query = search_params.get("src_ip") if "source.ip" in module.SOURCE_FIELDS else None
-    dest_ip_for_query = (
-        search_params.get("dest_ip") if "destination.ip" in module.SOURCE_FIELDS else None
-    )
+    has_src = "source.ip" in module.SOURCE_FIELDS
+    has_dest = "destination.ip" in module.SOURCE_FIELDS
+    src_ip_for_query = search_params.get("src_ip") if has_src else None
+    dest_ip_for_query = search_params.get("dest_ip") if has_dest else None
+    any_ip_for_query = search_params.get("any_ip") if (has_src or has_dest) else None
 
     # Over-fetch when post-filters are active so truncation still yields enough rows.
     requested_limit = search_params.get("limit", 500)
@@ -502,6 +556,7 @@ def run_query(module, search_params: dict) -> list:
         public_only=search_params.get("public_only", False),
         src_ip_filter=src_ip_for_query,
         dest_ip_filter=dest_ip_for_query,
+        any_ip_filter=any_ip_for_query,
         direction=search_params.get("direction"),
         time_from=search_params.get("time_from"),
         time_to=search_params.get("time_to"),
