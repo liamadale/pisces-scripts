@@ -17,7 +17,9 @@ Standalone:
 import argparse
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 from dotenv import load_dotenv
 from rich.console import Console
@@ -30,6 +32,23 @@ from src.enricher import abuseipdb, greynoise, shodan, virustotal
 from src.utils.dns import setup_dns
 
 console = Console(file=sys.stderr)
+
+_ENRICH_TTL = 6 * 3600  # seconds; web path only
+_enrich_cache: dict[str, tuple[float, dict]] = {}
+_enrich_lock = Lock()
+
+
+def _cache_get(ip: str) -> dict | None:
+    with _enrich_lock:
+        entry = _enrich_cache.get(ip)
+        if entry and time.time() - entry[0] < _ENRICH_TTL:
+            return entry[1]
+        return None
+
+
+def _cache_put(ip: str, result: dict) -> None:
+    with _enrich_lock:
+        _enrich_cache[ip] = (time.time(), result)
 
 
 def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
@@ -49,6 +68,11 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
             "virustotal": dict | None,
         }
     """
+    if not urls_only and not offer_fp:
+        cached = _cache_get(ip)
+        if cached is not None:
+            return cached
+
     result: dict = {
         "ip": ip,
         "greynoise": {},
@@ -61,29 +85,41 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
         _display_urls(ip)
         return result
 
+    if not offer_fp:
+        # Web path: fire all four providers in parallel — no early-exit benefit here
+        # since there is no FP-filter prompt to show the analyst.
+        providers = {
+            "greynoise": greynoise.check_ip,
+            "abuseipdb": abuseipdb.check_ip,
+            "shodan": shodan.check_ip,
+            "virustotal": virustotal.check_ip,
+        }
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {pool.submit(fn, ip): name for name, fn in providers.items()}
+            for future in as_completed(futures):
+                result[futures[future]] = future.result()
+        _cache_put(ip, result)
+        return result
+
+    # CLI path: GreyNoise first so we can offer an FP filter on benign IPs.
     console.print(f"\n[bold cyan]Enriching {ip}...[/bold cyan]")
 
-    # ---- Step 1: GreyNoise ----
     gn = greynoise.check_ip(ip)
     result["greynoise"] = gn
     classification = gn["classification"]
-
     greynoise.display(ip, gn)
 
     if classification == "benign":
-        if offer_fp:
-            add_fp = (
-                input("\nGreyNoise classifies this as benign. Add FP filter? [y/N]: ")
-                .strip()
-                .lower()
-            )
-            if add_fp == "y":
-                # Lazy import to avoid circular dependency when called from querier
-                from src.querier.fp_manager import create_filter_interactive
+        add_fp = (
+            input("\nGreyNoise classifies this as benign. Add FP filter? [y/N]: ").strip().lower()
+        )
+        if add_fp == "y":
+            # Lazy import to avoid circular dependency when called from querier
+            from src.querier.fp_manager import create_filter_interactive
 
-                name = gn.get("name", "")
-                hint = f"{name} — GreyNoise benign" if name else ""
-                create_filter_interactive(alert={"src_ip": ip}, comment_hint=hint)
+            name = gn.get("name", "")
+            hint = f"{name} — GreyNoise benign" if name else ""
+            create_filter_interactive(alert={"src_ip": ip}, comment_hint=hint)
         _display_urls(ip)
         return result
 
@@ -105,12 +141,9 @@ def enrich_ip(ip: str, offer_fp: bool = True, urls_only: bool = False) -> dict:
         for future in as_completed(futures):
             result[futures[future]] = future.result()
 
-    # Display in canonical order
     abuseipdb.display(ip, result["abuseipdb"])
     shodan.display(ip, result["shodan"])
     virustotal.display(ip, result["virustotal"])
-
-    # ---- Step 5: Reference URLs (always) ----
     _display_urls(ip)
 
     return result
