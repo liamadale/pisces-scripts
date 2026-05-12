@@ -23,6 +23,9 @@ HASH_URL = "https://www.virustotal.com/gui/file/{hash}"
 
 console = Console(file=sys.stderr)
 
+_session = requests.Session()
+_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+
 
 def check_ip(ip: str) -> dict:
     """Query VirusTotal for an IP address.
@@ -47,7 +50,7 @@ def check_ip(ip: str) -> dict:
     headers = {"x-apikey": api_key}
 
     try:
-        resp = requests.get(f"{_BASE_URL}/{ip}", headers=headers, timeout=10)
+        resp = _session.get(f"{_BASE_URL}/{ip}", headers=headers, timeout=10)
     except requests.RequestException as exc:
         return _error_result(f"Request failed: {exc}")
 
@@ -125,7 +128,7 @@ def check_hash(hash_value: str) -> dict:
 
     headers = {"x-apikey": api_key}
     try:
-        resp = requests.get(f"{_HASH_BASE_URL}/{hash_value}", headers=headers, timeout=10)
+        resp = _session.get(f"{_HASH_BASE_URL}/{hash_value}", headers=headers, timeout=10)
     except requests.RequestException as exc:
         return _hash_error_result(f"Request failed: {exc}")
 

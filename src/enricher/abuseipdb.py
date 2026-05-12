@@ -17,6 +17,9 @@ URL = "https://www.abuseipdb.com/check/{ip}"
 
 console = Console(file=sys.stderr)
 
+_session = requests.Session()
+_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+
 
 def check_ip(ip: str, max_age_days: int = 90) -> dict:
     """Query AbuseIPDB for an IP address.
@@ -43,7 +46,7 @@ def check_ip(ip: str, max_age_days: int = 90) -> dict:
     params = {"ipAddress": ip, "maxAgeInDays": max_age_days, "verbose": True}
 
     try:
-        resp = requests.get(_BASE_URL, headers=headers, params=params, timeout=10)
+        resp = _session.get(_BASE_URL, headers=headers, params=params, timeout=10)
     except requests.RequestException as exc:
         return _error_result(f"Request failed: {exc}")
 

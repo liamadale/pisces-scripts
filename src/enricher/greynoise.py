@@ -17,6 +17,9 @@ URL = "https://viz.greynoise.io/ip/{ip}"
 
 console = Console(file=sys.stderr)
 
+_session = requests.Session()
+_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+
 
 def check_ip(ip: str) -> dict:
     """Query GreyNoise community API for an IP.
@@ -33,7 +36,7 @@ def check_ip(ip: str) -> dict:
     headers = {"key": api_key} if api_key else {}
 
     try:
-        resp = requests.get(f"{_BASE_URL}/{ip}", headers=headers, timeout=10)
+        resp = _session.get(f"{_BASE_URL}/{ip}", headers=headers, timeout=10)
     except requests.RequestException as exc:
         return {
             "classification": "not_found",

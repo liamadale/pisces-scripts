@@ -17,6 +17,9 @@ URL = "https://www.shodan.io/search?query={ip}"
 
 console = Console(file=sys.stderr)
 
+_session = requests.Session()
+_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+
 
 def check_ip(ip: str) -> dict:
     """Query Shodan host API for an IP.
@@ -39,7 +42,7 @@ def check_ip(ip: str) -> dict:
         return _error_result("SHODAN_API_KEY not set")
 
     try:
-        resp = requests.get(f"{_BASE_URL}/{ip}", params={"key": api_key}, timeout=10)
+        resp = _session.get(f"{_BASE_URL}/{ip}", params={"key": api_key}, timeout=10)
     except requests.RequestException as exc:
         return _error_result(f"Request failed: {exc}")
 
