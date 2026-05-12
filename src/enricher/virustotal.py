@@ -8,23 +8,28 @@ Provides:
   display_hash()— Rich table for hash results
 """
 
+import atexit
 import os
-import sys
 
 import requests
+import urllib3
 from rich import box
-from rich.console import Console
 from rich.table import Table
+
+from src.utils.terminal import console
 
 _BASE_URL = "https://www.virustotal.com/api/v3/ip_addresses"
 _HASH_BASE_URL = "https://www.virustotal.com/api/v3/files"
 URL = "https://www.virustotal.com/gui/ip-address/{ip}"
 HASH_URL = "https://www.virustotal.com/gui/file/{hash}"
 
-console = Console(file=sys.stderr)
-
+_retry = urllib3.util.Retry(total=2, backoff_factor=0.5, status_forcelist=(429, 502, 503, 504))
 _session = requests.Session()
-_session.mount("https://", requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=8))
+_session.mount(
+    "https://",
+    requests.adapters.HTTPAdapter(max_retries=_retry, pool_connections=4, pool_maxsize=8),
+)
+atexit.register(_session.close)
 
 
 def check_ip(ip: str) -> dict:
