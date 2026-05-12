@@ -1,5 +1,6 @@
 """Web-layer query helpers — bridge between HTTP request params and run_query()."""
 
+import os
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -11,6 +12,11 @@ from src.querier.zeek_modules.base import (
     console,
     run_query,
 )
+
+# Shared long-lived pool for all OpenSearch fan-out operations.  One pool
+# bounds total thread count across all concurrent requests instead of letting
+# each route spawn its own unlimited pool.
+POOL = ThreadPoolExecutor(max_workers=min(32, (os.cpu_count() or 4) * 4))
 
 
 def build_search_params_from_request(request, extra_keys=None) -> dict:
@@ -34,13 +40,29 @@ def build_search_params_from_request(request, extra_keys=None) -> dict:
 
 
 def cached_run_query(log_type: str, search_params: dict) -> list:
-    """run_query with in-memory TTL caching. Falls through to OpenSearch on miss."""
+    """run_query with in-memory TTL caching and single-flight dedup.
+
+    If two concurrent requests arrive with the same params and both miss the
+    cache, only one queries OpenSearch; the other waits and returns the same
+    result.
+    """
     cached = wcache.get(log_type, search_params)
     if cached is not None:
         return cached
-    records = run_query(MODULES[log_type], search_params)
-    wcache.put(log_type, search_params, records)
-    return records
+
+    k = wcache.raw_key(log_type, search_params)
+    event = wcache.claim(k)
+
+    if event is None:
+        wcache.wait_inflight(k)
+        return wcache.get(log_type, search_params) or []
+
+    try:
+        records = run_query(MODULES[log_type], search_params)
+        wcache.put(log_type, search_params, records)
+        return records
+    finally:
+        wcache.release(k)
 
 
 def run_cross_protocol_query(search_params: dict) -> list:
@@ -52,19 +74,18 @@ def run_cross_protocol_query(search_params: dict) -> list:
     ip_modules = {lt: mod for lt, mod in MODULES.items() if mod.SUPPORTS_IP_FILTER}
     results_by_type: dict = {}
     first_conn_error: Exception | None = None
-    with ThreadPoolExecutor(max_workers=len(ip_modules)) as ex:
-        futures = {ex.submit(cached_run_query, lt, search_params): lt for lt in ip_modules}
-        for f in as_completed(futures):
-            lt = futures[f]
-            try:
-                results_by_type[lt] = f.result()
-            except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
-                if first_conn_error is None:
-                    first_conn_error = exc
-                results_by_type[lt] = []
-            except Exception as exc:
-                results_by_type[lt] = []
-                console.print(f"[yellow]Cross-protocol query failed for {lt}: {exc}[/yellow]")
+    futures = {POOL.submit(cached_run_query, lt, search_params): lt for lt in ip_modules}
+    for f in as_completed(futures):
+        lt = futures[f]
+        try:
+            results_by_type[lt] = f.result()
+        except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+            if first_conn_error is None:
+                first_conn_error = exc
+            results_by_type[lt] = []
+        except Exception as exc:
+            results_by_type[lt] = []
+            console.print(f"[yellow]Cross-protocol query failed for {lt}: {exc}[/yellow]")
 
     if first_conn_error is not None:
         raise first_conn_error
