@@ -9,10 +9,8 @@ dependencies = [
     "rich>=15.0.0",
     "beautifulsoup4>=4.14.3",
     "flask[async]>=3.0",
-    "geoip2>=5.2.0",
     "orjson>=3.11.8",
     "plotext>=5.3.2",
-    "cryptography>=46.0.7",
     "pygments>=2.20.0",
     "python-multipart>=0.0.26",
     "httpx>=0.28.1",
@@ -45,10 +43,12 @@ nlp = [
     "spacy>=3.7",
 ]
 
-# Offline ASN/BGP reputation lookup (requires a BGP dump at data/asn_table.dat)
-# Download a dump via: python -m pyasn.scripts.pyasn_util_download
+# Offline ASN/BGP reputation lookup and GeoIP (requires data files)
+#   ASN: python -m pyasn.scripts.pyasn_util_download → data/asn_table.dat
+#   GeoIP: download GeoLite2-City.mmdb from MaxMind → data/
 offline-enrichment = [
     "pyasn>=1.6.2",
+    "geoip2>=5.2.0",
 ]
 
 # Everything
@@ -56,6 +56,7 @@ all = [
     "mcp[cli]>=1.0.0",
     "spacy>=3.7",
     "pyasn>=1.6.2",
+    "geoip2>=5.2.0",
 ]
 
 [dependency-groups]
