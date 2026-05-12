@@ -39,8 +39,11 @@ from src.enricher.threat_intel import enrich_ip
 from src.querier.histogram import query_histogram
 from src.querier.fp_manager import (
     append_clauses_to_file,
+    delete_ip_from_filter,
     ensure_subcategory,
     filter_file_path,
+    load_categories,
+    load_filter_file,
 )
 from src.querier.zeek_modules import MODULES
 from src.querier.zeek_modules.base import INDEX, is_private, query_opensearch, run_query
@@ -1555,6 +1558,121 @@ def create_fp_filter(
                 "subcategory": subcategory,
             }
         )
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def list_filter_categories() -> str:
+    """List all valid filter category / subcategory pairs from categories.yaml.
+
+    Returns a mapping of category → list[subcategory].  Use this before calling
+    create_fp_filter so you can supply a valid category and subcategory.
+    """
+    try:
+        data = load_categories()
+        cats = data.get("categories", {})
+        return _ok(cats)
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def list_fp_filters(
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+) -> str:
+    """Read existing false-positive filter clauses.
+
+    When called with no arguments returns a summary of all filter files.
+    When called with only category returns all files in that category.
+    When called with both category and subcategory returns the full clause list
+    for that file so you can inspect what is already suppressed.
+
+    Args:
+        category: Filter category directory, e.g. "ips" or "notices".
+        subcategory: Filter subcategory (filename without .yaml), e.g. "false_positives".
+    """
+    try:
+        import os
+
+        if category and subcategory:
+            path = filter_file_path(category, subcategory)
+            if not os.path.exists(path):
+                return _err(f"Filter file not found: filters/{category}/{subcategory}.yaml")
+            data = load_filter_file(path)
+            return _ok(
+                {
+                    "category": category,
+                    "subcategory": subcategory,
+                    "enabled": data.get("enabled", True),
+                    "description": data.get("description", ""),
+                    "clause_count": len(data.get("must_not", [])),
+                    "clauses": data.get("must_not", []),
+                }
+            )
+
+        results = []
+        cats = load_categories().get("categories", {})
+
+        for cat, cat_data in sorted(cats.items()):
+            if category and cat != category:
+                continue
+            for sub in sorted(cat_data.get("subcategories", [])):
+                path = filter_file_path(cat, sub)
+                if os.path.exists(path):
+                    fdata = load_filter_file(path)
+                    results.append(
+                        {
+                            "category": cat,
+                            "subcategory": sub,
+                            "enabled": fdata.get("enabled", True),
+                            "clause_count": len(fdata.get("must_not", [])),
+                        }
+                    )
+                else:
+                    results.append(
+                        {"category": cat, "subcategory": sub, "enabled": None, "clause_count": 0}
+                    )
+
+        return _ok(results)
+    except Exception as exc:
+        return _err(str(exc))
+
+
+@mcp.tool()
+def delete_fp_filter(
+    category: str,
+    subcategory: str,
+    ip: str,
+) -> str:
+    """Remove false-positive filter clauses that match an IP address.
+
+    Removes every must_not clause in filters/{category}/{subcategory}.yaml
+    where the given IP appears as a src_ip or dest_ip value (handles both
+    single-value ``term`` and multi-value ``terms`` clauses).  For ``terms``
+    clauses with multiple IPs, only the matching IP is removed; the clause is
+    kept with the remaining IPs.
+
+    Args:
+        category: Filter category directory, e.g. "ips".
+        subcategory: Filter subcategory (filename without .yaml), e.g. "false_positives".
+        ip: IP address to remove from the filter file.
+    """
+    try:
+        path = filter_file_path(category, subcategory)
+        removed = delete_ip_from_filter(path, ip)
+        data = load_filter_file(path)
+        return _ok(
+            {
+                "deleted": removed,
+                "remaining_clauses": len(data.get("must_not", [])),
+                "file": path,
+                "ip": ip,
+            }
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return _err(str(exc))
     except Exception as exc:
         return _err(str(exc))
 
