@@ -343,3 +343,158 @@ def test_dedup_collects_sensors() -> None:
 
 def test_dedup_empty_list() -> None:
     assert deduplicate_zeek([], _key) == []
+
+
+# ---------------------------------------------------------------------------
+# §4.3 Port / proto filters in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_dest_port_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_port_filter=443,
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "destination.port" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["destination.port"] == 443
+
+
+def test_build_base_query_src_port_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_port_filter=12345,
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "source.port" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["source.port"] == 12345
+
+
+def test_build_base_query_proto_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        proto_filter="udp",
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "network.transport" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["network.transport"] == "udp"
+
+
+def test_build_base_query_dest_port_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_port_filter=[80, 443, 8080],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "destination.port" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["destination.port"] == [80, 443, 8080]
+
+
+# ---------------------------------------------------------------------------
+# §4.4 Multi-value src_ip / dest_ip in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_src_ip_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_ip_filter=["1.1.1.1", "2.2.2.2"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "source.ip" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["source.ip"] == ["1.1.1.1", "2.2.2.2"]
+
+
+def test_build_base_query_dest_ip_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_ip_filter=["8.8.8.8", "1.1.1.1"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "destination.ip" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["destination.ip"] == ["8.8.8.8", "1.1.1.1"]
+
+
+def test_build_base_query_proto_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        proto_filter=["tcp", "udp"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "network.transport" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["network.transport"] == ["tcp", "udp"]
+
+
+# ---------------------------------------------------------------------------
+# §4.6 Absolute timestamp override in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_absolute_timestamps() -> None:
+    time_from = "2026-04-19T00:00:00Z"
+    time_to = "2026-04-20T00:00:00Z"
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-24h",
+        sensors=None,
+        datasets=["conn"],
+        time_from=time_from,
+        time_to=time_to,
+    )
+    must = body["query"]["bool"]["filter"]
+    ts_clause = next((c for c in must if "range" in c and "@timestamp" in c["range"]), None)
+    assert ts_clause is not None
+    assert ts_clause["range"]["@timestamp"]["gte"] == time_from
+    assert ts_clause["range"]["@timestamp"]["lte"] == time_to

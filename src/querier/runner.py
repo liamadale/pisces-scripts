@@ -100,8 +100,11 @@ def run_query(module, search_params: dict) -> list:
 
     sensors: list | None = None
     sensor_val = search_params.get("sensor", "all")
-    if sensor_val and str(sensor_val).lower() != "all":
-        sensors = [s.strip() for s in str(sensor_val).split(",")]
+    if sensor_val:
+        if isinstance(sensor_val, list):
+            sensors = [s.strip() for s in sensor_val]
+        elif str(sensor_val).lower() != "all":
+            sensors = [s.strip() for s in str(sensor_val).split(",")]
 
     extra_must, post_filters = module.build_extra_must(search_params)
 
@@ -112,6 +115,13 @@ def run_query(module, search_params: dict) -> list:
     src_ip_for_query = search_params.get("src_ip") if has_src else None
     dest_ip_for_query = search_params.get("dest_ip") if has_dest else None
     any_ip_for_query = search_params.get("any_ip") if (has_src or has_dest) else None
+
+    has_src_port = "source.port" in module.SOURCE_FIELDS
+    has_dest_port = "destination.port" in module.SOURCE_FIELDS
+    has_proto = "network.transport" in module.SOURCE_FIELDS
+    src_port_for_query = search_params.get("src_port") if has_src_port else None
+    dest_port_for_query = search_params.get("dest_port") if has_dest_port else None
+    proto_for_query = search_params.get("proto") if has_proto else None
 
     # Over-fetch when post-filters are active so truncation still yields enough rows.
     requested_limit = search_params.get("limit", 500)
@@ -134,6 +144,9 @@ def run_query(module, search_params: dict) -> list:
         direction=search_params.get("direction"),
         time_from=search_params.get("time_from"),
         time_to=search_params.get("time_to"),
+        src_port_filter=src_port_for_query,
+        dest_port_filter=dest_port_for_query,
+        proto_filter=proto_for_query,
     )
 
     if search_params.get("profile"):
@@ -202,8 +215,11 @@ async def run_query_async(module, search_params: dict) -> list:
 
     sensors: list | None = None
     sensor_val = search_params.get("sensor", "all")
-    if sensor_val and str(sensor_val).lower() != "all":
-        sensors = [s.strip() for s in str(sensor_val).split(",")]
+    if sensor_val:
+        if isinstance(sensor_val, list):
+            sensors = [s.strip() for s in sensor_val]
+        elif str(sensor_val).lower() != "all":
+            sensors = [s.strip() for s in str(sensor_val).split(",")]
 
     extra_must, post_filters = module.build_extra_must(search_params)
 
@@ -212,6 +228,13 @@ async def run_query_async(module, search_params: dict) -> list:
     src_ip_for_query = search_params.get("src_ip") if has_src else None
     dest_ip_for_query = search_params.get("dest_ip") if has_dest else None
     any_ip_for_query = search_params.get("any_ip") if (has_src or has_dest) else None
+
+    has_src_port = "source.port" in module.SOURCE_FIELDS
+    has_dest_port = "destination.port" in module.SOURCE_FIELDS
+    has_proto = "network.transport" in module.SOURCE_FIELDS
+    src_port_for_query = search_params.get("src_port") if has_src_port else None
+    dest_port_for_query = search_params.get("dest_port") if has_dest_port else None
+    proto_for_query = search_params.get("proto") if has_proto else None
 
     requested_limit = search_params.get("limit", 500)
     query_limit = (
@@ -233,6 +256,9 @@ async def run_query_async(module, search_params: dict) -> list:
         direction=search_params.get("direction"),
         time_from=search_params.get("time_from"),
         time_to=search_params.get("time_to"),
+        src_port_filter=src_port_for_query,
+        dest_port_filter=dest_port_for_query,
+        proto_filter=proto_for_query,
     )
 
     raw = await query_opensearch_async(body, params)

@@ -127,13 +127,16 @@ def build_base_query(
     sensors: list | None,
     datasets: list,
     public_only: bool = False,
-    src_ip_filter: str | None = None,
-    dest_ip_filter: str | None = None,
+    src_ip_filter: str | list[str] | None = None,
+    dest_ip_filter: str | list[str] | None = None,
     any_ip_filter: str | None = None,
     direction: str | None = None,
     time_from: str | None = None,
     time_to: str | None = None,
     sort: bool = True,
+    src_port_filter: int | list[int] | None = None,
+    dest_port_filter: int | list[int] | None = None,
+    proto_filter: str | list[str] | None = None,
 ) -> tuple:
     """Build the OpenSearch query body and request params.
 
@@ -154,10 +157,34 @@ def build_base_query(
         must_clauses.append({"terms": {"host.name": sensors}})
 
     if src_ip_filter:
-        must_clauses.append({"term": {"source.ip": src_ip_filter}})
+        if isinstance(src_ip_filter, list):
+            must_clauses.append({"terms": {"source.ip": src_ip_filter}})
+        else:
+            must_clauses.append({"term": {"source.ip": src_ip_filter}})
 
     if dest_ip_filter:
-        must_clauses.append({"term": {"destination.ip": dest_ip_filter}})
+        if isinstance(dest_ip_filter, list):
+            must_clauses.append({"terms": {"destination.ip": dest_ip_filter}})
+        else:
+            must_clauses.append({"term": {"destination.ip": dest_ip_filter}})
+
+    if src_port_filter is not None:
+        if isinstance(src_port_filter, list):
+            must_clauses.append({"terms": {"source.port": src_port_filter}})
+        else:
+            must_clauses.append({"term": {"source.port": src_port_filter}})
+
+    if dest_port_filter is not None:
+        if isinstance(dest_port_filter, list):
+            must_clauses.append({"terms": {"destination.port": dest_port_filter}})
+        else:
+            must_clauses.append({"term": {"destination.port": dest_port_filter}})
+
+    if proto_filter:
+        if isinstance(proto_filter, list):
+            must_clauses.append({"terms": {"network.transport": proto_filter}})
+        else:
+            must_clauses.append({"term": {"network.transport": proto_filter}})
 
     if any_ip_filter:
         must_clauses.append(

@@ -73,13 +73,15 @@ def _err(msg: str) -> str:
 
 def _base_params(
     time_range: str,
-    sensor: str,
+    sensor: str | list[str],
     limit: int,
     public_only: bool,
-    src_ip: Optional[str],
+    src_ip: str | list[str] | None,
     direction: Optional[str],
     no_filters: bool,
-    dest_ip: Optional[str] = None,
+    dest_ip: str | list[str] | None = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> dict:
     params: dict = {
         "time_range": time_range,
@@ -95,6 +97,10 @@ def _base_params(
         params["dest_ip"] = dest_ip
     if direction:
         params["direction"] = direction
+    if time_from:
+        params["time_from"] = time_from
+    if time_to:
+        params["time_to"] = time_to
     return params
 
 
@@ -106,23 +112,50 @@ def _base_params(
 @mcp.tool()
 def search_conn(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
+    dest_port: Optional[int] = None,
+    src_port: Optional[int] = None,
+    proto: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek conn (connection) logs from Malcolm/OpenSearch.
 
     Returns deduplicated connection records sorted by frequency.
     Common fields: src_ip, dest_ip, dest_port, proto, bytes, duration, sensor.
+
+    Args:
+        dest_port: Destination port to filter by, e.g. 443.
+        src_port: Source port to filter by.
+        proto: Transport protocol to filter by, e.g. "tcp", "udp", "icmp".
+        time_from: Absolute start timestamp (ISO 8601), e.g. "2026-04-19T00:00:00Z".
+        time_to: Absolute end timestamp (ISO 8601). Overrides time_range when both are set.
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
+        if dest_port is not None:
+            params["dest_port"] = dest_port
+        if src_port is not None:
+            params["src_port"] = src_port
+        if proto:
+            params["proto"] = proto
         records = run_query(MODULES["conn"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -132,16 +165,18 @@ def search_conn(
 @mcp.tool()
 def search_dns(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     dns_query: Optional[str] = None,
     dns_rcode: Optional[str] = None,
     dns_qtype: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek DNS logs from Malcolm/OpenSearch.
 
@@ -149,10 +184,21 @@ def search_dns(
         dns_query: Domain name to filter by (substring match).
         dns_rcode: Response code to filter by, e.g. "NXDOMAIN".
         dns_qtype: Query type to filter by, e.g. "A", "MX", "TXT".
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if dns_query:
             params["dns_query"] = dns_query
@@ -169,17 +215,20 @@ def search_dns(
 @mcp.tool()
 def search_http(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     http_method: Optional[str] = None,
     http_host: Optional[str] = None,
     http_uri: Optional[str] = None,
     status_code: Optional[int] = None,
+    dest_port: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek HTTP logs from Malcolm/OpenSearch.
 
@@ -188,10 +237,22 @@ def search_http(
         http_host: Virtual host header to filter by.
         http_uri: URI path substring to filter by.
         status_code: HTTP response status code to filter by.
+        dest_port: Destination port to filter by (default 80/8080, but not enforced).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if http_method:
             params["http_method"] = http_method
@@ -201,6 +262,8 @@ def search_http(
             params["http_uri"] = http_uri
         if status_code is not None:
             params["status_code"] = status_code
+        if dest_port is not None:
+            params["dest_port"] = dest_port
         records = run_query(MODULES["http"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -210,30 +273,47 @@ def search_http(
 @mcp.tool()
 def search_ssl(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     ssl_sni: Optional[str] = None,
     ssl_invalid_only: bool = False,
+    dest_port: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek SSL/TLS logs from Malcolm/OpenSearch.
 
     Args:
         ssl_sni: Server Name Indication hostname to filter by.
         ssl_invalid_only: If True, return only connections with invalid/self-signed certs.
+        dest_port: Destination port to filter by (commonly 443, 8443).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if ssl_sni:
             params["ssl_sni"] = ssl_sni
         if ssl_invalid_only:
             params["ssl_invalid_only"] = True
+        if dest_port is not None:
+            params["dest_port"] = dest_port
         records = run_query(MODULES["ssl"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -243,16 +323,18 @@ def search_ssl(
 @mcp.tool()
 def search_smtp(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     smtp_mail_from: Optional[str] = None,
     smtp_rcpt_to: Optional[str] = None,
     smtp_subject: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek SMTP logs from Malcolm/OpenSearch.
 
@@ -260,10 +342,21 @@ def search_smtp(
         smtp_mail_from: Sender address to filter by.
         smtp_rcpt_to: Recipient address to filter by.
         smtp_subject: Subject line substring to filter by.
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if smtp_mail_from:
             params["smtp_mail_from"] = smtp_mail_from
@@ -280,30 +373,47 @@ def search_smtp(
 @mcp.tool()
 def search_rdp(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     rdp_result: Optional[str] = None,
     rdp_cookie: Optional[str] = None,
+    dest_port: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek RDP logs from Malcolm/OpenSearch.
 
     Args:
         rdp_result: RDP result string to filter by, e.g. "encrypted".
         rdp_cookie: RDP cookie/username string to filter by.
+        dest_port: Destination port to filter by (commonly 3389).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if rdp_result:
             params["rdp_result"] = rdp_result
         if rdp_cookie:
             params["rdp_cookie"] = rdp_cookie
+        if dest_port is not None:
+            params["dest_port"] = dest_port
         records = run_query(MODULES["rdp"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -313,30 +423,47 @@ def search_rdp(
 @mcp.tool()
 def search_smb(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     smb_share: Optional[str] = None,
     smb_action: Optional[str] = None,
+    dest_port: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek SMB logs from Malcolm/OpenSearch.
 
     Args:
         smb_share: SMB share name to filter by.
         smb_action: SMB action verb to filter by, e.g. "SMB::FILE_OPEN".
+        dest_port: Destination port to filter by (commonly 445).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if smb_share:
             params["smb_share"] = smb_share
         if smb_action:
             params["smb_action"] = smb_action
+        if dest_port is not None:
+            params["dest_port"] = dest_port
         records = run_query(MODULES["smb"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -346,30 +473,47 @@ def search_smb(
 @mcp.tool()
 def search_ssh(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     ssh_failed_only: bool = False,
     ssh_auth_result: Optional[str] = None,
+    dest_port: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek SSH logs from Malcolm/OpenSearch.
 
     Args:
         ssh_failed_only: If True, return only failed authentication attempts.
         ssh_auth_result: Auth result string to filter by, e.g. "failure", "success".
+        dest_port: Destination port to filter by (commonly 22).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if ssh_failed_only:
             params["ssh_failed_only"] = True
         if ssh_auth_result is not None:
             params["ssh_auth_result"] = ssh_auth_result
+        if dest_port is not None:
+            params["dest_port"] = dest_port
         records = run_query(MODULES["ssh"], params)
         return _ok({"count": len(records), "records": _serialise_records(records)})
     except Exception as exc:
@@ -379,14 +523,16 @@ def search_ssh(
 @mcp.tool()
 def search_notice(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     notice_note: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek Notice logs from Malcolm/OpenSearch.
 
@@ -395,10 +541,21 @@ def search_notice(
 
     Args:
         notice_note: Notice type to filter by, e.g. "Scan::Port_Scan".
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if notice_note:
             params["notice_note"] = notice_note
@@ -411,14 +568,16 @@ def search_notice(
 @mcp.tool()
 def search_weird(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     weird_name: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek Weird logs from Malcolm/OpenSearch.
 
@@ -427,10 +586,21 @@ def search_weird(
 
     Args:
         weird_name: Weird event name to filter by, e.g. "bad_HTTP_reply".
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if weird_name:
             params["weird_name"] = weird_name
@@ -443,11 +613,11 @@ def search_weird(
 @mcp.tool()
 def search_suricata_alert(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     direction: Optional[str] = None,
     no_filters: bool = False,
     rule_name: Optional[str] = None,
@@ -456,6 +626,8 @@ def search_suricata_alert(
     sid: Optional[int] = None,
     exclude_stream: bool = False,
     tag: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Suricata IDS alert records from Malcolm/OpenSearch.
 
@@ -470,10 +642,21 @@ def search_suricata_alert(
         sid: Suricata rule ID (SID) to filter by.
         exclude_stream: Exclude noisy SURICATA STREAM/QUIC protocol anomaly rules.
         tag: Filter by tag, e.g. "CISA_KEV", "Exploit", "RAT".
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, direction, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            direction,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if rule_name:
             params["rule_name"] = rule_name
@@ -501,15 +684,17 @@ def search_suricata_alert(
 @mcp.tool()
 def search_radius(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     username: Optional[str] = None,
     mac: Optional[str] = None,
     failed_only: bool = False,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek RADIUS authentication logs — VPN/802.1X auth records.
 
@@ -517,10 +702,21 @@ def search_radius(
         username: Filter by username (substring match).
         mac: Filter by MAC address (exact match).
         failed_only: Show only failed authentication attempts.
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if username:
             params["username"] = username
@@ -537,15 +733,17 @@ def search_radius(
 @mcp.tool()
 def search_sip(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     method: Optional[str] = None,
     status_code: Optional[str] = None,
     user_agent: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek SIP/VoIP session logs.
 
@@ -553,10 +751,21 @@ def search_sip(
         method: Filter by SIP method (INVITE, REGISTER, OPTIONS, etc.).
         status_code: Filter by SIP status code (exact match).
         user_agent: Filter by User-Agent (substring match).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if method:
             params["method"] = method
@@ -573,22 +782,35 @@ def search_sip(
 @mcp.tool()
 def search_tunnel(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     tunnel_type: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek tunnel logs — protocol encapsulation / covert channel detection.
 
     Args:
         tunnel_type: Filter by tunnel type (Tunnel::IP, Tunnel::GRE, etc.).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if tunnel_type:
             params["tunnel_type"] = tunnel_type
@@ -601,24 +823,37 @@ def search_tunnel(
 @mcp.tool()
 def search_ntp(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     mode: Optional[int] = None,
     version: Optional[int] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek NTP logs — time synchronisation and amplification detection.
 
     Args:
         mode: Filter by NTP mode (3=client, 4=server, 6=control, 7=private).
         version: Filter by NTP version (exact match, integer).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if mode is not None:
             params["mode"] = mode
@@ -633,24 +868,37 @@ def search_ntp(
 @mcp.tool()
 def search_modbus(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     function: Optional[str] = None,
     exceptions_only: bool = False,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek Modbus/TCP logs — OT/SCADA protocol for PLCs and RTUs.
 
     Args:
         function: Filter by Modbus function (e.g. "Read Coils", "Write Single Register").
         exceptions_only: Show only records with exception codes.
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if function:
             params["function"] = function
@@ -665,22 +913,35 @@ def search_modbus(
 @mcp.tool()
 def search_dnp3(
     time_range: str = "now-24h",
-    sensor: str = "all",
+    sensor: str | list[str] = "all",
     limit: int = 500,
     public_only: bool = False,
-    src_ip: Optional[str] = None,
-    dest_ip: Optional[str] = None,
+    src_ip: str | list[str] | None = None,
+    dest_ip: str | list[str] | None = None,
     no_filters: bool = False,
     function: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
 ) -> str:
     """Search Zeek DNP3 logs — SCADA protocol for utilities (electric, water, gas).
 
     Args:
         function: Filter by DNP3 function request (substring match).
+        time_from: Absolute start timestamp (ISO 8601). Overrides time_range when both are set.
+        time_to: Absolute end timestamp (ISO 8601).
     """
     try:
         params = _base_params(
-            time_range, sensor, limit, public_only, src_ip, None, no_filters, dest_ip
+            time_range,
+            sensor,
+            limit,
+            public_only,
+            src_ip,
+            None,
+            no_filters,
+            dest_ip,
+            time_from,
+            time_to,
         )
         if function:
             params["function"] = function
