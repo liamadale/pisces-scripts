@@ -33,6 +33,27 @@ def _max_mtime(filters_dir: str) -> float:
     return max_t
 
 
+def _load_categories(filters_dir: str) -> dict[str, set[str]]:
+    """Load categories.yaml and return {category: set(subcategories)}.
+
+    Returns an empty dict if the file is absent or unparseable (non-fatal).
+    """
+    cat_path = os.path.join(filters_dir, "categories.yaml")
+    try:
+        with open(cat_path) as fh:
+            raw = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError):
+        return {}
+
+    if not isinstance(raw, dict):
+        return {}
+    registry: dict[str, set[str]] = {}
+    for cat, meta in raw.get("categories", {}).items():
+        subs = meta.get("subcategories", []) if isinstance(meta, dict) else []
+        registry[cat] = set(subs)
+    return registry
+
+
 def load_filters(
     filters_dir: str,
     municipality: str | None = None,
@@ -72,6 +93,8 @@ def load_filters(
             "errors": [f"filters_dir not found: {filters_dir}"],
         }
 
+    categories = _load_categories(filters_dir)
+
     for root, _dirs, files in os.walk(filters_dir):
         for fname in sorted(files):
             if not fname.endswith(".yaml") and not fname.endswith(".yml"):
@@ -94,6 +117,22 @@ def load_filters(
             if not isinstance(data, dict):
                 errors.append(f"{fpath}: expected a YAML mapping at top level")
                 continue
+
+            # Validate category/subcategory against the registry when present.
+            if categories:
+                cat = data.get("category")
+                sub = data.get("subcategory")
+                if cat is not None and cat not in categories:
+                    errors.append(
+                        f"{fpath}: unknown category '{cat}' (valid: {sorted(categories)})"
+                    )
+                elif cat is not None and sub is not None:
+                    valid_subs = categories[cat]
+                    if valid_subs and sub not in valid_subs:
+                        errors.append(
+                            f"{fpath}: unknown subcategory '{sub}' for category '{cat}' "
+                            f"(valid: {sorted(valid_subs)})"
+                        )
 
             # Respect enabled flag (default True)
             if not data.get("enabled", True):
