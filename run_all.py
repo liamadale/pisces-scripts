@@ -36,7 +36,9 @@ application = DispatcherMiddleware(
     },
 )
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Entry point for `pisces-all` console script."""
     parser = argparse.ArgumentParser(description="PISCES Combined Web UI")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=5000)
@@ -50,3 +52,7 @@ if __name__ == "__main__":
         use_debugger=args.debug,
         threaded=True,
     )
+
+
+if __name__ == "__main__":
+    main()
