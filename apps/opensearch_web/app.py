@@ -194,6 +194,7 @@ def create_app() -> Flask:
                     first_error = exc
                 results[lt] = []
             except Exception:
+                app.logger.exception("ip_pivot query failed for %s", lt)
                 results[lt] = []
         if first_error is not None:
             error = str(first_error)
@@ -736,6 +737,7 @@ def create_app() -> Flask:
                     src_profile = profile_public_ip(src_ip, time_range=time_range)
                     src_enrichment = enrich_ip(src_ip, offer_fp=False)
             except Exception as exc:
+                app.logger.exception("api_investigate_profiles src failed")
                 src_error = str(exc)
 
         def _do_dest():
@@ -747,6 +749,7 @@ def create_app() -> Flask:
                     dest_profile = profile_public_ip(dest_ip, time_range=time_range)
                     dest_enrichment = enrich_ip(dest_ip, offer_fp=False)
             except Exception as exc:
+                app.logger.exception("api_investigate_profiles dest failed")
                 dest_error = str(exc)
 
         f_src = POOL.submit(_do_src)
@@ -1046,6 +1049,7 @@ def create_app() -> Flask:
             try:
                 counts[lt] = len(fut.result())
             except Exception:
+                app.logger.exception("log count query failed for %s", lt)
                 counts[lt] = 0
 
         return render_template(
