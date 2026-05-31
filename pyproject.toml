@@ -15,7 +15,7 @@ dependencies = [
     "cryptography>=46.0.7",
     "pygments>=2.20.0",
     "pytest>=9.0.3",
-    "python-multipart>=0.0.26",
+    "python-multipart>=0.0.27",
 ]
 
 [project.optional-dependencies]
