@@ -1,4 +1,4 @@
 # MCP server dependencies — supplements the root requirements.txt.
 # Install both to use the AI assistant integration:
 #   pip install -r requirements.txt -r mcp/requirements.txt
-mcp[cli]>=1.0.0
+mcp[cli]>=1.27.0
