@@ -44,9 +44,9 @@ class NoticeModule(ZeekModule):
         clauses = []
         if val := search_params.get("notice_note"):
             if "*" in val or "?" in val:
-                clauses.append({"wildcard": {"zeek.notice.note": val}})
+                clauses.append({"wildcard": {"zeek.notice.note.keyword": val}})
             else:
-                clauses.append({"term": {"zeek.notice.note": val}})
+                clauses.append({"term": {"zeek.notice.note.keyword": val}})
         return clauses, []
 
     def parse_hit(self, src: dict) -> dict:

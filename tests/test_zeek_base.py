@@ -514,14 +514,14 @@ def test_notice_exact_match_uses_term() -> None:
     clauses, _ = _notice.build_extra_must({"notice_note": "Scan::Port_Scan"})
     assert len(clauses) == 1
     assert "term" in clauses[0]
-    assert clauses[0]["term"]["zeek.notice.note"] == "Scan::Port_Scan"
+    assert clauses[0]["term"]["zeek.notice.note.keyword"] == "Scan::Port_Scan"
 
 
 def test_notice_trailing_wildcard_uses_wildcard_query() -> None:
     clauses, _ = _notice.build_extra_must({"notice_note": "Scan::*"})
     assert len(clauses) == 1
     assert "wildcard" in clauses[0]
-    assert clauses[0]["wildcard"]["zeek.notice.note"] == "Scan::*"
+    assert clauses[0]["wildcard"]["zeek.notice.note.keyword"] == "Scan::*"
 
 
 def test_notice_question_mark_uses_wildcard_query() -> None:
@@ -538,14 +538,14 @@ def test_weird_exact_match_uses_term() -> None:
     clauses, _ = _weird.build_extra_must({"weird_name": "bad_HTTP_reply"})
     assert len(clauses) == 1
     assert "term" in clauses[0]
-    assert clauses[0]["term"]["rule.name"] == "bad_HTTP_reply"
+    assert clauses[0]["term"]["rule.name.keyword"] == "bad_HTTP_reply"
 
 
 def test_weird_trailing_wildcard_uses_wildcard_query() -> None:
     clauses, _ = _weird.build_extra_must({"weird_name": "bad_*"})
     assert len(clauses) == 1
     assert "wildcard" in clauses[0]
-    assert clauses[0]["wildcard"]["rule.name"] == "bad_*"
+    assert clauses[0]["wildcard"]["rule.name.keyword"] == "bad_*"
 
 
 def test_weird_no_filter_returns_empty() -> None:

@@ -43,9 +43,9 @@ class WeirdModule(ZeekModule):
         clauses = []
         if val := search_params.get("weird_name"):
             if "*" in val or "?" in val:
-                clauses.append({"wildcard": {"rule.name": val}})
+                clauses.append({"wildcard": {"rule.name.keyword": val}})
             else:
-                clauses.append({"term": {"rule.name": val}})
+                clauses.append({"term": {"rule.name.keyword": val}})
         return clauses, []
 
     def parse_hit(self, src: dict) -> dict:
