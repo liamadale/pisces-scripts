@@ -59,12 +59,13 @@
     <span class="proto-tag">{{ lt }}</span>
     <span class="count-note">{{ records|length }} record(s)</span>
     {% if ip_role == 'dest' %}
-    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?dest_ip={{ ip }}&{{ request.query_string.decode() }}">
+      {% set ip_qs = 'dest_ip=' ~ ip %}
     {% elif ip_role == 'both' %}
-    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?src_ip={{ ip }}&dest_ip={{ ip }}&{{ request.query_string.decode() }}">
+      {% set ip_qs = 'src_ip=' ~ ip ~ '&dest_ip=' ~ ip %}
     {% else %}
-    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
+      {% set ip_qs = 'src_ip=' ~ ip %}
     {% endif %}
+    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?{{ ip_qs }}&{{ request.query_string.decode() }}">
       <i class="fa-solid fa-arrow-up-right-from-square"></i> Full view
     </a>
   </div>
@@ -100,7 +101,7 @@
         {% for rec in records %}
         {% set idx = loop.index %}
         <tr id="{{ lt }}-row-{{ idx }}"
-            hx-get="/api/detail/{{ lt }}/{{ idx }}?{% if ip_role == 'dest' %}dest_ip={{ ip }}{% else %}src_ip={{ ip }}{% endif %}&{{ request.query_string.decode() }}"
+            hx-get="/api/detail/{{ lt }}/{{ idx }}?{%- if ip_role == 'dest' -%}dest_ip={{ ip }}{%- else -%}src_ip={{ ip }}{%- endif -%}&{{ request.query_string.decode() }}"
             hx-target="#detail-panel-content"
             hx-swap="innerHTML"
             hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
