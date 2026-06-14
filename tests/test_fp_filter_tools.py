@@ -10,10 +10,18 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src.querier import fp_manager
 from src.querier.fp_manager import (
     delete_ip_from_filter,
     load_filter_file,
 )
+
+
+@pytest.fixture(autouse=True)
+def _redirect_filters_dir(tmp_path, monkeypatch) -> None:
+    """Point FILTERS_DIR at tmp_path so the path-injection guard accepts test files."""
+    monkeypatch.setattr(fp_manager, "FILTERS_DIR", str(tmp_path))
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

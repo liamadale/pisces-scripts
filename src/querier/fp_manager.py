@@ -81,25 +81,37 @@ def _safe_name(label: str, value: str) -> str:
     return value
 
 
+def _assert_inside_filters_dir(path: str) -> str:
+    """Ensure *path* (or its parent) resolves under FILTERS_DIR.
+
+    All file I/O in this module goes through here so CodeQL can see the
+    taint barrier locally instead of having to follow it across functions.
+    """
+    real = os.path.realpath(path)
+    base = os.path.realpath(FILTERS_DIR)
+    if os.path.commonpath([real, base]) != base:
+        raise ValueError(f"Path escapes filters dir: {path}")
+    return real
+
+
 def filter_file_path(category: str, subcategory: str) -> str:
     cat = _safe_name("category", category)
     sub = _safe_name("subcategory", subcategory)
-    path = os.path.realpath(os.path.join(FILTERS_DIR, cat, f"{sub}.yaml"))
-    if os.path.commonpath([path, os.path.realpath(FILTERS_DIR)]) != os.path.realpath(FILTERS_DIR):
-        raise ValueError(f"Path escapes filters dir: {path}")
-    return path
+    return _assert_inside_filters_dir(os.path.join(FILTERS_DIR, cat, f"{sub}.yaml"))
 
 
 def load_filter_file(path: str) -> dict:
-    if not os.path.exists(path):
+    safe = _assert_inside_filters_dir(path)
+    if not os.path.exists(safe):
         return {}
-    with open(path) as fh:
+    with open(safe) as fh:
         return yaml.safe_load(fh) or {}
 
 
 def write_filter_file(path: str, data: dict) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as fh:
+    safe = _assert_inside_filters_dir(path)
+    os.makedirs(os.path.dirname(safe), exist_ok=True)
+    with open(safe, "w") as fh:
         yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
 
@@ -115,6 +127,7 @@ def delete_ip_from_filter(path: str, ip: str) -> int:
     Raises ``FileNotFoundError`` if *path* does not exist.
     Raises ``ValueError`` if no clauses matched the IP.
     """
+    path = _assert_inside_filters_dir(path)
     if not os.path.exists(path):
         raise FileNotFoundError(path)
 
@@ -157,6 +170,7 @@ def delete_ip_from_filter(path: str, ip: str) -> int:
 
 def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "analyst") -> None:
     """Append must_not clauses to an existing filter file, or create it."""
+    path = _assert_inside_filters_dir(path)
     if os.path.exists(path):
         existing = load_filter_file(path)
         existing.setdefault("must_not", [])
