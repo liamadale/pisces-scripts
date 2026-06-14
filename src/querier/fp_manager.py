@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import yaml
 from rich import box
@@ -82,16 +83,16 @@ def _safe_name(label: str, value: str) -> str:
 
 
 def _assert_inside_filters_dir(path: str) -> str:
-    """Ensure *path* (or its parent) resolves under FILTERS_DIR.
+    """Ensure *path* resolves under FILTERS_DIR; return the resolved path.
 
-    All file I/O in this module goes through here so CodeQL can see the
-    taint barrier locally instead of having to follow it across functions.
+    All file I/O in this module goes through here so the taint barrier is
+    local to every sink (helps CodeQL's interprocedural analysis).
     """
-    real = os.path.realpath(path)
-    base = os.path.realpath(FILTERS_DIR)
-    if os.path.commonpath([real, base]) != base:
+    base = Path(FILTERS_DIR).resolve()
+    real = Path(path).resolve()
+    if not real.is_relative_to(base):
         raise ValueError(f"Path escapes filters dir: {path}")
-    return real
+    return str(real)
 
 
 def filter_file_path(category: str, subcategory: str) -> str:
