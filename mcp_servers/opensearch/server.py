@@ -53,6 +53,7 @@ from src.querier.zeek_modules.base import (
     is_private,
     query_opensearch,
     run_query,
+    source_terms_script,
 )
 from src.utils.ip_org import lookup_org
 
@@ -1174,7 +1175,7 @@ def get_notice_summary(
             "aggs": {
                 "notice_types": {
                     "terms": {
-                        "field": "zeek.notice.note",
+                        "script": source_terms_script("zeek.notice.note"),
                         "size": limit,
                         "order": {"_count": "desc"},
                     }
@@ -1273,7 +1274,7 @@ def aggregate(
             "aggs": {
                 "buckets": {
                     "terms": {
-                        "field": field,
+                        "script": source_terms_script(field),
                         "size": limit,
                         "order": {"_count": "desc"},
                     }

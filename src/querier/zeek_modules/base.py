@@ -19,6 +19,7 @@ from src.querier.builder import (
     _remap_clause,
     build_base_query,
     is_private,
+    source_terms_script,
 )
 from src.querier.cli_loop import (
     _search_again_prompt,
@@ -73,6 +74,7 @@ __all__ = [
     "_remap_clause",
     "build_base_query",
     "is_private",
+    "source_terms_script",
     # runner
     "FILTERS_DIR",
     "_OVERFETCH_MULTIPLIER",

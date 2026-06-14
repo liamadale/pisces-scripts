@@ -65,6 +65,30 @@ _PRIVATE_CIDR_MUST_NOT: dict = {
 }
 
 
+def source_terms_script(field: str) -> dict:
+    """Return a Painless `script` object that reads `field` from `_source`.
+
+    Drop into a ``terms`` aggregation in place of ``"field": ...`` to make the
+    agg work across indices whose mapping for the same dotted field disagrees
+    (e.g. ``keyword`` on old indices vs ``text`` + ``.keyword`` subfield on a
+    rolled-over write index — native terms aggs fail on the latter).
+
+    For list-valued fields, only the first element is bucketed; in practice the
+    fields we use this for (notice.note, rule.name, event.dataset) are scalar.
+    Slower than doc-value aggs — use only when mapping drift forces it.
+    """
+    parts = field.split(".")
+    src = ["def v = params._source;"]
+    for p in parts:
+        src.append(f"if (v == null) return null; v = v['{p}'];")
+    src.append(
+        "if (v == null) return null; "
+        "if (v instanceof List) v = v.isEmpty() ? null : v[0]; "
+        "return v == null ? null : v.toString();"
+    )
+    return {"source": " ".join(src)}
+
+
 def is_private(ip: str) -> bool:
     """Return True if *ip* falls within any RFC-1918 / non-routable range."""
     try:

@@ -12,6 +12,7 @@ from src.querier.zeek_modules.base import (
     build_base_query,
     deduplicate_zeek,
     is_private,
+    source_terms_script,
 )
 from src.querier.zeek_modules.notice import NoticeModule
 from src.querier.zeek_modules.weird import WeirdModule
@@ -551,3 +552,32 @@ def test_weird_trailing_wildcard_uses_wildcard_query() -> None:
 def test_weird_no_filter_returns_empty() -> None:
     clauses, _ = _weird.build_extra_must({})
     assert clauses == []
+
+
+# ---------------------------------------------------------------------------
+# source_terms_script
+# ---------------------------------------------------------------------------
+
+
+def test_source_terms_script_single_field() -> None:
+    script = source_terms_script("note")
+    assert set(script.keys()) == {"source"}
+    src = script["source"]
+    assert src.startswith("def v = params._source;")
+    assert "v = v['note'];" in src
+    assert "v.toString()" in src
+
+
+def test_source_terms_script_dotted_field_walks_each_segment() -> None:
+    src = source_terms_script("zeek.notice.note")["source"]
+    assert "v = v['zeek'];" in src
+    assert "v = v['notice'];" in src
+    assert "v = v['note'];" in src
+    # One null-guard per segment plus the final return guard.
+    assert src.count("if (v == null) return null;") == 4
+
+
+def test_source_terms_script_handles_list_valued_fields() -> None:
+    src = source_terms_script("rule.name")["source"]
+    assert "v instanceof List" in src
+    assert "v.isEmpty() ? null : v[0]" in src

@@ -492,6 +492,7 @@ def create_app() -> Flask:
             build_base_query,
             load_with_remap,
             query_opensearch,
+            source_terms_script,
         )
 
         if log_type not in MODULES:
@@ -528,13 +529,18 @@ def create_app() -> Flask:
         body["size"] = 0
         body.pop("_source", None)
 
+        # Read the summary field from _source so this works across indices
+        # whose mappings disagree (older indices have the field as keyword;
+        # the rolled-over write index has it as text + .keyword and a native
+        # terms agg over the wildcard pattern fails on that shard).
+        terms_script = source_terms_script(mod.SUMMARY_FIELD)
+
         if mod.SUMMARY_TYPE == "grouped":
             # Aggregate on the full rule.name field; Python groups into prefixes.
-            # Replaces a painless script that ran on every document server-side.
             body["aggs"] = {
                 "rules": {
                     "terms": {
-                        "field": mod.SUMMARY_FIELD,
+                        "script": terms_script,
                         "size": 500,
                         "order": {"_count": "desc"},
                     },
@@ -552,7 +558,7 @@ def create_app() -> Flask:
             body["aggs"] = {
                 "items": {
                     "terms": {
-                        "field": mod.SUMMARY_FIELD,
+                        "script": terms_script,
                         "size": 500,
                         "order": {"_count": "asc"},
                     }
