@@ -63,7 +63,7 @@ def _opensearch_client() -> tuple[str, httpx.Client]:
         verify=False,
         headers=_DEFAULT_HEADERS,
         limits=httpx.Limits(max_connections=20, max_keepalive_connections=16),
-        timeout=30.0,
+        timeout=60.0,
     )
     _client_cache = (opensearch_url, username, password, client)
     atexit.register(client.close)
@@ -135,7 +135,7 @@ async def _get_async_client() -> tuple[str, httpx.AsyncClient]:
         verify=False,
         headers=_DEFAULT_HEADERS,
         limits=httpx.Limits(max_connections=40, max_keepalive_connections=32),
-        timeout=30.0,
+        timeout=60.0,
     )
     _async_client_cache = (opensearch_url, username, password, async_client)
     return opensearch_url, async_client
