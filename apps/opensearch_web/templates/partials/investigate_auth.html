@@ -1,0 +1,106 @@
+{# Investigate — authentication history partial.
+   Receives: kerberos_history, ntlm_history, src_ip, dest_ip, error #}
+
+{% if error %}
+<p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</p>
+{% else %}
+
+{# Kerberos #}
+<div class="investigate-auth-protocol">
+  <h3 class="investigate-auth-proto-label">
+    <i class="fa-solid fa-shield-halved"></i> Kerberos
+    <span class="count-note">{{ kerberos_history | length }} record(s)</span>
+  </h3>
+  {% if kerberos_history %}
+  <div class="table-wrap">
+    <table class="no-resize">
+      <thead>
+        <tr>
+          <th class="sortable">Time</th>
+          <th class="sortable">Sensor</th>
+          <th class="sortable">Client</th>
+          <th class="sortable">Service</th>
+          <th class="sortable">Type</th>
+          <th class="sortable">Auth</th>
+          <th class="sortable">Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in kerberos_history %}
+        <tr>
+          <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+            {{ rec.get('timestamp') | fmt_ts(full=True) }}
+          </td>
+          <td>{{ rec.get('sensor', '—') }}</td>
+          <td>{{ rec.get('client', '—') or '—' }}</td>
+          <td>{{ rec.get('service', '—') or '—' }}</td>
+          <td>{{ rec.get('request_type', '—') or '—' }}</td>
+          <td>
+            {% if rec.get('success') == True %}
+            <span class="badge badge-green">✓ OK</span>
+            {% elif rec.get('success') == False %}
+            <span class="badge badge-red">✗ Fail</span>
+            {% else %}
+            <span class="badge badge-gray">—</span>
+            {% endif %}
+          </td>
+          <td class="mono" style="font-size:0.75rem">{{ rec.get('error_msg', '—') or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No Kerberos records between {{ src_ip }} ↔ {{ dest_ip }} in this window.</p>
+  {% endif %}
+</div>
+
+{# NTLM #}
+<div class="investigate-auth-protocol">
+  <h3 class="investigate-auth-proto-label">
+    <i class="fa-solid fa-lock"></i> NTLM
+    <span class="count-note">{{ ntlm_history | length }} record(s)</span>
+  </h3>
+  {% if ntlm_history %}
+  <div class="table-wrap">
+    <table class="no-resize">
+      <thead>
+        <tr>
+          <th class="sortable">Time</th>
+          <th class="sortable">Sensor</th>
+          <th class="sortable">Username</th>
+          <th class="sortable">Client Host</th>
+          <th class="sortable">Domain</th>
+          <th class="sortable">Auth</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in ntlm_history %}
+        <tr>
+          <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+            {{ rec.get('timestamp') | fmt_ts(full=True) }}
+          </td>
+          <td>{{ rec.get('sensor', '—') }}</td>
+          <td>{{ rec.get('username', '—') or '—' }}</td>
+          <td>{{ rec.get('client_hostname', '—') or '—' }}</td>
+          <td>{{ rec.get('domain', '—') or '—' }}</td>
+          <td>
+            {% if rec.get('success') == True %}
+            <span class="badge badge-green">✓ OK</span>
+            {% elif rec.get('success') == False %}
+            <span class="badge badge-red">✗ Fail</span>
+            {% else %}
+            <span class="badge badge-gray">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No NTLM records between {{ src_ip }} ↔ {{ dest_ip }} in this window.</p>
+  {% endif %}
+</div>
+
+{% endif %}

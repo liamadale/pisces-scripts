@@ -8,11 +8,14 @@ Usage (standalone):
 
 import os
 import sys
+import time
 
 import yaml
 
-# Module-level cache: (filters_dir, municipality) → {"mtime": float, "result": dict}
+# Module-level cache: (filters_dir, municipality) → {mtime, result, checked}
 _filter_cache: dict[tuple, dict] = {}
+
+_MTIME_TTL = 5.0  # seconds — skip the directory walk when cache is this fresh
 
 
 def _max_mtime(filters_dir: str) -> float:
@@ -28,6 +31,27 @@ def _max_mtime(filters_dir: str) -> float:
                 except OSError:
                     pass
     return max_t
+
+
+def _load_categories(filters_dir: str) -> dict[str, set[str]]:
+    """Load categories.yaml and return {category: set(subcategories)}.
+
+    Returns an empty dict if the file is absent or unparseable (non-fatal).
+    """
+    cat_path = os.path.join(filters_dir, "categories.yaml")
+    try:
+        with open(cat_path) as fh:
+            raw = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError):
+        return {}
+
+    if not isinstance(raw, dict):
+        return {}
+    registry: dict[str, set[str]] = {}
+    for cat, meta in raw.get("categories", {}).items():
+        subs = meta.get("subcategories", []) if isinstance(meta, dict) else []
+        registry[cat] = set(subs)
+    return registry
 
 
 def load_filters(
@@ -49,9 +73,13 @@ def load_filters(
         }
     """
     cache_key = (filters_dir, municipality)
-    current_mtime = _max_mtime(filters_dir)
+    now = time.monotonic()
     cached = _filter_cache.get(cache_key)
+    if cached is not None and (now - cached["checked"]) < _MTIME_TTL:
+        return cached["result"]
+    current_mtime = _max_mtime(filters_dir)
     if cached is not None and cached["mtime"] == current_mtime:
+        cached["checked"] = now
         return cached["result"]
 
     must_not_clauses: list[dict] = []
@@ -64,6 +92,8 @@ def load_filters(
             "filter_count": 0,
             "errors": [f"filters_dir not found: {filters_dir}"],
         }
+
+    categories = _load_categories(filters_dir)
 
     for root, _dirs, files in os.walk(filters_dir):
         for fname in sorted(files):
@@ -87,6 +117,22 @@ def load_filters(
             if not isinstance(data, dict):
                 errors.append(f"{fpath}: expected a YAML mapping at top level")
                 continue
+
+            # Validate category/subcategory against the registry when present.
+            if categories:
+                cat = data.get("category")
+                sub = data.get("subcategory")
+                if cat is not None and cat not in categories:
+                    errors.append(
+                        f"{fpath}: unknown category '{cat}' (valid: {sorted(categories)})"
+                    )
+                elif cat is not None and sub is not None:
+                    valid_subs = categories[cat]
+                    if valid_subs and sub not in valid_subs:
+                        errors.append(
+                            f"{fpath}: unknown subcategory '{sub}' for category '{cat}' "
+                            f"(valid: {sorted(valid_subs)})"
+                        )
 
             # Respect enabled flag (default True)
             if not data.get("enabled", True):
@@ -117,7 +163,7 @@ def load_filters(
         "filter_count": filter_count,
         "errors": errors,
     }
-    _filter_cache[cache_key] = {"mtime": current_mtime, "result": result}
+    _filter_cache[cache_key] = {"mtime": current_mtime, "result": result, "checked": now}
     return result
 
 

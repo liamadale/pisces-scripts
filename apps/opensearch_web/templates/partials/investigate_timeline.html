@@ -1,0 +1,72 @@
+{# Investigate — merged chronological timeline partial.
+   Receives: timeline (list[dict]), errors (dict) #}
+
+{% if errors %}
+<div class="investigate-error-list">
+  {% for track, msg in errors.items() %}
+  <p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ track }}: {{ msg }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not timeline %}
+<p class="empty-note">No timeline events found in this window.</p>
+{% else %}
+<div class="table-wrap">
+  <table class="no-resize">
+    <thead>
+      <tr>
+        <th class="num">#</th>
+        <th class="sortable">Time</th>
+        <th class="sortable">Type</th>
+        <th class="sortable">Sensor</th>
+        <th class="sortable">Src IP</th>
+        <th class="sortable">Dst IP</th>
+        <th class="sortable">Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for evt in timeline %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="ts-cell" data-iso="{{ evt.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+          {{ evt.get('timestamp') | fmt_ts(full=True) }}
+        </td>
+        <td>
+          {% set etype = evt.get('type', '') %}
+          {% if etype == 'kerberos' %}
+          <span class="badge badge-blue"><i class="fa-solid fa-shield-halved"></i> Kerberos</span>
+          {% elif etype == 'ntlm' %}
+          <span class="badge badge-yellow"><i class="fa-solid fa-lock"></i> NTLM</span>
+          {% elif etype == 'notice' %}
+          <span class="badge badge-red"><i class="fa-solid fa-bell"></i> Notice</span>
+          {% else %}
+          <span class="badge badge-gray">{{ etype or '—' }}</span>
+          {% endif %}
+        </td>
+        <td>{{ evt.get('sensor', '—') }}</td>
+        <td>{{ evt.get('src_ip', '—') }}</td>
+        <td>{{ evt.get('dest_ip', '—') }}</td>
+        <td style="font-size:0.8rem; color:var(--on-surface-dim)">
+          {% set etype = evt.get('type', '') %}
+          {% if etype == 'kerberos' %}
+            {{ evt.get('client', '') or '' }}{% if evt.get('client') and evt.get('request_type') %} · {% endif %}{{ evt.get('request_type', '') or '' }}
+            {% if evt.get('success') == True %}<span class="badge badge-green" style="margin-left:4px">✓</span>{% elif evt.get('success') == False %}<span class="badge badge-red" style="margin-left:4px">✗</span>{% endif %}
+          {% elif etype == 'ntlm' %}
+            {{ evt.get('domain', '') or '' }}{% if evt.get('domain') and evt.get('username') %}\{% endif %}{{ evt.get('username', '') or '' }}
+            {% if evt.get('success') == True %}<span class="badge badge-green" style="margin-left:4px">✓</span>{% elif evt.get('success') == False %}<span class="badge badge-red" style="margin-left:4px">✗</span>{% endif %}
+          {% elif etype == 'notice' %}
+            {{ evt.get('notice_note', '') or '' }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p style="font-size:0.75rem; color:var(--on-surface-dim); margin-top:6px;">
+  {{ timeline | length }} event{{ 's' if timeline | length != 1 else '' }}
+</p>
+{% endif %}

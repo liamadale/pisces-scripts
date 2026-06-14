@@ -18,6 +18,13 @@
   </span>
 </div>
 
+{% if error %}
+<div class="query-error-banner">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <strong>OpenSearch unavailable</strong> — {{ error }}
+</div>
+{% endif %}
+
 {# Protocol-specific filter form (only shown if the module has extra params) #}
 {% if extra_keys %}
 <form class="filter-form" id="notice-filter-form"

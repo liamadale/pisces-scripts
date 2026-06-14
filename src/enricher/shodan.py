@@ -4,18 +4,26 @@ Shodan IP lookup.
 Returns open ports, org, country, ISP, OS, hostnames, and known vulns.
 """
 
+import atexit
 import os
-import sys
 
 import requests
+import urllib3
 from rich import box
-from rich.console import Console
 from rich.table import Table
+
+from src.utils.terminal import console
 
 _BASE_URL = "https://api.shodan.io/shodan/host"
 URL = "https://www.shodan.io/search?query={ip}"
 
-console = Console(file=sys.stderr)
+_retry = urllib3.util.Retry(total=2, backoff_factor=0.5, status_forcelist=(429, 502, 503, 504))
+_session = requests.Session()
+_session.mount(
+    "https://",
+    requests.adapters.HTTPAdapter(max_retries=_retry, pool_connections=4, pool_maxsize=8),
+)
+atexit.register(_session.close)
 
 
 def check_ip(ip: str) -> dict:
@@ -39,7 +47,7 @@ def check_ip(ip: str) -> dict:
         return _error_result("SHODAN_API_KEY not set")
 
     try:
-        resp = requests.get(f"{_BASE_URL}/{ip}", params={"key": api_key}, timeout=10)
+        resp = _session.get(f"{_BASE_URL}/{ip}", params={"key": api_key}, timeout=10)
     except requests.RequestException as exc:
         return _error_result(f"Request failed: {exc}")
 

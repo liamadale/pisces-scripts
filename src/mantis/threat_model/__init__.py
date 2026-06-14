@@ -12,6 +12,7 @@ from src.mantis.threat_model.dns_resolvers import generate_dns_resolver_registry
 from src.mantis.threat_model.false_positives import generate_fp_candidates
 from src.mantis.threat_model.infrastructure import generate_infra_registry
 from src.mantis.threat_model.malicious import generate_threat_db
+from src.mantis.threat_model.private_ip_profiles import profile_private_ips
 from src.mantis.threat_model.undetermined import (
     enrich_undetermined_ips,
     generate_undetermined_registry,
@@ -24,4 +25,5 @@ __all__ = [
     "generate_threat_db",
     "generate_undetermined_registry",
     "enrich_undetermined_ips",
+    "profile_private_ips",
 ]

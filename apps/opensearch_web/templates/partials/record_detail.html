@@ -24,6 +24,16 @@
     </div>
     {% if supports_fp is not defined or supports_fp %}
     <div class="filter-action-row">
+      {% if record.get('src_ip') and record.get('dest_ip') %}
+      <a class="btn btn-sm"
+         href="{{ script_name }}/investigate/{{ record.get('src_ip') }}/{{ record.get('dest_ip') }}?{{ request.query_string.decode() }}">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Investigate
+      </a>
+      {% else %}
+      <button class="btn btn-sm" disabled title="Requires both source and destination IP">
+        <i class="fa-solid fa-magnifying-glass-chart"></i> Investigate
+      </button>
+      {% endif %}
       <button class="btn btn-sm"
               hx-get="/api/filter/form?src_ip={{ record.get('src_ip','') }}&dest_ip={{ record.get('dest_ip','') }}&notice_note={{ record.get('notice_note','') | urlencode }}&log_type={{ log_type }}&idx={{ idx }}"
               hx-target="#filter-zone-{{ idx }}"
@@ -80,12 +90,13 @@
   <div class="enrich-cols">
     <div class="enrich-col">
       {% if src_ip %}
-      <div class="enrich-col-header">
+      <div class="enrich-col-header enrich-col-src">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
         Source —
         <a class="ip-link" href="{{ script_name }}/ip/{{ src_ip }}?{{ request.query_string.decode() }}">{{ src_ip }}</a>
       </div>
       {% if is_private(src_ip) %}
+      <div class="mantis-lookup-btns">
       <button class="btn btn-sm"
               hx-post="/api/profile/{{ src_ip }}?{{ request.query_string.decode() }}&compact=1"
               hx-target="#enrich-src-{{ idx }}"
@@ -96,24 +107,39 @@
           <i class="fa-solid fa-spinner fa-spin"></i>
         </span>
       </button>
+      </div>
       {% else %}
+      <div class="mantis-lookup-btns">
+      <button class="btn btn-sm"
+              hx-post="/api/profile/{{ src_ip }}?{{ request.query_string.decode() }}&compact=1"
+              hx-target="#profile-src-{{ idx }}"
+              hx-swap="innerHTML"
+              hx-indicator="#profile-src-spinner-{{ idx }}">
+        <i class="fa-solid fa-fingerprint"></i> Profile
+        <span id="profile-src-spinner-{{ idx }}" class="htmx-indicator">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </span>
+      </button>
       <button class="btn btn-sm"
               hx-post="/api/enrich/{{ src_ip }}"
               hx-target="#enrich-src-{{ idx }}" hx-swap="innerHTML">
         <i class="fa-solid fa-shield-halved"></i> Enrich
       </button>
+      </div>
       {% endif %}
+      <div id="profile-src-{{ idx }}"></div>
       <div id="enrich-src-{{ idx }}"></div>
       {% endif %}
     </div>
     <div class="enrich-col">
       {% if dest_ip %}
-      <div class="enrich-col-header">
+      <div class="enrich-col-header enrich-col-dst">
         <i class="fa-solid fa-arrow-right-to-bracket"></i>
         Destination —
         <a class="ip-link" href="{{ script_name }}/ip/{{ dest_ip }}?{{ request.query_string.decode() }}">{{ dest_ip }}</a>
       </div>
       {% if is_private(dest_ip) %}
+      <div class="mantis-lookup-btns">
       <button class="btn btn-sm"
               hx-post="/api/profile/{{ dest_ip }}?{{ request.query_string.decode() }}&compact=1"
               hx-target="#enrich-dst-{{ idx }}"
@@ -124,13 +150,27 @@
           <i class="fa-solid fa-spinner fa-spin"></i>
         </span>
       </button>
+      </div>
       {% else %}
+      <div class="mantis-lookup-btns">
+      <button class="btn btn-sm"
+              hx-post="/api/profile/{{ dest_ip }}?{{ request.query_string.decode() }}&compact=1"
+              hx-target="#profile-dst-{{ idx }}"
+              hx-swap="innerHTML"
+              hx-indicator="#profile-dst-spinner-{{ idx }}">
+        <i class="fa-solid fa-fingerprint"></i> Profile
+        <span id="profile-dst-spinner-{{ idx }}" class="htmx-indicator">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </span>
+      </button>
       <button class="btn btn-sm"
               hx-post="/api/enrich/{{ dest_ip }}"
               hx-target="#enrich-dst-{{ idx }}" hx-swap="innerHTML">
         <i class="fa-solid fa-shield-halved"></i> Enrich
       </button>
+      </div>
       {% endif %}
+      <div id="profile-dst-{{ idx }}"></div>
       <div id="enrich-dst-{{ idx }}"></div>
       {% endif %}
     </div>

@@ -1,0 +1,44 @@
+{# Investigate — Suricata alerts partial.
+   Receives: alerts (list[dict]), src_ip, dest_ip, error #}
+
+{% if error %}
+<p class="investigate-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</p>
+{% elif not alerts %}
+<p class="empty-note">No Suricata alerts between {{ src_ip }} and {{ dest_ip }} in this window.</p>
+{% else %}
+<div class="table-wrap">
+  <table class="no-resize">
+    <thead>
+      <tr>
+        <th class="num">#</th>
+        <th class="sortable">Time</th>
+        <th class="sortable">Sensor</th>
+        <th class="sortable">Src IP</th>
+        <th class="sortable">Dst IP</th>
+        <th class="sortable num">Sev</th>
+        <th class="sortable">Rule</th>
+        <th class="sortable">Category</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rec in alerts %}
+      <tr>
+        <td class="num">{{ loop.index }}</td>
+        <td class="ts-cell" data-iso="{{ rec.get('timestamp', '') }}" onclick="copyTimestamp(this)" title="Click to copy">
+          {{ rec.get('timestamp') | fmt_ts(full=True) }}
+        </td>
+        <td>{{ rec.get('sensor', '—') }}</td>
+        <td>{{ rec.get('src_ip', '—') }}</td>
+        <td>{{ rec.get('dest_ip', '—') }}</td>
+        <td class="num">{{ rec.get('severity', '—') }}</td>
+        <td style="font-size:0.8rem">{{ (rec.get('rule_name', '') or '')[:80] or '—' }}</td>
+        <td style="font-size:0.8rem; color:var(--on-surface-dim)">{{ rec.get('rule_category', '—') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p style="font-size:0.75rem; color:var(--on-surface-dim); margin-top:6px;">
+  {{ alerts | length }} alert{{ 's' if alerts | length != 1 else '' }}
+</p>
+{% endif %}

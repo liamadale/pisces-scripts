@@ -11,8 +11,10 @@ Standalone usage:
 import argparse
 import datetime
 import os
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import yaml
 from rich import box
@@ -70,25 +72,106 @@ def ensure_subcategory(category: str, subcategory: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _safe_name(label: str, value: str) -> str:
+    """Reject path-traversal or shell-special characters in a filter name component."""
+    if not value or not _NAME_RE.match(value):
+        raise ValueError(f"Invalid {label} name: {value!r}")
+    return value
+
+
+def _assert_inside_filters_dir(path: str) -> str:
+    """Ensure *path* resolves under FILTERS_DIR; return the resolved path.
+
+    All file I/O in this module goes through here so the taint barrier is
+    local to every sink (helps CodeQL's interprocedural analysis).
+    """
+    base = Path(FILTERS_DIR).resolve()
+    real = Path(path).resolve()
+    if not real.is_relative_to(base):
+        raise ValueError(f"Path escapes filters dir: {path}")
+    return str(real)
+
+
 def filter_file_path(category: str, subcategory: str) -> str:
-    return os.path.join(FILTERS_DIR, category, f"{subcategory}.yaml")
+    cat = _safe_name("category", category)
+    sub = _safe_name("subcategory", subcategory)
+    return _assert_inside_filters_dir(os.path.join(FILTERS_DIR, cat, f"{sub}.yaml"))
 
 
 def load_filter_file(path: str) -> dict:
-    if not os.path.exists(path):
+    safe = _assert_inside_filters_dir(path)
+    if not os.path.exists(safe):
         return {}
-    with open(path) as fh:
+    with open(safe) as fh:
         return yaml.safe_load(fh) or {}
 
 
 def write_filter_file(path: str, data: dict) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as fh:
+    safe = _assert_inside_filters_dir(path)
+    os.makedirs(os.path.dirname(safe), exist_ok=True)
+    with open(safe, "w") as fh:
         yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+def delete_ip_from_filter(path: str, ip: str) -> int:
+    """Remove must_not clauses that match *ip* as src_ip or dest_ip.
+
+    Handles single-value ``term`` and multi-value ``terms`` clauses.
+    For ``terms`` clauses with multiple IPs only the matching IP is removed;
+    the clause is kept with the remaining IPs.  If the clause had only that
+    one IP it is dropped entirely.
+
+    Returns the number of clause entries affected (removed or shrunken).
+    Raises ``FileNotFoundError`` if *path* does not exist.
+    Raises ``ValueError`` if no clauses matched the IP.
+    """
+    path = _assert_inside_filters_dir(path)
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    data = load_filter_file(path)
+    original_clauses: list = data.get("must_not", [])
+    kept: list = []
+    removed_count = 0
+
+    for clause in original_clauses:
+        term = clause.get("term", {})
+        if term.get("src_ip") == ip or term.get("dest_ip") == ip:
+            removed_count += 1
+            continue
+
+        terms = clause.get("terms", {})
+        matched_field: str | None = None
+        for field in ("src_ip", "dest_ip"):
+            if ip in terms.get(field, []):
+                matched_field = field
+                break
+
+        if matched_field:
+            remaining = [v for v in terms[matched_field] if v != ip]
+            if remaining:
+                new_clause = dict(clause)
+                new_clause["terms"] = {**terms, matched_field: remaining}
+                kept.append(new_clause)
+            removed_count += 1
+            continue
+
+        kept.append(clause)
+
+    if removed_count == 0:
+        raise ValueError(f"No clauses found matching IP {ip}")
+
+    data["must_not"] = kept
+    write_filter_file(path, data)
+    return removed_count
 
 
 def append_clauses_to_file(path: str, new_clauses: list[dict], author: str = "analyst") -> None:
     """Append must_not clauses to an existing filter file, or create it."""
+    path = _assert_inside_filters_dir(path)
     if os.path.exists(path):
         existing = load_filter_file(path)
         existing.setdefault("must_not", [])

@@ -4,6 +4,17 @@
 
 {% block content %}
 
+{% if not data_available %}
+<div class="tm-no-data-banner">
+  <i class="fa-solid fa-circle-info"></i>
+  <div>
+    <strong>No threat model data found.</strong>
+    The enrichment pipeline hasn't been run yet, or the data files are missing from
+    <code>data/tickets/</code>. Run the indexing and enrichment scripts to populate this view.
+  </div>
+</div>
+{% endif %}
+
 {# ── Search bar ────────────────────────────────────────────── #}
 <div class="tm-search-bar">
   <i class="fa-solid fa-magnifying-glass" style="color:var(--on-surface-dim)"></i>

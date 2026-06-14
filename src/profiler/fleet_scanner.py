@@ -19,7 +19,13 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.querier.zeek_modules.base import INDEX, is_private, query_opensearch
+from src.querier.zeek_modules.base import (
+    INDEX,
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+    is_private,
+    query_opensearch,
+)
 
 _PARAMS = {"path": f"{INDEX}/_search", "method": "POST"}
 
@@ -128,7 +134,11 @@ def scan_fleet(
     Returns:
         List of DeviceClusters sorted by size descending.
     """
-    raw = query_opensearch(_fleet_ja4_query(sensor, time_range), _PARAMS)
+    try:
+        raw = query_opensearch(_fleet_ja4_query(sensor, time_range), _PARAMS)
+    except (OpenSearchConnectionError, OpenSearchAuthError):
+        return []
+
     if not raw:
         return []
 

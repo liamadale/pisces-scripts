@@ -17,7 +17,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
-import urllib3
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.progress import (
@@ -36,7 +35,6 @@ from src.utils.cache import dump_json, load_json
 from src.utils.dns import setup_dns
 
 console = Console()
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _FETCH_WORKERS = 8

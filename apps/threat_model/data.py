@@ -57,6 +57,10 @@ _raw_fp = [r for r in _load("enriched/false_positive_ips.json") if r["ip"] not i
 _raw_infra = _load_optional("enriched/known_infra_ips.json")
 _raw_dns_resolvers = _load_optional("enriched/dns_resolver_ips.json")
 _raw_undetermined = _load_optional("enriched/undetermined_ips.json")
+_raw_profiles = _load_optional("enriched/private_ip_profiles.json")
+
+# True when the pipeline has been run and data files exist.
+DATA_AVAILABLE: bool = bool(_raw_tickets or _raw_malicious or _raw_fp)
 
 # ---------------------------------------------------------------------------
 # Indices
@@ -72,6 +76,7 @@ MALICIOUS_BY_IP: dict[str, dict] = {r["ip"]: r for r in _raw_malicious}
 FP_BY_IP: dict[str, dict] = {r["ip"]: r for r in _raw_fp}
 INFRA_BY_IP: dict[str, dict] = {r["ip"]: r for r in _raw_infra}
 UNDETERMINED_BY_IP: dict[str, dict] = {r["ip"]: r for r in _raw_undetermined}
+PROFILES_BY_IP: dict[str, dict] = {r["ip"]: r for r in _raw_profiles}
 
 # Build DNS resolver index from enriched file; fall back to known-list entries
 # for any resolver not yet in the enriched file.
@@ -199,6 +204,7 @@ def _fp_row(r: dict) -> dict:
 def _infra_row(r: dict) -> dict:
     _org = r.get("org") or {}
     org = _org if isinstance(_org, dict) else {}
+    profile = PROFILES_BY_IP.get(r["ip"])
     return {
         "ip": r["ip"],
         "org_name": org.get("name") or "—",
@@ -210,6 +216,10 @@ def _infra_row(r: dict) -> dict:
         "ticket_count": len(r.get("ticket_ids") or []),
         "protocols_str": ", ".join(r.get("protocols_seen") or []),
         "attacks_count": len(r.get("attacks_against") or []),
+        "has_profile": profile is not None,
+        "profile_hostname": profile.get("hostname") if profile else None,
+        "profile_role": profile.get("role") if profile else None,
+        "profile_os": profile.get("os_family") if profile else None,
     }
 
 

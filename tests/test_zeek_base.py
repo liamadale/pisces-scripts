@@ -12,7 +12,10 @@ from src.querier.zeek_modules.base import (
     build_base_query,
     deduplicate_zeek,
     is_private,
+    source_terms_script,
 )
+from src.querier.zeek_modules.notice import NoticeModule
+from src.querier.zeek_modules.weird import WeirdModule
 
 # ---------------------------------------------------------------------------
 # is_private
@@ -183,6 +186,44 @@ def test_build_base_query_src_ip_filter() -> None:
     assert ip_clause["term"]["source.ip"] == "198.51.100.1"
 
 
+def test_build_base_query_dest_ip_filter() -> None:
+    """dest_ip_filter must appear in the ES filter clauses, not as a post-filter."""
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip", "destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_ip_filter="8.8.8.8",
+    )
+    must = body["query"]["bool"]["filter"]
+    ip_clause = next((c for c in must if "term" in c and "destination.ip" in c["term"]), None)
+    assert ip_clause is not None, "dest_ip_filter must be pushed into the ES filter clause"
+    assert ip_clause["term"]["destination.ip"] == "8.8.8.8"
+
+
+def test_build_base_query_src_and_dest_ip_filter() -> None:
+    """src and dest IP filters must both appear in the ES filter clauses simultaneously."""
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip", "destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_ip_filter="1.2.3.4",
+        dest_ip_filter="8.8.8.8",
+    )
+    must = body["query"]["bool"]["filter"]
+    src_clause = next((c for c in must if "term" in c and "source.ip" in c["term"]), None)
+    dest_clause = next((c for c in must if "term" in c and "destination.ip" in c["term"]), None)
+    assert src_clause is not None and src_clause["term"]["source.ip"] == "1.2.3.4"
+    assert dest_clause is not None and dest_clause["term"]["destination.ip"] == "8.8.8.8"
+
+
 def test_build_base_query_public_only_adds_must_not() -> None:
     body, _ = build_base_query(
         must_not=[],
@@ -305,3 +346,238 @@ def test_dedup_collects_sensors() -> None:
 
 def test_dedup_empty_list() -> None:
     assert deduplicate_zeek([], _key) == []
+
+
+# ---------------------------------------------------------------------------
+# §4.3 Port / proto filters in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_dest_port_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_port_filter=443,
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "destination.port" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["destination.port"] == 443
+
+
+def test_build_base_query_src_port_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_port_filter=12345,
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "source.port" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["source.port"] == 12345
+
+
+def test_build_base_query_proto_filter() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        proto_filter="udp",
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "term" in c and "network.transport" in c["term"]), None)
+    assert clause is not None
+    assert clause["term"]["network.transport"] == "udp"
+
+
+def test_build_base_query_dest_port_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.port"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_port_filter=[80, 443, 8080],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "destination.port" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["destination.port"] == [80, 443, 8080]
+
+
+# ---------------------------------------------------------------------------
+# §4.4 Multi-value src_ip / dest_ip in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_src_ip_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["source.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        src_ip_filter=["1.1.1.1", "2.2.2.2"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "source.ip" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["source.ip"] == ["1.1.1.1", "2.2.2.2"]
+
+
+def test_build_base_query_dest_ip_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=["destination.ip"],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        dest_ip_filter=["8.8.8.8", "1.1.1.1"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "destination.ip" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["destination.ip"] == ["8.8.8.8", "1.1.1.1"]
+
+
+def test_build_base_query_proto_list() -> None:
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-1h",
+        sensors=None,
+        datasets=["conn"],
+        proto_filter=["tcp", "udp"],
+    )
+    must = body["query"]["bool"]["filter"]
+    clause = next((c for c in must if "terms" in c and "network.transport" in c["terms"]), None)
+    assert clause is not None
+    assert clause["terms"]["network.transport"] == ["tcp", "udp"]
+
+
+# ---------------------------------------------------------------------------
+# §4.6 Absolute timestamp override in build_base_query
+# ---------------------------------------------------------------------------
+
+
+def test_build_base_query_absolute_timestamps() -> None:
+    time_from = "2026-04-19T00:00:00Z"
+    time_to = "2026-04-20T00:00:00Z"
+    body, _ = build_base_query(
+        must_not=[],
+        extra_must=[],
+        source_fields=[],
+        limit=10,
+        time_range="now-24h",
+        sensors=None,
+        datasets=["conn"],
+        time_from=time_from,
+        time_to=time_to,
+    )
+    must = body["query"]["bool"]["filter"]
+    ts_clause = next((c for c in must if "range" in c and "@timestamp" in c["range"]), None)
+    assert ts_clause is not None
+    assert ts_clause["range"]["@timestamp"]["gte"] == time_from
+    assert ts_clause["range"]["@timestamp"]["lte"] == time_to
+
+
+# ---------------------------------------------------------------------------
+# NoticeModule.build_extra_must — wildcard / exact match
+# ---------------------------------------------------------------------------
+
+_notice = NoticeModule()
+_weird = WeirdModule()
+
+
+def test_notice_exact_match_uses_term() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "Scan::Port_Scan"})
+    assert len(clauses) == 1
+    assert "term" in clauses[0]
+    assert clauses[0]["term"]["zeek.notice.note.keyword"] == "Scan::Port_Scan"
+
+
+def test_notice_trailing_wildcard_uses_wildcard_query() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "Scan::*"})
+    assert len(clauses) == 1
+    assert "wildcard" in clauses[0]
+    assert clauses[0]["wildcard"]["zeek.notice.note.keyword"] == "Scan::*"
+
+
+def test_notice_question_mark_uses_wildcard_query() -> None:
+    clauses, _ = _notice.build_extra_must({"notice_note": "SSH::Brute_Force_?"})
+    assert "wildcard" in clauses[0]
+
+
+def test_notice_no_filter_returns_empty() -> None:
+    clauses, _ = _notice.build_extra_must({})
+    assert clauses == []
+
+
+def test_weird_exact_match_uses_term() -> None:
+    clauses, _ = _weird.build_extra_must({"weird_name": "bad_HTTP_reply"})
+    assert len(clauses) == 1
+    assert "term" in clauses[0]
+    assert clauses[0]["term"]["rule.name.keyword"] == "bad_HTTP_reply"
+
+
+def test_weird_trailing_wildcard_uses_wildcard_query() -> None:
+    clauses, _ = _weird.build_extra_must({"weird_name": "bad_*"})
+    assert len(clauses) == 1
+    assert "wildcard" in clauses[0]
+    assert clauses[0]["wildcard"]["rule.name.keyword"] == "bad_*"
+
+
+def test_weird_no_filter_returns_empty() -> None:
+    clauses, _ = _weird.build_extra_must({})
+    assert clauses == []
+
+
+# ---------------------------------------------------------------------------
+# source_terms_script
+# ---------------------------------------------------------------------------
+
+
+def test_source_terms_script_single_field() -> None:
+    script = source_terms_script("note")
+    assert set(script.keys()) == {"source"}
+    src = script["source"]
+    assert src.startswith("def v = params._source;")
+    assert "v = v['note'];" in src
+    assert "v.toString()" in src
+
+
+def test_source_terms_script_dotted_field_walks_each_segment() -> None:
+    src = source_terms_script("zeek.notice.note")["source"]
+    assert "v = v['zeek'];" in src
+    assert "v = v['notice'];" in src
+    assert "v = v['note'];" in src
+    # One null-guard per segment plus the final return guard.
+    assert src.count("if (v == null) return null;") == 4
+
+
+def test_source_terms_script_handles_list_valued_fields() -> None:
+    src = source_terms_script("rule.name")["source"]
+    assert "v instanceof List" in src
+    assert "v.isEmpty() ? null : v[0]" in src

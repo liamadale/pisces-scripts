@@ -19,7 +19,6 @@ import re
 import sys
 
 import requests
-import urllib3
 from dotenv import load_dotenv
 from rich import box
 from rich.console import Console
@@ -31,7 +30,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from src.utils.dns import setup_dns
 
 console = Console(file=sys.stderr)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def sensor_to_project(sensor_val: str) -> str | None:

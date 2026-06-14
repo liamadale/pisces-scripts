@@ -1,3 +1,9 @@
+{% if error %}
+<tr><td colspan="20" class="query-error-cell">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  OpenSearch unavailable — {{ error }}
+</td></tr>
+{% else %}
 {% for rec in records %}
 {% set idx = loop.index %}
 <tr id="row-{{ idx }}"
@@ -48,3 +54,4 @@
 {% else %}
 <tr><td colspan="20" style="text-align:center; color: var(--text-dim); padding: 16px;">No records.</td></tr>
 {% endfor %}
+{% endif %}

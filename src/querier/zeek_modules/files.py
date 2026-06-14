@@ -32,9 +32,8 @@ class FilesModule(ZeekModule):
         "event.dataset",
     ]
 
-    # source.ip is NOT in SOURCE_FIELDS — IPs come from tx_hosts/rx_hosts arrays.
-    # run_query() guards src_ip_filter against modules without source.ip.
-    SUPPORTS_IP_FILTER = True  # post-filters handle it
+    # Malcolm does not index tx_hosts/rx_hosts, so IP filtering is impossible.
+    SUPPORTS_IP_FILTER = False
 
     WEB_CATEGORY = "files"
     WEB_ICON = "fa-file"

@@ -8,26 +8,48 @@
     <i class="fa-regular fa-clock"></i>
     {{ fmt_time_window(search_params.get('time_range', 'now-24h')) }}
   </span>
-  {% if is_private(ip) %}
   <button class="btn"
           hx-post="/api/profile/{{ ip }}?{{ request.query_string.decode() }}"
-          hx-target="#enrich-panel"
+          hx-target="#profile-slot"
           hx-swap="innerHTML"
           hx-indicator="#profile-spinner">
-    <i class="fa-solid fa-fingerprint"></i> Profile Device
+    <i class="fa-solid fa-fingerprint"></i> {{ 'Profile Device' if is_private(ip) else 'Profile' }}
     <span id="profile-spinner" class="htmx-indicator"><i class="fa-solid fa-spinner fa-spin"></i></span>
   </button>
-  {% else %}
+  {% if not is_private(ip) %}
   <button class="btn"
           hx-post="/api/enrich/{{ ip }}"
-          hx-target="#enrich-panel"
+          hx-target="#enrich-slot"
           hx-swap="innerHTML">
     <i class="fa-solid fa-shield-halved"></i> Enrich
   </button>
   {% endif %}
 </div>
 
-<div id="enrich-panel"></div>
+<div class="role-toggle">
+  <span class="role-toggle-label">IP role:</span>
+  <a class="btn btn-sm{% if ip_role == 'both' %} btn-active{% endif %}" href="{{ both_url }}">
+    <i class="fa-solid fa-arrows-left-right"></i> Both
+  </a>
+  <a class="btn btn-sm{% if ip_role == 'src' %} btn-active{% endif %}" href="{{ src_url }}">
+    <i class="fa-solid fa-arrow-right-from-bracket"></i> As Source
+  </a>
+  <a class="btn btn-sm{% if ip_role == 'dest' %} btn-active{% endif %}" href="{{ dest_url }}">
+    <i class="fa-solid fa-arrow-right-to-bracket"></i> As Destination
+  </a>
+</div>
+
+<div id="enrich-panel">
+  <div id="profile-slot"></div>
+  <div id="enrich-slot"></div>
+</div>
+
+{% if error %}
+<div class="query-error-banner">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <strong>OpenSearch unavailable</strong> — {{ error }}
+</div>
+{% endif %}
 
 {% for lt, records in results.items() %}
 {% set mod = MODULES[lt] %}
@@ -36,7 +58,14 @@
   <div class="pivot-section-header">
     <span class="proto-tag">{{ lt }}</span>
     <span class="count-note">{{ records|length }} record(s)</span>
-    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?src_ip={{ ip }}&{{ request.query_string.decode() }}">
+    {% if ip_role == 'dest' %}
+      {% set ip_qs = 'dest_ip=' ~ ip %}
+    {% elif ip_role == 'both' %}
+      {% set ip_qs = 'src_ip=' ~ ip ~ '&dest_ip=' ~ ip %}
+    {% else %}
+      {% set ip_qs = 'src_ip=' ~ ip %}
+    {% endif %}
+    <a class="btn btn-sm" href="{{ script_name }}/log/{{ lt }}?{{ ip_qs }}&{{ request.query_string.decode() }}">
       <i class="fa-solid fa-arrow-up-right-from-square"></i> Full view
     </a>
   </div>
@@ -55,8 +84,13 @@
           <th class="num">#</th>
           <th class="sortable">Time</th>
           <th class="sortable">Sensor</th>
+          {% if ip_role == 'dest' %}
+          <th class="sortable">Src IP</th>
+          <th class="sortable num">Src Port</th>
+          {% else %}
           <th class="sortable">Dst IP</th>
           <th class="sortable num">Dst Port</th>
+          {% endif %}
           {% for header, _ in web_columns %}
           <th class="sortable">{{ header }}</th>
           {% endfor %}
@@ -67,7 +101,7 @@
         {% for rec in records %}
         {% set idx = loop.index %}
         <tr id="{{ lt }}-row-{{ idx }}"
-            hx-get="/api/detail/{{ lt }}/{{ idx }}?src_ip={{ ip }}&{{ request.query_string.decode() }}"
+            hx-get="/api/detail/{{ lt }}/{{ idx }}?{%- if ip_role == 'dest' -%}dest_ip={{ ip }}{%- else -%}src_ip={{ ip }}{%- endif -%}&{{ request.query_string.decode() }}"
             hx-target="#detail-panel-content"
             hx-swap="innerHTML"
             hx-trigger="click[this.classList.contains('row-selected') && !event.target.closest('a')]"
@@ -80,8 +114,13 @@
             {% set sensors = rec.get('sensors') %}
             {% if sensors %}{{ sensors | join(', ') }}{% else %}{{ rec.get('sensor', '—') }}{% endif %}
           </td>
+          {% if ip_role == 'dest' %}
+          <td title="{{ rec.get('src_ip','') }}">{{ rec.get('src_ip', '—') }}</td>
+          <td class="num">{{ rec.get('src_port', '—') }}</td>
+          {% else %}
           <td title="{{ rec.get('dest_ip','') }}">{{ rec.get('dest_ip', '—') }}</td>
           <td class="num">{{ rec.get('dest_port', '—') }}</td>
+          {% endif %}
           {% for _, fn in web_columns %}
           <td>{{ fn(rec) }}</td>
           {% endfor %}
@@ -92,7 +131,7 @@
     </table>
   </div>
   {% else %}
-  <p class="empty-note">No {{ lt }} records for this IP in the selected window.</p>
+  <p class="empty-note">No {{ lt }} records for this IP as {{ ip_role }}.</p>
   {% endif %}
 </div>
 {% endfor %}

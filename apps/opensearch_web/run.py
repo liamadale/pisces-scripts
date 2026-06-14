@@ -21,7 +21,9 @@ from apps.opensearch_web.app import create_app
 
 app = create_app()
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Entry point for `pisces-opensearch` console script."""
     parser = argparse.ArgumentParser(description="PISCES Web UI")
     parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=5001, help="Port (default: 5001)")
@@ -29,5 +31,8 @@ if __name__ == "__main__":
         "--debug", action="store_true", default=False, help="Enable Flask debug mode"
     )
     args = parser.parse_args()
-
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
+
+
+if __name__ == "__main__":
+    main()

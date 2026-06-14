@@ -30,11 +30,11 @@ jobs:
         continue-on-error: ${{ env.ADVISORY == 'true' }}
 
       - name: Lint (ruff check)
-        run: uv run ruff check src/ apps/ mcp/ tests/ *.py
+        run: uv run ruff check src/ apps/ mcp_servers/ tests/ *.py
         continue-on-error: ${{ env.ADVISORY == 'true' }}
 
       - name: Format check (ruff format) — advisory
-        run: uv run ruff format --check src/ apps/ mcp/ tests/ *.py
+        run: uv run ruff format --check src/ apps/ mcp_servers/ tests/ *.py
         continue-on-error: true
 
       - name: Dependency audit (pip-audit) — advisory
@@ -42,7 +42,7 @@ jobs:
         continue-on-error: true
 
       - name: SAST (bandit) — advisory
-        run: uv run bandit -r src/ apps/ mcp/ -c pyproject.toml
+        run: uv run bandit -r src/ apps/ mcp_servers/ -c pyproject.toml
         continue-on-error: true
 
       - name: Lint HTML (djlint check)

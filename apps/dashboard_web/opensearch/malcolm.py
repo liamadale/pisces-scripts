@@ -6,7 +6,20 @@ Field names match the Zeek module SOURCE_FIELDS exactly.
 
 import concurrent.futures
 
-from src.querier.zeek_modules.base import build_base_query, query_opensearch
+from src.querier.zeek_modules.base import (
+    OpenSearchAuthError,
+    OpenSearchConnectionError,
+    build_base_query,
+    query_opensearch,
+)
+
+
+def _safe_query(body: dict, params: dict) -> dict | None:
+    """query_opensearch wrapper that returns None on connectivity/auth errors."""
+    try:
+        return query_opensearch(body, params)
+    except (OpenSearchConnectionError, OpenSearchAuthError):
+        return None
 
 
 def _terms(field: str, time_range: str, datasets: list, size: int = 20) -> dict:
@@ -27,7 +40,7 @@ def _terms(field: str, time_range: str, datasets: list, size: int = 20) -> dict:
     body.pop("sort", None)
     body.pop("_source", None)
     body["aggs"] = {"r": {"terms": {"field": field, "size": size, "order": {"_count": "desc"}}}}
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("r", {}).get("buckets", []) if raw else []
     return {
         "labels": [b["key"] for b in buckets],
@@ -60,7 +73,7 @@ def _sum_terms(
             "aggs": {"total": {"sum": {"field": sum_field}}},
         }
     }
-    raw = query_opensearch(body, params)
+    raw = _safe_query(body, params)
     buckets = raw.get("aggregations", {}).get("r", {}).get("buckets", []) if raw else []
     buckets = sorted(buckets, key=lambda b: -b.get("total", {}).get("value", 0))
     return {

@@ -14,7 +14,9 @@ from apps.threat_model.data import FP_ROWS, MALICIOUS_ROWS, TICKETS_BY_ID
 
 app = create_app()
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Entry point for `pisces-threat-model` console script."""
     print(
         f"Loaded: {len(TICKETS_BY_ID):,} tickets  |  "
         f"{len(MALICIOUS_ROWS):,} malicious IPs  |  "
@@ -22,3 +24,7 @@ if __name__ == "__main__":
     )
     print("Threat Modeling → http://0.0.0.0:5003/")
     app.run(host="0.0.0.0", port=5003, debug=False, threaded=True)
+
+
+if __name__ == "__main__":
+    main()

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request
 from apps.dashboard_web import cache as dcache
 from apps.dashboard_web.opensearch.aggregations import (
     agg_conn_volume_over_time,
+    agg_logs_by_sensor_over_time,
     agg_notice_over_time,
     agg_opensearch_sensors,
     agg_opensearch_top_ips,
@@ -30,6 +31,7 @@ def section():
             "conn_over_time": agg_conn_volume_over_time(time_range, sensors),
             "sensors": agg_opensearch_sensors(time_range),
             "top_ips": agg_opensearch_top_ips(time_range, sensors),
+            "sensor_trend": agg_logs_by_sensor_over_time(time_range, sensors),
         }
     except Exception as exc:
         data = {"error": str(exc)}

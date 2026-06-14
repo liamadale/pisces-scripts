@@ -20,6 +20,7 @@ class SuricataAlertModule(ZeekModule):
     EXTRA_PARAMS = ["rule_name", "rule_category", "severity", "sid", "exclude_stream", "tag"]
     SUMMARY_FIELD = "rule.name"
     SUMMARY_PARAM = "rule_name"
+    SUMMARY_TYPE = "grouped"
     DATASETS = ["alert"]
     SOURCE_FIELDS = [
         "@timestamp",

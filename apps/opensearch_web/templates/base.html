@@ -147,6 +147,10 @@
           <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
 
+        <button type="button" class="btn search-btn" onclick="launchInvestigate()">
+          <i class="fa-solid fa-magnifying-glass-chart"></i> Investigate
+        </button>
+
         <div class="search-pill share-pill share-wrapper"
              onclick="toggleShareDropdown()" title="Share this view"
              style="cursor:pointer">
@@ -332,6 +336,28 @@
     document.querySelectorAll("tr.row-selected").forEach(function(r) {
       r.classList.remove("row-selected");
     });
+  };
+
+  window.toggleDetailsAll = function(btn) {
+    var card = btn.closest(".device-card");
+    var details = card.querySelectorAll("details");
+    var allOpen = Array.from(details).every(function(d) { return d.open; });
+    details.forEach(function(d) { d.open = !allOpen; });
+    btn.textContent = allOpen ? "Expand all" : "Collapse all";
+  };
+
+  window.launchInvestigate = function() {
+    var form = document.getElementById("global-search");
+    var src = (form.querySelector('input[name="src_ip"]').value || "").trim();
+    var dst = (form.querySelector('input[name="dest_ip"]').value || "").trim();
+    if (!src || !dst) {
+      var missing = !src && !dst ? "Src IP and Dst IP" : !src ? "Src IP" : "Dst IP";
+      alert("Investigate requires both IPs. Please fill in " + missing + " in the search bar.");
+      return;
+    }
+    var qs = new URLSearchParams(new FormData(form)).toString();
+    window.location.href = window.SCRIPT_NAME + "/investigate/" +
+      encodeURIComponent(src) + "/" + encodeURIComponent(dst) + "?" + qs;
   };
 
   window.handleDetailToggle = function(el) {
