@@ -85,6 +85,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines and how to ope
 
 To report a vulnerability, follow the process in [SECURITY.md](SECURITY.md).
 
+Release notes for each version are recorded in [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## Development Transparency — Use of AI Tooling
