@@ -79,6 +79,7 @@ def _base_patches(
 
     return [
         profile_patch,
+        patch(f"{MOD}.profile_public_ip", return_value=MOCK_PROFILE),
         patch(f"{MOD}.query_auth_history", return_value=(krb or [], ntlm or [])),
         patch(f"{MOD}.query_opensearch", return_value={"hits": {"hits": chain_hits or []}}),
         patch(f"{MOD}.search_tickets", return_value=tickets or []),
@@ -194,7 +195,7 @@ def test_timeline_explicit_keys_override_rec() -> None:
 
 def test_investigate_both_private() -> None:
     patches = _base_patches(krb=[KRB_RECORD], ntlm=[NTLM_RECORD])
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.src_profile is not None
@@ -209,7 +210,7 @@ def test_investigate_both_private() -> None:
 def test_investigate_one_public() -> None:
     """Private src → profiled; public dest → profiled (public) + enriched."""
     patches = _base_patches(enrichment=MOCK_ENRICHMENT)
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PUBLIC_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.src_profile is not None
@@ -221,7 +222,7 @@ def test_investigate_one_public() -> None:
 def test_investigate_both_public() -> None:
     """Both public → both profiled (public) + both enrichments populated."""
     patches = _base_patches(enrichment=MOCK_ENRICHMENT)
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PUBLIC_SRC, PUBLIC_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.src_profile is not None  # now a PublicIPProfile
@@ -233,7 +234,7 @@ def test_investigate_both_public() -> None:
 def test_investigate_track_failure_isolated() -> None:
     """Failure in src_profile track stores error; other tracks succeed."""
     patches = _base_patches(profile_side_effect=ValueError("sensor mismatch"))
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     failed = ctx.errors.get("src_profile", "") + ctx.errors.get("dest_profile", "")
@@ -245,7 +246,7 @@ def test_investigate_track_failure_isolated() -> None:
 
 def test_investigate_no_auth_history() -> None:
     patches = _base_patches(krb=[], ntlm=[])
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.kerberos_history == []
@@ -276,7 +277,7 @@ def test_investigate_returns_context_on_full_failure() -> None:
 
 def test_investigate_default_trigger_and_time_range() -> None:
     patches = _base_patches()
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR)
 
     assert ctx.trigger == {"src_ip": PRIVATE_SRC, "dest_ip": PRIVATE_DEST}
@@ -287,7 +288,7 @@ def test_investigate_default_trigger_and_time_range() -> None:
 def test_investigate_custom_trigger() -> None:
     custom_trigger = {"ticket_id": 1234}
     patches = _base_patches()
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(
             PRIVATE_SRC,
             PRIVATE_DEST,
@@ -302,7 +303,7 @@ def test_investigate_custom_trigger() -> None:
 
 def test_investigate_timeline_populated() -> None:
     patches = _base_patches(krb=[KRB_RECORD], ntlm=[NTLM_RECORD])
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     assert len(ctx.timeline) == 2
@@ -429,7 +430,7 @@ def test_investigate_parses_attack_chain_from_fixture() -> None:
     patches = _base_patches(
         chain_hits=[NOTICE_HIT],
     )
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     notice_events = [e for e in ctx.timeline if e["type"] == "notice"]
@@ -441,7 +442,7 @@ def test_investigate_tickets_populated() -> None:
     """Mantis tickets are stored per-IP in src_tickets / dest_tickets."""
     mock_ticket = {"id": 42, "summary": f"Suspicious activity from {PRIVATE_SRC}"}
     patches = _base_patches(tickets=[mock_ticket])
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         ctx = investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     assert ctx.src_tickets == [mock_ticket]
@@ -451,7 +452,7 @@ def test_investigate_tickets_populated() -> None:
 def test_investigate_context_gather_skips_enrichment_for_private() -> None:
     """enrich_ip is never called when both IPs are private."""
     patches = _base_patches()
-    with patches[0], patches[1], patches[2], patches[3], patches[4] as mock_enrich:
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as mock_enrich:
         investigate(PRIVATE_SRC, PRIVATE_DEST, SENSOR, TIME_RANGE)
 
     mock_enrich.assert_not_called()

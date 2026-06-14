@@ -708,9 +708,11 @@ def create_app() -> Flask:
                     "partials/public_device_card.html", profile=profile, compact=compact
                 )
         except (OpenSearchConnectionError, OpenSearchAuthError) as exc:
+            app.logger.warning("device profile failed for %s: %s", ip, exc)
             return (
-                f'<p class="investigate-error">'
-                f'<i class="fa-solid fa-triangle-exclamation"></i> {exc}</p>'
+                '<p class="investigate-error">'
+                '<i class="fa-solid fa-triangle-exclamation"></i> '
+                "Unable to load device profile.</p>"
             )
 
     # ------------------------------------------------------------------

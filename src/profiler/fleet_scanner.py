@@ -139,6 +139,9 @@ def scan_fleet(
     except (OpenSearchConnectionError, OpenSearchAuthError):
         return []
 
+    if not raw:
+        return []
+
     buckets = raw.get("aggregations", {}).get("per_ip", {}).get("buckets", [])
 
     # Post-filter to private IPs and extract top-5 JA4 hashes per IP

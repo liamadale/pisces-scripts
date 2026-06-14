@@ -274,9 +274,9 @@ def create_app() -> Flask:
                 str(k): v for k, v in dp["dest_port_distribution"].items()
             }
         except Exception as exc:
+            app.logger.warning("device profile failed for %s: %s", ip, exc)
             return (
-                f"<p style='color:var(--on-surface-dim);font-size:0.82rem'>"
-                f"Profile unavailable: {exc}</p>"
+                "<p style='color:var(--on-surface-dim);font-size:0.82rem'>Profile unavailable.</p>"
             ), 200
 
         return render_template("partials/device_profile_card.html", device_profile=dp)

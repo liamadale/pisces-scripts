@@ -11,6 +11,7 @@ Standalone usage:
 import argparse
 import datetime
 import os
+import re
 import subprocess
 import sys
 
@@ -70,8 +71,23 @@ def ensure_subcategory(category: str, subcategory: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _safe_name(label: str, value: str) -> str:
+    """Reject path-traversal or shell-special characters in a filter name component."""
+    if not value or not _NAME_RE.match(value):
+        raise ValueError(f"Invalid {label} name: {value!r}")
+    return value
+
+
 def filter_file_path(category: str, subcategory: str) -> str:
-    return os.path.join(FILTERS_DIR, category, f"{subcategory}.yaml")
+    cat = _safe_name("category", category)
+    sub = _safe_name("subcategory", subcategory)
+    path = os.path.realpath(os.path.join(FILTERS_DIR, cat, f"{sub}.yaml"))
+    if os.path.commonpath([path, os.path.realpath(FILTERS_DIR)]) != os.path.realpath(FILTERS_DIR):
+        raise ValueError(f"Path escapes filters dir: {path}")
+    return path
 
 
 def load_filter_file(path: str) -> dict:
